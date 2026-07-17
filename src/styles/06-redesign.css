@@ -1,0 +1,290 @@
+/* =====================================================================
+   06-redesign.css — modern, calm, elegant refresh (light + dark).
+   Loaded LAST, so it refines the base + glass skin without touching HTML/JS.
+   Every rule ships a light AND a dark variant. Remove this one <link> to
+   revert to the previous look.
+   ===================================================================== */
+
+/* ---- design tokens: one restrained accent, softer lines & shadows ---- */
+:root{
+  --accent:#4F46E5; --accent-2:#4338CA; --accent-soft:#EEF0FF;
+  --line:#E9EDF3; --line2:#DDE3EC; --muted:#8A93A5; --grey:#586074;
+  --shadow-sm:0 1px 2px rgba(16,24,40,.05);
+  --shadow-md:0 10px 28px rgba(16,24,40,.08);
+}
+html.dark{
+  --accent:#6366F1; --accent-2:#818CF8; --accent-soft:rgba(99,102,241,.16);
+  --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.14); --muted:#8A97B0; --grey:#aeb9ce;
+}
+
+/* ---- page background: calm, no glow ---- */
+html:not(.dark) body{ background:#F6F8FB !important; }
+html.dark body{ background:#0A0F1C !important; }
+
+/* ---- content rhythm: more breathing room ---- */
+.content{ padding:34px 40px 72px !important; }
+.panel{ border-radius:18px !important; padding:26px !important; margin-bottom:22px !important; }
+.an-row{ gap:22px !important; }
+.kpi-row{ gap:18px !important; }
+
+/* ---- sidebar: calm deep slate (not violet), one accent for the active item ---- */
+.sidebar{ border-right:1px solid rgba(255,255,255,.06) !important; }
+html:not(.dark) .sidebar{ background:#0F1729 !important; }
+html.dark .sidebar{ background:#0B1220 !important; }
+.sidebar .side-brand .logo{ background:var(--accent) !important; border:0 !important; box-shadow:0 4px 14px rgba(79,70,229,.4) !important; color:#fff !important; }
+.sidebar .nav a{ color:#AEB8CC !important; font-weight:500 !important; }
+.sidebar .nav a .ic{ color:#7E8AA6 !important; }
+.sidebar .nav .lbl{ color:#5D6A86 !important; }
+.sidebar .nav a:hover{ background:rgba(255,255,255,.06) !important; color:#fff !important; }
+.sidebar .nav a:hover .ic{ color:#C7D2FE !important; }
+.nav a.active{ background:rgba(99,102,241,.18) !important; color:#fff !important; }
+.nav a.active::before{ background:var(--accent) !important; }
+.nav a.active .ic{ color:#C7D2FE !important; }
+.sidebar .side-brand, .sidebar .side-foot{ border-color:rgba(255,255,255,.07) !important; }
+
+/* ---- topbar: solid, hairline divider (drop the gold) ---- */
+html:not(.dark) .topbar{ background:#fff !important; border-bottom:1px solid var(--line) !important; }
+html.dark .topbar{ background:#0b1324 !important; border-bottom:1px solid rgba(255,255,255,.07) !important; }
+.topbar h2{ letter-spacing:-.3px !important; }
+
+/* ---- surfaces: solid, hairline border, soft shadow, bigger radius ---- */
+html:not(.dark) .panel, html:not(.dark) .stat, html:not(.dark) .kpi,
+html:not(.dark) .ptile, html:not(.dark) .table-wrap, html:not(.dark) .bk-card, html:not(.dark) .vault-card{
+  background:#fff !important; border:1px solid var(--line) !important;
+  box-shadow:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.03) !important;
+  border-radius:16px !important;
+}
+html.dark .panel, html.dark .stat, html.dark .kpi,
+html.dark .ptile, html.dark .table-wrap, html.dark .bk-card, html.dark .vault-card{
+  background:#131d33 !important; border:1px solid rgba(255,255,255,.07) !important;
+  box-shadow:0 1px 3px rgba(0,0,0,.28) !important; border-radius:16px !important;
+}
+
+/* ---- KPI tiles: from heavy dark navy -> calm cards, one accent ---- */
+.kpi[class*="tone-"]{ box-shadow:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.03) !important; }
+html:not(.dark) .kpi.tone-blue, html:not(.dark) .kpi.tone-green, html:not(.dark) .kpi.tone-red,
+html:not(.dark) .kpi[class*="tone-"]{ background:#fff !important; color:var(--text) !important; border:1px solid var(--line) !important; }
+html.dark .kpi.tone-blue, html.dark .kpi.tone-green, html.dark .kpi.tone-red,
+html.dark .kpi[class*="tone-"]{ background:#131d33 !important; color:#e6ecf7 !important; border:1px solid rgba(255,255,255,.07) !important; box-shadow:0 1px 3px rgba(0,0,0,.28) !important; }
+/* thin solid accent cap instead of the rainbow gradient */
+.kpi::before, .kpi[class*="tone-"]::before{ display:block !important; height:3px !important; background:var(--accent) !important; opacity:.9 !important; }
+/* KPI text back to readable ink in each mode */
+html:not(.dark) .kpi[class*="tone-"] .k-lbl{ color:var(--muted) !important; }
+html:not(.dark) .kpi[class*="tone-"] .k-val{ color:var(--text) !important; }
+html:not(.dark) .kpi[class*="tone-"] .k-sub{ color:var(--muted) !important; }
+html.dark .kpi[class*="tone-"] .k-lbl{ color:#8A97B0 !important; }
+html.dark .kpi[class*="tone-"] .k-val{ color:#f1f5fb !important; }
+html.dark .kpi[class*="tone-"] .k-sub{ color:#8A97B0 !important; }
+.kpi[class*="tone-"] .k-delta.up{ color:var(--ok) !important; }
+.kpi[class*="tone-"] .k-delta.down{ color:var(--bad) !important; }
+/* sparkline + gauge follow ink/accent, not white-on-navy */
+html:not(.dark) .kpi[class*="tone-"] .k-spark svg polyline{ stroke:var(--accent) !important; }
+html.dark .kpi[class*="tone-"] .k-spark svg polyline{ stroke:var(--accent) !important; }
+.kpi[class*="tone-"] .k-spark svg polygon{ fill:var(--accent) !important; opacity:.10 !important; }
+html:not(.dark) .kpi[class*="tone-"] .gauge{ background:#EEF1F6 !important; }
+html.dark .kpi[class*="tone-"] .gauge{ background:rgba(255,255,255,.10) !important; }
+
+/* ---- chips: uniform soft accent tint (calmer than 5 bright gradients) ---- */
+html:not(.dark) .chip, html:not(.dark) .kpi .chip, html:not(.dark) .kpi[class*="tone-"] .chip{
+  background:var(--accent-soft) !important; color:var(--accent) !important; box-shadow:none !important; }
+html.dark .chip, html.dark .kpi .chip, html.dark .kpi[class*="tone-"] .chip{
+  background:rgba(99,102,241,.18) !important; color:#a5b4fc !important; box-shadow:none !important; }
+.chip svg, .kpi[class*="tone-"] .chip svg{ color:inherit !important; stroke:currentColor !important; }
+
+/* ---- buttons: solid accent primary; quiet ghost ---- */
+.btn-primary{ background:var(--accent) !important; color:#fff !important; box-shadow:0 1px 2px rgba(79,70,229,.28) !important; }
+.btn-primary:hover{ background:var(--accent-2) !important; }
+html:not(.dark) .btn-gold{ background:var(--accent-soft) !important; color:var(--accent) !important; border:1px solid #D8DBF7 !important; }
+html.dark .btn-gold{ background:rgba(99,102,241,.16) !important; color:#a5b4fc !important; border:1px solid rgba(99,102,241,.3) !important; }
+html:not(.dark) .btn-ghost{ background:#F1F4F9 !important; color:#4A5568 !important; }
+html.dark .btn-ghost{ background:rgba(255,255,255,.07) !important; color:#c7d0e0 !important; }
+
+/* ---- charts follow the single accent ---- */
+.bars .bar{ background:var(--accent) !important; border-radius:6px 6px 0 0 !important; }
+
+/* ---- tables: quiet header, soft rows ---- */
+html:not(.dark) table.data th{ background:#F7F9FC !important; color:#586074 !important; font-weight:600 !important; border-color:var(--line) !important; }
+html.dark table.data th{ background:#16223b !important; color:#9fb0cc !important; }
+
+/* ---- inputs: calm focus ring in the accent ---- */
+.search input:focus, input:focus, select:focus, textarea:focus{ outline:none !important; border-color:var(--accent) !important; box-shadow:0 0 0 3px rgba(99,102,241,.15) !important; }
+
+/* ---- modal: bigger radius, softer ---- */
+.modal{ border-radius:18px !important; }
+
+/* ---- DOCUMENTS: always render as light "paper" (dark ink on white) in BOTH
+   light and dark mode, so a certificate / agreement / notice / loan document is
+   never dark-on-dark. The base rule already covered .page/.adoc/.cover-page/
+   .pform/.rep-page; this adds the Loan Documents (.hpdoc) it missed and pins the
+   colour tokens so any child using var(--navy/--grey/--accent) stays readable. */
+.hpdoc, .page, .adoc, .cover-page, .pform, .rep-page{ background:#fff !important; color:#1a1a1a !important; }
+html.dark .hpdoc{
+  background:#fff !important; color:#141414 !important;
+  --navy2:#1E293B; --grey:#475569; --accent:#2563EB; --navy:#0F172A; --text:#141414; --muted:#5b6472; --line:#e2e8f0;
+}
+
+/* ===================================================================
+   LOGIN / LOCK SCREEN — matched to the calm slate + indigo app theme
+   (replaces the old violet + gold treatment; works in both auth themes)
+   =================================================================== */
+.lockscreen{
+  background:
+    radial-gradient(720px 500px at 12% -8%, rgba(79,70,229,.30), transparent 60%),
+    radial-gradient(620px 460px at 100% 104%, rgba(99,102,241,.15), transparent 60%),
+    linear-gradient(160deg,#0B1220 0%,#0F1729 58%,#131C33 120%) !important;
+}
+.auth-brand{
+  background:
+    radial-gradient(560px 380px at 16% -12%, rgba(99,102,241,.45), transparent 55%),
+    radial-gradient(520px 420px at 112% 18%, rgba(79,70,229,.36), transparent 52%),
+    radial-gradient(460px 380px at 50% 124%, rgba(67,56,202,.32), transparent 55%),
+    linear-gradient(160deg,#131C33 0%,#0F1729 58%,#0B1220 120%) !important;
+  border-right:1px solid rgba(255,255,255,.10) !important;
+}
+.auth-brand::after{ background:radial-gradient(circle, rgba(99,102,241,.30), transparent 62%) !important; }
+.auth-mark{ background:linear-gradient(150deg,#6366F1,#4338CA) !important;
+  box-shadow:0 8px 20px rgba(67,56,202,.42), inset 0 1px 0 rgba(255,255,255,.16) !important; }
+.auth-mark>span{ border-color:rgba(255,255,255,.55) !important; }
+.auth-divider{ background:var(--accent) !important; }
+.auth-badge{ background:rgba(99,102,241,.16) !important; border-color:rgba(99,102,241,.45) !important; color:#c7d2fe !important; }
+.auth-badge:before{ background:#a5b4fc !important; }
+.auth-graph polyline{ stroke:#8b93f4 !important; }
+.auth-field:focus-within, .lockscreen.dark .auth-field:focus-within{ border-color:var(--accent) !important; box-shadow:0 0 0 4px rgba(99,102,241,.16) !important; }
+.auth-eye, .auth-forgot{ color:var(--accent) !important; }
+.auth-remember input{ accent-color:var(--accent) !important; }
+.auth-btn{ background:linear-gradient(135deg,#4F46E5,#4338CA) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 10px 24px rgba(79,70,229,.42) !important; }
+.auth-btn:hover{ background:linear-gradient(135deg,#4338CA,#3730A3) !important; }
+
+/* ===================================================================
+   LOAN FORM — tabbed layout (Borrower / Loan Terms / Property /
+   Co-applicant / Repayments). Pure presentation; all fields & maths
+   unchanged. Works in light and dark.
+   =================================================================== */
+.loan-tabs{ display:flex; gap:2px; flex-wrap:wrap; position:sticky; top:0; z-index:6;
+  margin:-4px -4px 18px; padding:4px 4px 0; border-bottom:1px solid var(--line); }
+html:not(.dark) .loan-tabs{ background:#fff; }
+html.dark .loan-tabs{ background:#141f34; }
+.loan-tab{ position:relative; border:0; background:transparent; cursor:pointer; font-family:inherit;
+  font-size:13.5px; font-weight:600; color:var(--muted); padding:11px 15px; border-radius:9px 9px 0 0;
+  display:inline-flex; align-items:center; gap:7px; transition:.15s; letter-spacing:-.1px; }
+html:not(.dark) .loan-tab:hover{ color:var(--text); background:var(--accent-soft); }
+html.dark .loan-tab:hover{ color:#fff; background:rgba(99,102,241,.14); }
+.loan-tab.active{ color:var(--accent); }
+.loan-tab.active::after{ content:""; position:absolute; left:8px; right:8px; bottom:-1px; height:2.5px; border-radius:2px; background:var(--accent); }
+.lt-dot{ width:7px; height:7px; border-radius:50%; background:var(--bad); display:none; flex:0 0 auto; }
+.lt-dot.show{ display:inline-block; }
+.loan-panel{ display:none; }
+.loan-panel.active{ display:block; animation:fade .2s ease; }
+
+.loan-summary{ display:flex; gap:30px; flex-wrap:wrap; padding:13px 24px; }
+html:not(.dark) .loan-summary{ border-top:1px solid var(--line); background:#fafbfd; }
+html.dark .loan-summary{ border-top:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.02); }
+.loan-summary > div{ display:flex; flex-direction:column; gap:1px; }
+.loan-summary span{ font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); font-weight:600; }
+.loan-summary b{ font-size:17px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; }
+.loan-summary b#sum_out{ color:var(--accent); }
+
+/* ---- dark-mode fixes for modal footer + info notes (were hardcoded light) ---- */
+html.dark .modal-foot{ background:#111a2e !important; border-top-color:rgba(255,255,255,.08) !important; }
+html.dark .calc-note{ background:rgba(255,255,255,.05) !important; color:#9fb0cc !important; }
+html.dark .pay-summary{ background:rgba(255,255,255,.03) !important; border-color:rgba(255,255,255,.08) !important; }
+html.dark .grp-title{ color:#a5b4fc !important; }
+
+/* ---- Restructure/Prepay + any bare modal inputs: dark-mode compatibility ---- */
+html.dark .modal input:not([type=checkbox]):not([type=radio]):not([type=range]),
+html.dark .modal select, html.dark .modal textarea{
+  background:rgba(255,255,255,.05) !important; color:#e6ecf7 !important; border:1px solid rgba(255,255,255,.12) !important;
+}
+html.dark .modal input::placeholder, html.dark .modal textarea::placeholder{ color:#7c88a0 !important; }
+html.dark #rsAfter{ background:rgba(16,185,129,.10) !important; border-color:rgba(16,185,129,.28) !important; color:#d3ddec !important; }
+html.dark #rsCurrent{ background:rgba(255,255,255,.04) !important; border-color:rgba(255,255,255,.10) !important; }
+html.dark .rs-opt{ border-color:rgba(255,255,255,.14) !important; }
+
+/* ---- Restructure/Prepay action inside the Repayments tab ---- */
+.rs-inform{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:13px 15px; margin-bottom:16px; border-radius:12px; border:1px solid; }
+html:not(.dark) .rs-inform{ background:#f0faf4; border-color:#cdeadb; }
+html.dark .rs-inform{ background:rgba(16,185,129,.10); border-color:rgba(16,185,129,.28); }
+.rs-inform-t{ display:flex; flex-direction:column; gap:2px; flex:1; min-width:180px; }
+.rs-inform-t b{ font-size:13.5px; }
+.rs-inform-t span{ font-size:12px; color:var(--muted); }
+
+/* ---- Softer status pills (list cards + loan tables) ---- */
+.badge{ padding:3px 10px 3px 9px !important; border-radius:999px !important; font-size:11px !important; font-weight:600 !important; gap:6px !important; }
+.badge::before{ box-shadow:none !important; width:6px !important; height:6px !important; }
+html:not(.dark) .badge.overdue{ background:#FDECEC !important; color:#C0392B !important; }
+html:not(.dark) .badge.active{ background:var(--accent-soft) !important; color:var(--accent) !important; }
+html:not(.dark) .badge.closed{ background:#E7F6EE !important; color:#0E9F6E !important; }
+html.dark .badge.overdue{ background:rgba(220,38,38,.16) !important; color:#f2a6a6 !important; }
+html.dark .badge.active{ background:rgba(99,102,241,.18) !important; color:#a5b4fc !important; }
+html.dark .badge.closed{ background:rgba(16,185,129,.16) !important; color:#7fd8ab !important; }
+
+/* ---- Customers toolbar: borrower count text ---- */
+.cl-count{ font-size:13px; color:var(--muted); font-weight:500; }
+
+/* ---- Report tabs: unify active pill with indigo accent (both modes) ---- */
+.seg2{ flex-wrap:wrap; row-gap:6px; }
+.seg2 button{ transition:background .12s ease, color .12s ease; }
+.seg2 button.active{ background:var(--accent) !important; color:#fff !important; box-shadow:0 1px 2px rgba(79,70,229,.28) !important; }
+html:not(.dark) .seg2 button:hover:not(.active){ background:var(--accent-soft); color:var(--accent); }
+html.dark .seg2 button:hover:not(.active){ background:rgba(99,102,241,.14); color:#c7d2fe; }
+
+/* ---- In-form toggles (Certificate/Receipt, English/Hindi, doc sub-tabs) ---- */
+.cert-form .seg button, .hp-form .seg button, .prop-form .seg button{ transition:background .12s ease, color .12s ease; }
+.cert-form .seg button.active, .hp-form .seg button.active, .prop-form .seg button.active{ background:var(--accent) !important; color:#fff !important; box-shadow:0 1px 2px rgba(79,70,229,.25) !important; }
+html:not(.dark) .cert-form .seg button:hover:not(.active), html:not(.dark) .hp-form .seg button:hover:not(.active), html:not(.dark) .prop-form .seg button:hover:not(.active){ background:var(--accent-soft); color:var(--accent); }
+html.dark .cert-form .seg button:hover:not(.active), html.dark .hp-form .seg button:hover:not(.active), html.dark .prop-form .seg button:hover:not(.active){ background:rgba(99,102,241,.14); color:#c7d2fe; }
+
+/* ---- Prepare-notice action button: soft amber warning pill (both modes) ---- */
+.btn-notice{ border-radius:8px !important; font-weight:600 !important; border:1px solid transparent !important; }
+html:not(.dark) .btn-notice{ background:#FFF3E0 !important; color:#B45309 !important; border-color:#F7DCB0 !important; }
+html:not(.dark) .btn-notice:hover{ background:#FDE9CC !important; }
+html.dark .btn-notice{ background:rgba(217,119,6,.18) !important; color:#f0c07d !important; }
+html.dark .btn-notice:hover{ background:rgba(217,119,6,.28) !important; }
+
+/* ---- Data tables: subtle zebra striping + clearer accent hover (both modes) ---- */
+html:not(.dark) table.data tbody tr:nth-child(even) td{ background:#F7F8FC; }
+html:not(.dark) .table-wrap table.data tbody tr:nth-child(even) td:last-child{ background:#F7F8FC; }
+html:not(.dark) table.data tbody tr:hover td{ background:#EEF0FF !important; }
+html.dark table.data tbody tr:nth-child(even) td{ background:#15203a; }
+html.dark .table-wrap table.data tbody tr:nth-child(even) td:last-child{ background:#15203a; }
+html.dark table.data tbody tr:hover td{ background:#1e2c49 !important; }
+
+/* ---- Small stat cards: faint accent hairline at the top ---- */
+.stat{ position:relative; }
+.stat::after{ content:""; position:absolute; left:0; right:0; top:0; height:2px; border-radius:13px 13px 0 0; background:linear-gradient(90deg, var(--accent), rgba(79,70,229,0) 62%); opacity:.55; pointer-events:none; }
+html.dark .stat::after{ background:linear-gradient(90deg, var(--accent-2), rgba(99,102,241,0) 62%); opacity:.6; }
+
+/* ---- On-screen A4 preview fit (see 21-doc-fit.js): NEVER scale the print/PDF ---- */
+@media print{
+  .page, .adoc, .cover-page, .pform, .rep-page{ zoom:1 !important; }
+}
+
+/* ---- Documents: hide the always-on side preview; the form gets the room, and
+   a "Preview" button opens the document full-size in an overlay (see 23-doc-preview.js).
+   SCREEN ONLY — the live document stays in the DOM so printing/PDF are unchanged. ---- */
+@media screen{
+  #sec-cert .preview-col, #sec-hpfile .preview-col, #sec-proposal .preview-col{ display:none !important; }
+  #sec-cert .cert-layout, #sec-hpfile .hp-layout, #sec-proposal .prop-layout{ display:block !important; }
+  #sec-cert .cert-form, #sec-hpfile .hp-form, #sec-proposal .prop-form{
+    position:static !important; width:100% !important; max-width:860px !important; margin:0 auto !important;
+    flex:none !important; max-height:none !important; overflow:visible !important;
+  }
+}
+/* Full-size document preview overlay */
+#docPreviewBody{ background:var(--field); display:flex; justify-content:center; align-items:flex-start; }
+#docPreviewBody .page, #docPreviewBody .adoc, #docPreviewBody .cover-page, #docPreviewBody .pform{ margin:0 auto !important; box-shadow:0 8px 30px rgba(0,0,0,.18) !important; }
+
+/* ---- Administration: tabbed groups instead of one long scroll ---- */
+.adm-tab{ display:none; }
+.adm-tab.active{ display:block; }
+.adm-seg{ flex-wrap:wrap; }
+
+/* ---- Elegant, compact empty states (Reminders, Messages, lists) ---- */
+.empty{ text-align:center !important; padding:34px 20px !important; color:var(--muted) !important; }
+.empty .big{ display:inline-flex !important; align-items:center; justify-content:center; width:48px !important; height:48px; border-radius:50%; font-size:22px !important; line-height:1; margin:0 auto 14px !important; background:var(--accent-soft); color:var(--accent); opacity:1 !important; }
+.empty .empty-t{ font-size:14.5px; font-weight:650; color:var(--text); margin-bottom:4px; letter-spacing:-.2px; }
+.empty .empty-s{ font-size:12.5px; color:var(--muted); max-width:420px; margin:0 auto; line-height:1.5; }
+html.dark .empty .big{ background:rgba(99,102,241,.16); color:#a5b4fc; }
+/* history / inline empties: quiet single line, centered */
+.pay-empty{ text-align:center; color:var(--muted); padding:22px 8px !important; font-size:12.5px; }

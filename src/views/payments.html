@@ -1,0 +1,57 @@
+      <section class="section" id="sec-pay">
+        <div class="panel">
+          <h3>Record a Payment</h3>
+          <p class="ph-sub">Enter a cash or cheque payment against a borrower. It updates that loan&rsquo;s outstanding balance automatically &mdash; you don&rsquo;t need to open the loan record. Pending cheques are saved but do not reduce the balance until you mark them cleared.</p>
+          <div class="form-grid" style="grid-template-columns:1.6fr 0.9fr 0.9fr; max-width:840px;">
+            <div class="fg"><label>Borrower / Loan A/C</label><select id="payb_loan"><option value="">&mdash; Select a borrower &mdash;</option></select></div>
+            <div class="fg"><label>Date</label><input id="payb_date" type="date"></div>
+            <div class="fg"><label>Mode</label><select id="payb_mode" onchange="payTabModeUI()"><option value="Cash">Cash</option><option value="Cheque">Cheque</option><option value="Online">Online</option></select></div>
+          </div>
+          <div class="form-grid" id="payb_cheqRow" style="grid-template-columns:1fr 1fr 1fr; max-width:840px; display:none; margin-top:10px;">
+            <div class="fg"><label>Cheque No.</label><input id="payb_cheqno"></div>
+            <div class="fg"><label>Bank</label><input id="payb_bank"></div>
+            <div class="fg"><label>Cheque status</label><select id="payb_status"><option value="Cleared">Cleared</option><option value="Pending">Pending</option></select></div>
+          </div>
+          <div class="form-grid" id="payb_onlineRow" style="grid-template-columns:1fr; max-width:840px; display:none; margin-top:10px;">
+            <div class="fg"><label>Reference / UTR No.</label><input id="payb_ref"></div>
+          </div>
+          <div class="form-grid" style="grid-template-columns:1fr; max-width:280px; margin-top:10px;">
+            <div class="fg"><label>Amount &#8377;</label><input id="payb_amt" type="number" min="0" placeholder="0"></div>
+          </div>
+          <button class="btn btn-primary" style="margin-top:14px;" onclick="recordPayTab()">&#65291; Record payment</button>
+        </div>
+
+        <div class="panel">
+          <h3>Record a Charge <span style="font-weight:400;font-size:13px;color:var(--muted);">— late fee / cheque bounce</span></h3>
+          <p class="ph-sub">Record a late fee or cheque-bounce charge against a borrower. This is logged on the loan and in the audit trail for your records. It does <b>not</b> change the borrower's outstanding balance.</p>
+          <div class="form-grid" style="grid-template-columns:1.4fr 0.9fr 0.8fr 0.9fr; max-width:900px;">
+            <div class="fg"><label>Borrower / Loan A/C</label><select id="chg_loan"><option value="">— Select a borrower —</option></select></div>
+            <div class="fg"><label>Charge type</label><select id="chg_type" onchange="chgTypeChange()"><option>Late fee</option><option>Cheque bounce</option><option>Other</option></select></div>
+            <div class="fg"><label>Amount (₹)</label><input id="chg_amt" type="number" min="0" placeholder="0"></div>
+            <div class="fg"><label>Date</label><input id="chg_date" type="date"></div>
+            <div class="fg" id="chg_chequeWrap" style="display:none;"><label>Cheque no.</label><input id="chg_cheque" placeholder="Bounced cheque no."></div>
+            <div class="fg full"><label>Note (optional)</label><input id="chg_note" placeholder="Reason / reference"></div>
+          </div>
+          <button class="btn btn-primary" id="chgRecordBtn" style="margin-top:14px;" onclick="recordCharge()">＋ Record charge</button>
+          <div id="chgList" style="margin-top:18px;"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Payments Register</h3>
+          <p class="ph-sub">Every cash &amp; cheque entry across all borrowers.</p>
+          <div class="pay-tiles" id="payTiles"></div>
+          <div class="toolbar" style="margin:14px 0;">
+            <div class="search"><span class="si">&#9013;</span><input id="payRegSearch" placeholder="Search by borrower or cheque no&hellip;" oninput="renderPayReg()"></div>
+            <select class="filter" id="payRegFilter" onchange="renderPayReg()">
+              <option value="all">All payments</option>
+              <option value="Cash">Cash only</option>
+              <option value="Cheque">Cheque only</option>
+              <option value="Pending">Pending cheques</option>
+              <option value="Cleared">Cleared only</option>
+            </select>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data"><thead><tr><th>Date</th><th>Borrower</th><th>A/C No.</th><th>Mode</th><th>Cheque / Bank</th><th class="right">Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody id="payRegBody"></tbody></table>
+          </div>
+        </div>
+      </section>

@@ -1,0 +1,13 @@
+      <section class="section" id="sec-cust">
+        <div class="toolbar" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div class="cl-count" id="custCount">Use the search box above to find a borrower.</div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button id="recycleBtn" class="btn" onclick="openRecycleBin()" title="View and restore deleted loans">&#128465; Recycle Bin</button>
+            <button class="btn btn-primary" onclick="openLoan()">＋ New Loan</button>
+          </div>
+        </div>
+        <div class="cl-split">
+          <div class="cl-list" id="custBody"></div>
+          <div class="cl-detail" id="custDetail"><div class="cl-empty"><div class="big">&#128100;</div>Select a borrower on the left to see their loans, payments and documents.</div></div>
+        </div>
+      </section>

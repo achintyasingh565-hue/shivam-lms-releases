@@ -1,0 +1,90 @@
+      <section class="section" id="sec-proposal">
+        <div class="prop-layout">
+          <div class="prop-form no-print">
+            <div class="loadbox">
+              <label>⤵ Auto-fill from a loan record</label>
+              <select id="loadProp" onchange="loadFile(this.value)"><option value="">— Select a borrower —</option></select>
+            </div>
+            <div class="seg" id="propseg">
+              <button data-hp="cover">File Cover</button>
+              <button data-hp="proposal" class="active">Proposal Form</button>
+              <button data-hp="agreement">Loan Agreement</button>
+              <button data-hp="delivery">Security &amp; Note</button>
+            </div>
+            <div class="grp2">Office Use</div>
+            <div class="fg2" style="display:flex;gap:8px;"><div style="flex:1"><label>Case No.</label><input id="p_case"></div><div style="flex:1"><label>Month</label><input id="p_month"></div></div>
+            <div class="fg2" style="display:flex;gap:8px;"><div style="flex:1"><label>Loan Purpose</label><input id="p_product"></div><div style="flex:1"><label>Ref.</label><input id="p_ref"></div></div>
+            <div class="fg2"><label>Referred By / Source</label><input id="p_dealer"></div>
+            <div class="fg2" style="display:flex;gap:8px;"><div style="flex:1"><label>Down Payment ₹</label><input id="p_downpay" type="number"></div><div style="flex:1"><label>Financed Amount ₹</label><input id="p_financed" type="number"></div></div>
+            <div class="fg2"><label>Interest @ (%)</label><input id="p_interest"></div>
+            <div class="fg2"><label>Date</label><input id="p_date" type="date"></div>
+
+            <div class="grp2">Applicant</div>
+            <div class="fg2" style="display:flex;gap:8px;"><div style="flex:2"><label>Name of Applicant</label><input id="p_name"></div><div style="flex:1"><label>Age</label><input id="p_age" type="number"></div></div>
+            <div class="fg2"><label>Father's / Husband's Name</label><input id="p_father"></div>
+            <div class="fg2"><label>Permanent House Address</label><textarea id="p_addr"></textarea></div>
+            <div class="fg2" style="display:flex;gap:8px;"><div style="flex:1"><label>Telephone</label><input id="p_tel"></div><div style="flex:1"><label>Residence</label><select id="p_res"><option value="">—</option><option>Own</option><option>Rental</option><option>Parent's / Spouse</option><option>Employee Leased</option></select></div></div>
+            <div class="fg2" style="display:flex;gap:8px;"><div style="flex:1"><label>Occupation</label><input id="p_occ"></div><div style="flex:1"><label>Designation</label><input id="p_desig"></div></div>
+            <div class="fg2"><label>Office Address / Business</label><input id="p_office"></div>
+            <div class="fg2"><label>Aadhaar / Passport / Driving Licence No.</label><input id="p_id"></div>
+            <div class="fg2"><label>PAN Card No.</label><input id="p_pan"></div>
+            <div class="fg2"><label>Guarantor Name</label><input id="p_guarantor"></div>
+
+
+            <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
+              <button class="btn btn-ghost" onclick="openDocPreview()">👁 Preview</button>
+              <button class="btn btn-primary" style="flex:1;" onclick="printProposal()">🖨 Print</button>
+              <button class="btn btn-ghost" onclick="resetProp()">Reset</button>
+            </div>
+            <button class="btn btn-gold" style="width:100%;margin-top:10px;" onclick="proposalToLoan()">＋ Create Loan Record from this Proposal</button>
+          </div>
+
+          <div class="preview-col">
+            <div class="no-print" style="align-self:center;font-size:12.5px;color:#6f86ad;">Live preview · prints at A4</div>
+            <!-- PROPOSAL A4 -->
+            <div class="pform" id="propPage">
+              <div class="pf-om">|| ॐ नमः शिवाय ||</div>
+              <div class="pf-name">SHIVAM ENTERPRISES</div>
+              <div class="pf-addr">D-1191, INDIRA NAGAR, LUCKNOW</div>
+              <div style="text-align:center;font-size:11px;color:#333;margin-top:2px;">GSTIN: 09JXBPK7550J1ZY &nbsp;|&nbsp; Udyam Reg. No.: UDYAM-UP-50-0268771</div>
+              <div class="pf-title">PROPOSAL FORM</div>
+
+              <div class="photo-box" id="pf_photo">Affix<br>Photo</div>
+              <div class="pf-line"><span class="lab">Case No</span><span class="pf-fill" id="pv_case"></span></div>
+              <div class="pf-line"><span class="lab">Month</span><span class="pf-fill" id="pv_month"></span></div>
+              <div class="pf-line"><span class="lab">Loan Purpose</span><span class="pf-fill" id="pv_product"></span></div>
+              <div class="pf-line"><span class="lab">Ref</span><span class="pf-fill" id="pv_ref"></span></div>
+
+              <div class="pf-sec" style="clear:both;">FOR OFFICE USE ONLY</div>
+              <div class="pf-line"><span class="lab">Referred By / Source</span><span class="pf-fill" id="pv_dealer"></span></div>
+              <div class="pf-line"><span class="lab">Loan Purpose</span><span class="pf-fill" id="pv_product2"></span></div>
+              <div class="pf-line"><span class="lab">Down Payment</span><span class="pf-fill" id="pv_downpay"></span></div>
+              <div class="pf-line"><span class="lab">Financed Amount</span><span class="pf-fill" id="pv_financed"></span></div>
+              <div class="pf-line"><span class="lab">Interest@</span><span class="pf-fill" id="pv_interest"></span></div>
+              <div class="pf-line" style="margin-top:12px;justify-content:flex-end;"><span class="lab">Date</span><span class="pf-fill" style="flex:0 0 200px;" id="pv_date"></span></div>
+
+              <div class="pf-line" style="margin-top:14px;"><span class="lab">1. (a) Name of the Applicant</span><span class="pf-fill" id="pv_name"></span><span class="lab">(Age)</span><span class="pf-fill" style="flex:0 0 60px;" id="pv_age"></span></div>
+              <div class="pf-line"><span class="lab">(b) Father's / Husband's Name</span><span class="pf-fill" id="pv_father"></span></div>
+              <div class="pf-line"><span class="lab">(c) Permanent House Address in Full</span><span class="pf-fill" id="pv_addr"></span></div>
+              <div class="pf-line"><span class="lab" style="margin-left:auto;">Telephone</span><span class="pf-fill" style="flex:0 0 220px;" id="pv_tel"></span></div>
+              <div class="pf-line" style="gap:0;"><span class="lab">(d) Residence</span>
+                <span class="chk"><span class="b" id="pv_res_own"></span>Own</span>
+                <span class="chk"><span class="b" id="pv_res_rent"></span>Rental</span>
+                <span class="chk"><span class="b" id="pv_res_par"></span>Parent's/Spouse</span>
+                <span class="chk"><span class="b" id="pv_res_emp"></span>Employee Leased</span>
+              </div>
+              <div class="pf-line"><span class="lab">(e) Occupation</span><span class="pf-fill" id="pv_occ"></span></div>
+              <div class="pf-line"><span class="lab">(f) Designation</span><span class="pf-fill" id="pv_desig"></span></div>
+              <div class="pf-line"><span class="lab">(g) Office Address / Place of Business</span><span class="pf-fill" id="pv_office"></span></div>
+              <div class="pf-line"><span class="lab">(h) Aadhaar / Passport / Driving Licence No.</span><span class="pf-fill" id="pv_id"></span></div>
+              <div class="pf-line"><span class="lab">(i) PAN Card No.</span><span class="pf-fill" id="pv_pan"></span></div>
+
+              <div class="pf-note"><b>Note:-</b> We the undersigned solemnly affirm that the declaration made above by us is absolutely true and no part is false and nothing has been withheld or concealed. This declaration is signed on the basis of the agreement.</div>
+
+              <div class="pf-line" style="margin-top:18px;"><span class="lab">Lucknow</span><span style="flex:1;"></span><span class="lab">Applicant Sign</span><span class="pf-fill" style="flex:0 0 170px;"></span></div>
+              <div class="pf-line"><span class="lab">Date</span><span class="pf-fill" style="flex:0 0 150px;" id="pv_date2"></span><span style="flex:1;"></span><span class="lab">Guarantor Sign</span><span class="pf-fill" style="flex:0 0 170px;" id="pv_guar"></span></div>
+
+            </div>
+          </div>
+        </div>
+      </section>

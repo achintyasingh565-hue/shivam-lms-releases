@@ -1,0 +1,70 @@
+/* ===== Glass reskin (navy / blue / gold) ===== */
+:root{ --gold:#c8a02a; }
+body{
+  background:
+    radial-gradient(900px 520px at 10% -6%, rgba(37,99,235,.12), transparent 60%),
+    radial-gradient(820px 520px at 106% 6%, rgba(13,148,136,.08), transparent 55%),
+    radial-gradient(760px 640px at 50% 124%, rgba(212,175,55,.07), transparent 60%),
+    linear-gradient(180deg,#eaf1fb 0%, #f3f7fd 42%, #f2f6fc 100%) !important;
+  background-attachment:fixed !important;
+}
+html.dark body{
+  background:
+    radial-gradient(900px 540px at 10% -6%, rgba(37,99,235,.22), transparent 60%),
+    radial-gradient(840px 540px at 106% 5%, rgba(13,148,136,.13), transparent 55%),
+    radial-gradient(780px 660px at 50% 124%, rgba(212,175,55,.08), transparent 60%),
+    linear-gradient(180deg,#0a1426 0%, #0b1322 46%, #0a1120 100%) !important;
+  background-attachment:fixed !important;
+}
+/* Glass surfaces */
+.panel, .stat, .kpi, .ptile, .table-wrap, .cert-form, .bk-card, .vault-card{
+  background:rgba(255,255,255,.94) !important;
+  border:1px solid rgba(255,255,255,.65) !important;
+  box-shadow:0 10px 28px rgba(15,32,68,.09), inset 0 1px 0 rgba(255,255,255,.75) !important;
+}
+html.dark .panel, html.dark .stat, html.dark .kpi, html.dark .ptile, html.dark .table-wrap, html.dark .cert-form, html.dark .bk-card, html.dark .vault-card{
+  background:rgba(20,31,52,.6) !important;
+  border:1px solid rgba(255,255,255,.09) !important;
+  box-shadow:0 10px 28px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.06) !important;
+}
+/* Modals: more opaque for readability */
+.modal{ background:var(--panel) !important; border:1px solid rgba(255,255,255,.7); box-shadow:0 30px 70px rgba(8,18,40,.35) !important; }
+html.dark .modal{ background:rgba(18,28,48,.95) !important; border:1px solid rgba(255,255,255,.08); }
+/* Sticky table headers stay opaque over glass */
+table.data th{ background:rgba(247,250,254,.94) !important; }
+html.dark table.data th{ background:#16223b !important; }
+/* Sidebar: matches the login brand panel — violet/indigo gradient + gold accents */
+.sidebar{
+  background:
+    radial-gradient(420px 300px at 50% -8%, rgba(147,51,234,.55) 0%, transparent 60%),
+    radial-gradient(360px 320px at 118% 36%, rgba(124,58,237,.42) 0%, transparent 55%),
+    radial-gradient(360px 380px at -12% 86%, rgba(91,43,214,.46) 0%, transparent 60%),
+    linear-gradient(170deg,#1B1450 0%,#2A1B73 56%,#3A2293 100%) !important;
+  border-right:1px solid rgba(212,175,55,.20) !important;
+}
+/* lift muted text so it stays legible on the violet ground */
+.sidebar .nav a{ color:#cdc6ec !important; }
+.sidebar .nav a .ic{ color:#a99fdd !important; }
+.sidebar .nav a:hover{ background:rgba(255,255,255,.08) !important; color:#fff !important; }
+.sidebar .nav a:hover .ic{ color:#ffe6a6 !important; }
+.sidebar .nav .lbl{ color:#a294dd !important; }
+.sidebar .side-brand .bt p{ color:#bcb0ea !important; }
+.sidebar .side-foot{ color:#9b8fcf !important; }
+.sidebar .side-brand, .sidebar .side-foot{ border-color:rgba(255,255,255,.10) !important; }
+.nav a.active{ background:rgba(255,255,255,.13) !important; color:#fff !important; }
+.nav a.active::before{ background:var(--gold) !important; }
+.nav a.active .ic{ color:var(--gold) !important; }
+/* Donut: center number + caption + ring follow the theme (visible in dark mode) */
+.donut svg circle.donut-bg{ stroke:var(--line); }
+.donut svg text.donut-total{ fill:var(--text); }
+.donut svg text.donut-cap{ fill:var(--muted); }
+/* Topbar glass + gold hairline */
+.topbar{ background:rgba(255,255,255,.96) !important; border-bottom:1px solid rgba(212,175,55,.2) !important; }
+html.dark .topbar{ background:rgba(11,19,36,.55) !important; border-bottom:1px solid rgba(212,175,55,.16) !important; }
+/* Primary buttons: blue gradient like the login */
+.btn-primary{ background:linear-gradient(135deg,#2563EB,#1D4ED8) !important; color:#fff !important; box-shadow:0 6px 16px rgba(37,99,235,.25), inset 0 1px 0 rgba(255,255,255,.25) !important; }
+.btn-primary:hover{ background:linear-gradient(135deg,#1D4ED8,#1E40AF) !important; }
+/* Stat cards: gold number underline accent on hover, subtle */
+.stat:hover{ transform:translateY(-1px); box-shadow:0 14px 34px rgba(15,32,68,.13), inset 0 1px 0 rgba(255,255,255,.8) !important; }
+/* Keep all printing clean white */
+@media print{ body{ background:#fff !important; } }

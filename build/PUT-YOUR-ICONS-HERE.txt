@@ -1,0 +1,4 @@
+Copy your existing icon files into this folder:
+  - icon.png   (used for the macOS app)
+  - icon.ico   (used for the Windows app)
+These are the same icon files from your previous project folder.

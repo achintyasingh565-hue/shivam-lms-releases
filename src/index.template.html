@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- Critical first-paint style: paints the dark background immediately so there is
+     NO white flash while the external stylesheets load. Must stay inline & first. -->
+<!-- theme-boot MUST run before the stylesheets so the correct light/dark class
+     is already on <html> when the CSS first paints — this is what kills the
+     white flash on startup. It is a 'self' file (CSP-allowed) and is
+     parser-blocking (no async/defer) so it executes before the <link>s below. -->
+<script src="src/theme-boot.js"></script>
+<style>
+  html,body{margin:0;}
+  html.dark, html.dark body{background:#0b1220;}
+  html:not(.dark), html:not(.dark) body{background:#F8FAFC;}
+  html.dark #lockScreen{background:#0b1327;}
+  html:not(.dark) #lockScreen{background:#F8FAFC;}
+  #lockScreen{position:fixed;inset:0;}
+  body:not(.unlocked) .app{visibility:hidden;}
+</style>
+<!-- Content Security Policy — the strictest policy this app can run under.
+     script-src 'self'      : ONLY our own bundled script files can execute. A payload injected
+                              into the DOM (e.g. via a crafted borrower name) can never load or
+                              run an external or inline <script>.
+     script-src-attr        : the app's UI is wired through inline on* handlers (227 of them);
+       'unsafe-inline'        they call functions that must already exist in our own bundle, so
+                              this does not allow foreign CODE — only invocation of our own.
+     connect-src 'none'     : the renderer can make NO network requests at all. WhatsApp API
+                              calls happen in the main process. Exfiltration via fetch/XHR/
+                              WebSocket/beacon is impossible.
+     img/font data:         : embedded icons & PDF fonts. style 'unsafe-inline': the app styles
+                              elements via style="" and injected <style> for printing.
+     object-src 'none', base-uri 'none', form-action 'none': closes plugin, <base>-hijack and
+                              form-post exfiltration vectors. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src https://djbprwbrnioxkakpnilc.supabase.co; media-src 'none'; object-src 'none'; child-src 'self' blob:; frame-src 'self' blob: about:; worker-src 'none'; manifest-src 'self' blob:; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shivam Enterprises Loan Management System</title>
+<meta name="theme-color" content="#13203b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SE LMS">
+<link id="favicon" rel="icon" type="image/png" href="data:image/png;base64,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">
+<link id="appleicon" rel="apple-touch-icon" href="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">
+<link id="mf" rel="manifest">
+<link rel="stylesheet" href="src/styles/01-base.css">
+<link rel="stylesheet" href="src/styles/02-components.css">
+<link id="glassSkin" rel="stylesheet" href="src/styles/03-glass.css">
+<link id="noFlicker" rel="stylesheet" href="src/styles/04-no-flicker.css">
+<link id="mobileLayout" rel="stylesheet" href="src/styles/05-mobile.css">
+<link id="redesign" rel="stylesheet" href="src/styles/06-redesign.css">
+</head>
+<body class="show-cert">
+<!--#include views/lock-screen.html-->
+<!-- PDF libraries are only used when the user generates a PDF (never at startup),
+     so load them deferred — this stops them from blocking the first paint of the
+     login screen. They still finish loading long before any PDF action. -->
+<script defer src="src/vendor/pdf-lib.js"></script>
+<script defer src="src/vendor/fontkit.js"></script>
+
+<div class="app">
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar no-print">
+    <div class="side-brand">
+      <div class="logo">SE</div>
+      <div class="bt"><h1>Shivam Enterprises</h1><p>LOAN MANAGEMENT SYSTEM</p></div>
+    </div>
+    <nav class="nav" id="nav">
+      <div class="lbl">Main</div>
+      <a data-sec="dash" class="active"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></span> Dashboard</a>
+      <a data-sec="cust"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Customers &amp; Loans</a>
+      <a data-sec="pay"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.4"/><path d="M6 12h.01M18 12h.01"/></svg></span> Payments</a>
+      <a data-sec="reports"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h16"/><rect x="7" y="10" width="3" height="7" rx="0.6"/><rect x="12" y="6" width="3" height="11" rx="0.6"/><rect x="17" y="13" width="3" height="4" rx="0.6"/></svg></span> Reporting Center</a>
+      <div class="lbl">Documents</div>
+      <a data-sec="hpfile"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span> Loan Documents</a>
+      <a data-sec="cert"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="5.5"/><path d="M8.5 13.2 7.5 21l4.5-2.3L16.5 21l-1-7.8"/></svg></span> Certificates</a>
+      <a data-sec="defaults"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span> Default Notices</a>
+      <div class="lbl">Communication</div>
+      <a data-sec="messages"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.6-.8L3 21l1.8-5.9A8.5 8.5 0 1 1 21 11.5z"/></svg></span> Reminders &amp; Messages</a>
+      <div class="lbl">System</div>
+      <a data-sec="backup"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span> Administration</a>
+    </nav>
+    <div class="side-foot">
+      GSTIN: 09JXBPK7550J1ZY<br>Udyam: UDYAM-UP-50-0268771<br>Data saved in the app
+    </div>
+  </aside>
+  <div class="nav-backdrop" onclick="document.querySelector('.app').classList.remove('nav-open')"></div>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main">
+    <div class="topbar no-print">
+      <button class="side-toggle" onclick="toggleSidebar()" title="Collapse menu">☰</button>
+      <div class="tb-title">
+        <h2 id="pageTitle">Dashboard</h2>
+        <div class="crumb" id="pageCrumb">Overview of your finance office</div>
+      </div>
+      <div class="gsearch"><span class="si">⌕</span><input id="globalSearch" placeholder="Search borrower, A/C no or phone…" oninput="topSearchLive()" onkeydown="if(event.key==='Enter')globalSearch()"></div>
+      <div class="right" id="topActions">
+        <div id="cloudStatus" class="cloud-status" style="display:none;" title="Shared data status — click for options" onclick="try{cloudStatusClick&&cloudStatusClick()}catch(e){}"><span class="cs-dot"></span><span class="cs-label">…</span></div>
+        <button id="themeBtn" onclick="toggleTheme()" title="Light / Dark mode" style="border:0;width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:15px;background:#eef1f6;">🌙</button>
+        <div class="tb-bell" onclick="toggleNotif(event)" title="Notifications">🔔<span class="bell-badge" id="bellBadge" style="display:none;">0</span><div class="notif-pop" id="notifPop"></div></div>
+        <button id="lockTopBtn" class="btn btn-ghost btn-sm" style="display:none;" onclick="lockNow()">🔒</button>
+        <button class="btn btn-gold btn-sm" id="installBtn" onclick="doInstall()">⤓ Install</button>
+        <div class="tb-profile"><span class="ava" id="pfAva">—</span><div class="pf-meta"><b id="pfName">—</b><span id="pfRole">Not signed in</span></div></div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div id="safetyNudge" class="no-print" style="display:none;margin:0 0 12px;padding:9px 14px;border:1px solid #e7c873;background:#fff7e2;color:#6b5413;border-radius:9px;font-size:12.5px;"></div>
+
+      <!-- ===== DASHBOARD ===== -->
+<!--#include views/dashboard.html-->
+
+      <!-- ===== LOAN RECORDS ===== -->
+      <!-- Loan Records merged into Customers & Loans (see #sec-cust) -->
+
+      <!-- ===== CERTIFICATES ===== -->
+<!--#include views/certificates.html-->
+
+      <!-- ===== PROPOSAL FORM ===== -->
+<!--#include views/proposal.html-->
+
+      <!-- ===== LOAN DOCUMENTS (MORTGAGE) ===== -->
+<!--#include views/loan-documents.html-->
+
+      <!-- ===== REMINDERS & MESSAGES ===== -->
+<!--#include views/default-notices.html-->
+
+<!--#include views/messages.html-->
+
+      <!-- ===== BACKUP ===== -->
+<!--#include views/customers.html-->
+
+<!--#include views/payments.html-->
+
+<!--#include views/reports.html-->
+
+<!--#include views/administration.html-->
+
+    </div>
+  </div>
+</div>
+
+<!-- ============ LOAN MODAL ============ -->
+<div class="overlay" id="loanOverlay">
+  <div class="modal">
+    <div class="modal-head"><h3 id="modalTitle">New Loan Record</h3><button class="x" onclick="closeLoan()">✕</button></div>
+    <div class="modal-body">
+      <div class="loan-tabs" id="loanTabs">
+        <button type="button" class="loan-tab active" data-ltab="borrower" onclick="loanTab('borrower')">Borrower<span class="lt-dot" id="dot-borrower"></span></button>
+        <button type="button" class="loan-tab" data-ltab="terms" onclick="loanTab('terms')">Loan Terms<span class="lt-dot" id="dot-terms"></span></button>
+        <button type="button" class="loan-tab" data-ltab="property" onclick="loanTab('property')">Property</button>
+        <button type="button" class="loan-tab" data-ltab="coapp" onclick="loanTab('coapp')">Co-applicant</button>
+        <button type="button" class="loan-tab" data-ltab="repay" onclick="loanTab('repay')">Repayments</button>
+      </div>
+
+      <div class="loan-panel active" id="ltab-borrower">
+        <div class="form-grid">
+        <div class="fg"><label>Borrower Name *</label><input id="m_name" placeholder="Full name"></div>
+        <div class="fg"><label>Loan A/C No. *</label><input id="m_acno" placeholder=""></div>
+        <div class="fg" style="display:flex; gap:10px;">
+          <div style="flex:0 0 105px;"><label>Relation</label><select id="m_reltype"><option value="son of">S/o</option><option value="daughter of">D/o</option><option value="wife of">W/o</option></select></div>
+          <div style="flex:1;"><label>Father's / Husband's Name</label><input id="m_relname"></div>
+        </div>
+        <div class="fg"><label>Phone No.</label><input id="m_phone" placeholder="10-digit mobile"></div>
+        <div class="fg full"><label>Address</label><textarea id="m_addr"></textarea></div>
+        <div class="fg"><label>ID Proof (Aadhaar / PAN)</label><div class="id-field"><input id="m_idproof" class="id-masked" autocomplete="off"><button type="button" class="id-eye" title="Show / hide" onclick="toggleIdReveal(this)">👁</button></div></div>
+        <div class="fg"><label>Loan Type</label><select id="m_type"><option>Personal</option><option>Housing</option><option>Business</option><option>Mortgage</option></select></div>
+        <div class="fg"><label>Age</label><input id="m_age" type="number" min="0"></div>
+        <div class="fg"><label>Residence</label><select id="m_residence"><option value="">—</option><option>Own</option><option>Rental</option><option>Parent's / Spouse</option><option>Employee Leased</option></select></div>
+        <div class="fg"><label>Occupation</label><input id="m_occupation"></div>
+        <div class="fg"><label>Designation</label><input id="m_designation"></div>
+        <div class="fg full"><label>Office Address / Place of Business</label><input id="m_officeaddr"></div>
+        <div class="fg"><label>ID Document</label><select id="m_idtype"><option value="">—</option><option>Aadhaar</option><option>PAN Card</option><option>Voter Card</option><option>Ration Card</option><option>Driving Licence</option><option>Electricity Bill</option><option>Telephone Bill</option><option>Aadhaar</option><option>PAN</option></select></div>
+        </div>
+      </div>
+
+      <div class="loan-panel" id="ltab-terms">
+        <div class="form-grid">
+        <div class="fg"><label>Case No.</label><input id="m_caseno"></div>
+        <div class="fg"><label>Reference</label><input id="m_refno"></div>
+        <div class="fg"><label>Loan Purpose</label><input id="m_product" placeholder=""></div>
+        <div class="fg"><label>Referred By / Source</label><input id="m_dealer"></div>
+        <div class="fg"><label>Down Payment ₹</label><input id="m_downpay" type="number" min="0"></div>
+        <div class="fg"><label>Account Officer</label><input id="m_officer"></div>
+        <div class="fg"><label>Loan Amount (Principal) ₹ *</label><input id="m_principal" type="number" min="0" oninput="recalc()"></div>
+        <div class="fg"><label>Processing / Deductions ₹</label><input id="m_deductions" type="number" min="0" value="0" oninput="recalc()"><div class="calc-note" style="margin-top:4px;">Fee withheld at disbursement. The customer is still liable for the <b>full</b> loan amount — this does not reduce the outstanding.</div></div>
+        <div class="fg"><label>Net Disbursed to Customer ₹</label><input id="m_remaining" class="calc" type="number" readonly></div>
+        <div class="fg"><label>Interest Rate (% per month) *</label><input id="m_rate" type="number" min="0" step="0.1" oninput="recalc()"></div>
+        <div class="fg"><label>Disbursement Date</label><input id="m_disb" type="date" oninput="recalc()"></div>
+        <div class="fg"><label>Tenure (months) *</label><input id="m_tenure" type="number" min="1" oninput="recalc()"></div>
+        <div class="calc-note">Calculated on <b>flat monthly interest</b>: Total Interest = Principal × Rate × Months (rate is charged every month on the full principal). EMI = Total Payable ÷ Months. You can adjust the figures below if needed.</div>
+        <div class="fg"><label>Total Interest ₹</label><input id="m_tint" class="calc" type="number"></div>
+        <div class="fg"><label>Total Payable ₹</label><input id="m_tpay" class="calc" type="number"></div>
+        <div class="fg"><label>Monthly EMI ₹</label><input id="m_emi" class="calc" type="number"></div>
+        <div class="fg"><label>Next Due Date</label><input id="m_due" type="date"><div class="calc-note" style="margin-top:4px;">Set a custom date here to override the auto-schedule — it will be kept on save.</div></div>
+        </div>
+      </div>
+
+      <div class="loan-panel" id="ltab-property">
+        <div class="form-grid">
+        <div class="fg full"><label>Property Description</label><input id="m_propdesc" placeholder=""></div>
+        <div class="fg full"><label>Property Situated at</label><textarea id="m_propaddr"></textarea></div>
+        <div class="fg"><label>Area</label><input id="m_proparea" placeholder=""></div>
+        <div class="fg"><label>Market Value ₹</label><input id="m_propvalue" type="number" min="0"></div>
+        <div class="fg"><label>Boundary North</label><input id="m_bN"></div>
+        <div class="fg"><label>Boundary South</label><input id="m_bS"></div>
+        <div class="fg"><label>Boundary East</label><input id="m_bE"></div>
+        <div class="fg"><label>Boundary West</label><input id="m_bW"></div>
+        <div class="fg full"><label>Title Deed / Registration Details</label><input id="m_title"></div>
+        </div>
+      </div>
+
+      <div class="loan-panel" id="ltab-coapp">
+        <div class="form-grid">
+          <div class="grp-title" style="grid-column:1/-1;">Co-Applicant</div>
+        <div class="fg"><label>Co-Applicant Name</label><input id="m_coname"></div>
+        <div class="fg"><label>Co-Applicant Phone</label><input id="m_cophone"></div>
+        <div class="fg"><label>Relationship</label><input id="m_corel" placeholder=""></div>
+        <div class="fg"><label>Co-Applicant ID Proof</label><div class="id-field"><input id="m_coid" class="id-masked" placeholder="" autocomplete="off"><button type="button" class="id-eye" title="Show / hide" onclick="toggleIdReveal(this)">👁</button></div></div>
+        <div class="fg full"><label>Co-Applicant Address</label><textarea id="m_coaddr"></textarea></div>
+          <div class="grp-title" style="grid-column:1/-1;">Guarantor &amp; Notes</div>
+        <div class="fg"><label>Guarantor Name</label><input id="m_gname"></div>
+        <div class="fg"><label>Guarantor Phone</label><input id="m_gphone"></div>
+        <div class="fg full"><label>Remarks</label><textarea id="m_remarks" placeholder=""></textarea></div>
+        </div>
+      </div>
+
+      <div class="loan-panel" id="ltab-repay">
+        <div id="rsInFormRow" class="rs-inform">
+          <div class="rs-inform-t"><b>Prepayment / Restructure</b><span id="rsInFormHint">Record a lump-sum payment and re-plan this loan's EMI or tenure.</span></div>
+          <button type="button" id="rsInFormBtn" class="btn btn-sm" style="background:#0b7a4b;color:#fff;" onclick="openRestructure()">Restructure / Prepay</button>
+        </div>
+        <div class="pay-add">
+          <div class="pay-row1">
+            <input id="pay_date" type="date" title="Payment date">
+            <select id="pay_mode" onchange="payModeUI()"><option value="Cash">Cash</option><option value="Cheque">Cheque</option><option value="Online">Online</option></select>
+            <input id="pay_amt" type="number" min="0" placeholder="Amount ₹">
+          </div>
+          <div class="pay-row2" id="pay_chequeRow" style="display:none;">
+            <input id="pay_cheqno" placeholder="Cheque No.">
+            <input id="pay_bank" placeholder="Bank">
+            <select id="pay_status"><option value="Cleared">Cleared</option><option value="Pending">Pending</option></select>
+          </div>
+          <div class="pay-row2" id="pay_onlineRow" style="display:none;">
+            <input id="pay_ref" placeholder="Reference / UTR No.">
+          </div>
+          <button type="button" class="btn btn-primary btn-sm payadd-btn" onclick="addPayment()">＋ Add payment</button>
+        </div>
+        <div id="payList" class="pay-list"></div>
+        <div class="pay-summary">
+          <div><span>Received (cleared)</span><b id="m_recv">₹0</b></div>
+          <div><span>Pending cheques</span><b id="m_pend">₹0</b></div>
+          <div class="pay-out"><span>Outstanding</span><b id="m_outTxt">₹0</b></div>
+        </div>
+        <input id="m_paid" type="hidden" value="0">
+        <input id="m_out" type="hidden" value="0">
+        <div class="form-grid" style="margin-top:14px;">
+        <div class="fg"><label>Status</label><select id="m_status"><option>Active</option><option>Overdue</option><option>Closed</option></select></div>
+        </div>
+      </div>
+    </div>
+    <div class="loan-summary" id="loanSummaryBar">
+      <div><span>Monthly EMI</span><b id="sum_emi">₹0</b></div>
+      <div><span>Total Payable</span><b id="sum_tpay">₹0</b></div>
+      <div><span>Outstanding</span><b id="sum_out">₹0</b></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeLoan()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveLoan()">Save Record</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ INSTALL HELP MODAL ============ -->
+<div class="overlay" id="installOverlay">
+  <div class="modal" style="max-width:540px;">
+    <div class="modal-head"><h3>Install as an App</h3><button class="x" onclick="closeInstall()">✕</button></div>
+    <div class="modal-body">
+      <div class="help-block">
+        <h4>💻 On a Computer (Chrome / Edge)</h4>
+        <ol class="help-steps">
+          <li>Open the browser menu (<b>⋮</b> top-right).</li>
+          <li>Choose <b>"Install page as app"</b> (Edge) or <b>"Cast, save and share → Create shortcut…"</b> (Chrome), then tick <b>"Open as window"</b>.</li>
+          <li>An icon is added to your desktop / taskbar — open it anytime like normal software.</li>
+        </ol>
+      </div>
+      <div class="help-block">
+        <h4>📱 On a Phone (Android / iPhone)</h4>
+        <ol class="help-steps">
+          <li>Open this page in <b>Chrome</b> (Android) or <b>Safari</b> (iPhone).</li>
+          <li>Tap the menu / share button.</li>
+          <li>Choose <b>"Add to Home screen"</b> — it appears as an app icon.</li>
+        </ol>
+      </div>
+      <p style="font-size:12.5px;color:#5a6478;line-height:1.5;">This app works fully offline and stores data on the device. Remember to use <b>Backup &amp; Restore</b> to keep a safe copy of your records.</p>
+    </div>
+    <div class="modal-foot"><button class="btn btn-primary" onclick="closeInstall()">Got it</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="vaultModal"><div class="modal" style="max-width:780px;"><div class="modal-head"><h3 id="vaultModalTitle">Document</h3><button class="x" onclick="closeVaultModal()">&#10005;</button></div><div id="vaultModalBody" style="padding:18px; text-align:center; max-height:80vh; overflow:auto;"></div></div></div>
+
+<div class="overlay" id="batchOverlay">
+  <div class="modal" style="max-width:470px;">
+    <div class="modal-head"><h3>Send on WhatsApp</h3><button class="x" onclick="closeBatch()">✕</button></div>
+    <div class="modal-body" id="batchBody"></div>
+    <div class="modal-foot" id="batchFoot"></div>
+  </div>
+</div>
+
+<div class="overlay" id="reviewOverlay"><div class="modal" style="max-width:980px;width:96%;">
+  <div class="modal-head"><h3>Message Review &mdash; <span id="reviewCount">0 selected</span></h3><button class="x" onclick="closeReview()">&#10005;</button></div>
+  <div style="padding:14px 18px;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+      <button class="btn btn-sm btn-ghost" onclick="reviewSelectAll(true)">Select all</button>
+      <button class="btn btn-sm btn-ghost" onclick="reviewSelectAll(false)">Unselect all</button>
+      <input class="filter" id="reviewSearch" placeholder="Search borrower / phone…" oninput="renderReview()" style="flex:1;min-width:160px;">
+      <select class="filter" id="reviewFilter" onchange="renderReview()"><option value="all">All categories</option></select>
+    </div>
+    <div id="reviewBody" style="max-height:56vh;overflow:auto;"></div>
+  </div>
+  <div style="display:flex;justify-content:flex-end;gap:10px;padding:12px 18px;border-top:1px solid var(--line);">
+    <button class="btn btn-ghost" onclick="closeReview()">Cancel</button>
+    <button class="btn btn-primary" onclick="openVerify()">Review &amp; Send &#9654;</button>
+  </div>
+</div></div>
+<div class="overlay" id="verifyOverlay"><div class="modal" style="max-width:460px;">
+  <div class="modal-head"><h3>WhatsApp Message Verification</h3><button class="x" onclick="closeVerify()">&#10005;</button></div>
+  <div id="verifyBody" style="padding:16px 18px;"></div>
+  <div id="verifyFoot" style="display:flex;justify-content:flex-end;gap:10px;padding:12px 18px;border-top:1px solid var(--line);">
+    <button class="btn btn-ghost" onclick="closeVerify()">Cancel</button>
+    <button class="btn btn-primary" id="verifyApprove" onclick="approveAndSend()">Approve &amp; Send</button>
+  </div>
+</div></div>
+<div class="toast" id="toast"></div>
+<div id="fullFilePrint" style="display:none;"></div>
+<div id="reportPrint" style="display:none;"></div>
+
+<div class="overlay" id="rsOverlay">
+  <div class="modal" style="max-width:660px;">
+    <div class="modal-head"><h3 id="rsTitle">Restructure / Prepayment</h3><button class="x" onclick="closeRestructure()">&times;</button></div>
+    <div class="modal-body" style="display:block;">
+      <div id="rsCurrent" style="background:var(--field,#f2f5fa);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;"></div>
+
+      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div><label>Lump-sum payment</label><input id="rs_amt" type="number" min="0" placeholder="0" oninput="calcRestructure()"></div>
+        <div><label>Mode</label><select id="rs_mode"><option>Cash</option><option>Online</option><option>Cheque</option></select></div>
+        <div><label>Date</label><input id="rs_date" type="date"></div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:4px;">
+        <div><label>New interest rate (% p.m.)</label><input id="rs_rate" type="number" step="0.01" oninput="calcRestructure()"></div>
+        <div><label>Reference / Cheque no. (optional)</label><input id="rs_ref" type="text" placeholder="Txn / cheque no."></div>
+      </div>
+
+      <div style="margin:16px 0 6px;font-weight:600;font-size:13px;">After the payment, what should change?</div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;">
+        <label class="rs-opt"><input type="radio" name="rsMode" value="emi" checked onchange="calcRestructure()"> Reduce EMI <span class="ph-sub">(same end date)</span></label>
+        <label class="rs-opt"><input type="radio" name="rsMode" value="tenure" onchange="calcRestructure()"> Reduce tenure <span class="ph-sub">(same EMI)</span></label>
+        <label class="rs-opt"><input type="radio" name="rsMode" value="manual" onchange="calcRestructure()"> Manual</label>
+      </div>
+      <div id="rsManual" class="form-grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;display:none;">
+        <div><label>Set new EMI</label><input id="rs_memi" type="number" min="0" placeholder="leave blank to use months" oninput="rsManualEmi()"></div>
+        <div><label>or set months remaining</label><input id="rs_mmonths" type="number" min="1" placeholder="leave blank to use EMI" oninput="rsManualMonths()"></div>
+      </div>
+
+      <div id="rsAfter" style="background:#eef7f1;border:1px solid #bfe3cd;border-radius:10px;padding:12px 14px;margin-top:16px;font-size:13px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeRestructure()">Cancel</button>
+      <button class="btn" style="background:#0b7a4b;color:#fff;" onclick="applyRestructure()">Apply &amp; Save</button>
+    </div>
+  </div>
+</div>
+<style>
+.rs-opt{display:flex;align-items:center;gap:6px;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;}
+.rs-opt input{margin:0;}
+#rsCurrent b,#rsAfter b{color:var(--navy,#0b1f4b);}
+.rs-row{display:flex;justify-content:space-between;padding:2px 0;}
+.rs-row .rs-new{font-weight:700;}
+</style>
+<div class="overlay" id="defOverlay">
+  <div class="modal" style="max-width:820px;">
+    <div class="modal-head"><h3>Default Notice</h3><button class="x" onclick="closeDefaultNotice()">&times;</button></div>
+    <div class="modal-body" style="display:block;max-height:70vh;overflow:auto;" id="defBody"></div>
+    <div class="modal-foot" style="flex-wrap:wrap;gap:8px;">
+      <div class="seg2" id="dnLangSeg" style="align-self:center;">
+        <button data-dnl="en" class="active" onclick="setDnLang('en')">English</button>
+        <button data-dnl="hi" onclick="setDnLang('hi')">हिन्दी</button>
+      </div>
+      <div style="flex:1;min-width:180px;color:var(--grey);font-size:11.5px;align-self:center;">Review the wording, then Print or Download the PDF. To message the borrower, use Reminders &amp; Messages → Default / Demand Notice.</div>
+      <button class="btn btn-ghost" onclick="closeDefaultNotice()">Close</button>
+      <button class="btn" onclick="printDefaultDoc()">🖶 Print</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="schedOverlay">
+  <div class="modal" style="max-width:780px;">
+    <div class="modal-head"><h3>Repayment Schedule</h3><button class="x" onclick="closeSchedule()">&times;</button></div>
+    <div class="modal-body" style="display:block;max-height:70vh;overflow:auto;" id="schedBody"></div>
+    <div class="modal-foot" style="flex-wrap:wrap;gap:8px;">
+      <button class="btn btn-ghost" onclick="closeSchedule()">Close</button>
+      <button class="btn" onclick="printScheduleDoc()">🖶 Print</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="docPreviewOverlay">
+  <div class="modal" style="max-width:900px;">
+    <div class="modal-head"><h3>Document preview</h3><button class="x" onclick="closeDocPreview()">&times;</button></div>
+    <div class="modal-body" id="docPreviewBody" style="display:flex;justify-content:center;max-height:78vh;overflow:auto;padding:18px;"></div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeDocPreview()">Close</button></div>
+  </div>
+</div>
+<!--#appbundle-->
+</body>
+</html>

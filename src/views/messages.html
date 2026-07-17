@@ -1,0 +1,65 @@
+      <section class="section" id="sec-messages">
+        <div class="seg2" id="msgseg">
+          <button data-m="reminders" class="active">Reminders</button>
+          <button data-m="greetings">Greetings &amp; Notices</button>
+          <button data-m="history">Message History</button>
+        </div>
+
+        <!-- REMINDERS (unified hub) -->
+        <div class="msgview" id="mv-reminders">
+          <div class="panel">
+            <div class="panel-head">
+              <div class="t"><h3>All Reminders</h3><p>Everything in one place &mdash; EMI due, overdue, payments received, new loans and birthdays are gathered here automatically. Nothing is ever sent until you review and approve it.</p></div>
+              <div class="actions">
+                <button class="btn btn-sm" onclick="autoRemRunNow()">&#8635; Run scan now</button>
+                <button class="btn btn-sm" onclick="autoRemClearAll()">Clear all</button>
+              </div>
+            </div>
+            <div id="autoPending"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <div class="t"><h3>Custom reminder blast</h3><p>Pick a language and filter, then review &amp; send a due-date or overdue reminder to a whole group at once.</p></div>
+              <div class="actions">
+                <select class="filter" id="remLang" onchange="renderReminders()">
+                  <option value="en">English</option>
+                  <option value="hi">हिन्दी (Hindi)</option>
+                </select>
+                <select class="filter" id="remFilter" onchange="renderReminders()">
+                  <option value="due">Due soon (next 7 days)</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="all">All active loans</option>
+                </select>
+                <button class="btn btn-sm" style="background:#25D366;color:#fff;" onclick="openReviewQueue(window._remList,'Payment Reminder')">⚡ Send all on WhatsApp</button>
+              </div>
+            </div>
+            <div id="remWrap"></div>
+          </div>
+        </div>
+
+        <!-- GREETINGS -->
+        <div class="msgview" id="mv-greetings" style="display:none;">
+          <div class="panel">
+            <h3>Greetings &amp; Notices</h3>
+            <p class="ph-sub">Pick a message type and language, then send to all.</p>
+            <div class="form-grid" style="grid-template-columns:repeat(4,1fr);">
+              <div class="fg"><label>Message type</label><select id="grType" onchange="renderGreetings()"><option value="greeting">Festival Greeting</option><option value="holiday">Holiday / Closure Notice</option><option value="thanks">Payment Received (Thanks)</option><option value="welcome">Loan Sanctioned (Welcome)</option><option value="finalnotice">Final Notice</option><option value="demandnotice">Default / Demand Notice</option><option value="bounce">Cheque Bounce</option><option value="closed">Loan Closed (Fully Paid)</option><option value="cleared">Cheque Cleared</option></select></div>
+              <div class="fg"><label>Language</label><select id="grLang" onchange="renderGreetings()"><option value="en">English</option><option value="hi">हिन्दी (Hindi)</option></select></div>
+              <div class="fg"><label>Occasion (e.g. Diwali)</label><input id="grOccasion" oninput="renderGreetings()"></div>
+              <div class="fg"><label>Date (for notices)</label><input id="grDate" oninput="renderGreetings()"></div>
+              <div class="fg"><label>Send to</label><select id="grWho" onchange="renderGreetings()"><option value="active">Active borrowers</option><option value="all">All borrowers</option></select></div>
+            </div>
+            <div style="margin-top:14px;"><button class="btn btn-sm" style="background:#25D366;color:#fff;" onclick="openReviewQueue(window._grList, document.getElementById('grType').options[document.getElementById('grType').selectedIndex].text)">⚡ Send all on WhatsApp</button></div>
+            <div id="grWrap" style="margin-top:12px;"></div>
+          </div>
+        </div>
+
+        <div class="msgview" id="mv-history" style="display:none;">
+          <div class="panel">
+            <div class="panel-head"><div class="t"><h3>Message History</h3><p>Every message you reviewed and approved is logged here — it cannot be edited.</p></div>
+              <div class="actions"><input class="filter" id="waHistSearch" placeholder="Search…" oninput="renderWaHistory()"><select class="filter" id="waHistFilter" onchange="renderWaHistory()"><option value="all">All categories</option></select><button class="btn btn-sm" onclick="exportWaHistory()">Export to Excel</button><button class="btn btn-sm btn-danger" onclick="clearWaHistAll()">Clear all</button></div>
+            </div>
+            <div id="waHistWrap"></div>
+          </div>
+        </div>
+      </section>

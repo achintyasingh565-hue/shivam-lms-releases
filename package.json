@@ -1,0 +1,81 @@
+{
+  "name": "shivam-enterprises-lms",
+  "version": "2.0.0",
+  "description": "Shivam Enterprises Loan Management System — loan records, payments, customers, certificates & documents.",
+  "author": "Shivam Enterprises (Finance)",
+  "main": "main.js",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node tests/audit.js && node tests/e2e-verify-fixes.js && node tests/cloud-logic.js",
+    "postinstall": "electron-builder install-app-deps",
+    "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "publish:win": "npm run build && electron-builder --win --publish always",
+    "publish:mac": "npm run build && electron-builder --mac --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^11.3.0"
+  },
+  "devDependencies": {
+    "electron": "^28.2.0",
+    "electron-builder": "^24.13.3",
+    "esbuild": "^0.21.5"
+  },
+  "build": {
+    "appId": "com.shivamenterprises.lms",
+    "productName": "Shivam Enterprises LMS",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "app.bundle.js",
+      "src/theme-boot.js",
+      "src/styles/**/*",
+      "src/vendor/**/*",
+      "build/icon.png",
+      "build/icon.ico"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "achintyasingh565-hue",
+        "repo": "shivam-lms-releases",
+        "releaseType": "release"
+      }
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.business",
+      "identity": null,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "title": "Shivam Enterprises LMS"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Shivam Enterprises LMS"
+    }
+  }
+}

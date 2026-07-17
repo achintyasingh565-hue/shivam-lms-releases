@@ -1,0 +1,22 @@
+      <section class="section" id="sec-defaults">
+        <div class="panel">
+          <div class="panel-head"><div class="t"><h3>Overdue accounts</h3><p>Prepare a printable default / demand notice for a borrower who has fallen overdue. Review the wording of each notice before you send it.</p></div></div>
+          <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin:4px 2px 16px;">
+            <div class="fg" style="margin:0;min-width:190px;"><label>Notice type</label>
+              <select id="defType">
+                <option value="reminder">First Reminder (gentle)</option>
+                <option value="demand" selected>Demand Notice</option>
+                <option value="final">Final Demand Notice</option>
+              </select>
+            </div>
+            <div class="fg" style="margin:0;max-width:130px;"><label>Days to pay</label><input id="defDays" type="number" min="1" value="7"></div>
+            <div style="align-self:center;color:var(--grey);font-size:12.5px;padding-bottom:6px;">Set the type &amp; deadline, then click <b>Prepare Notice</b> on a row.</div>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead><tr><th>Borrower</th><th>Loan A/c</th><th>Phone</th><th class="right">Outstanding</th><th class="right">Overdue</th><th>Next due</th><th class="right">Days late</th><th></th></tr></thead>
+              <tbody id="defBodyRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>

@@ -1,0 +1,64 @@
+.wa-badge{display:inline-block;font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:6px;margin-left:4px;vertical-align:middle;}
+.wa-badge.bad{background:#fee2e2;color:#b91c1c;} .wa-badge.miss{background:#fef3c7;color:#92400e;} .wa-badge.dup{background:#e0e7ff;color:#3730a3;}
+.wa-stat{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;margin-left:8px;} .wa-stat.on{background:#dcfce7;color:#166534;} .wa-stat.off{background:#fee2e2;color:#b91c1c;}
+  .hist-list{display:flex;flex-direction:column;gap:6px;}
+  .hist-item{border:1px solid var(--line);border-radius:9px;overflow:hidden;flex:0 0 auto;}
+  .hist-item[open]{border-color:var(--accent);}
+  .hist-sum{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:9px 12px;font-size:12.5px;}
+  .hist-sum::-webkit-details-marker{display:none;}
+  .hist-sum::before{content:'\25B8';color:var(--muted);font-size:11px;transition:transform .15s;}
+  .hist-item[open] .hist-sum::before{transform:rotate(90deg);}
+  .hist-when{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .hist-name{font-weight:600;}
+  .hist-cat{font-size:11px;}
+  .hist-sum .hist-stat{margin-left:auto;white-space:nowrap;}
+  .hist-del{margin-left:6px;}
+  .hist-body{padding:2px 12px 12px 12px;border-top:1px solid var(--line);}
+  .hist-meta{color:var(--muted);font-size:11.5px;margin:8px 0;}
+  .hist-msg{white-space:pre-wrap;font-size:12.5px;line-height:1.5;background:rgba(37,99,235,.05);border-radius:7px;padding:9px 11px;}
+  .cl-split{display:grid;grid-template-columns:300px 1fr;gap:14px;align-items:start;}
+  .cl-list{display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 210px);overflow-y:auto;padding:2px;}
+  .cl-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 13px;cursor:pointer;transition:border-color .12s, box-shadow .12s;}
+  .cl-card:hover{border-color:var(--accent);}
+  .cl-card.sel{border-color:var(--accent);box-shadow:0 0 0 2px rgba(37,99,235,.18);}
+  .cl-card .r1{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .cl-card .nm{font-weight:700;font-size:13.5px;}
+  .cl-card .ph{font-size:11.5px;color:var(--muted);margin-top:2px;}
+  .cl-card .r2{display:flex;align-items:center;justify-content:space-between;margin-top:7px;font-size:11.5px;color:var(--muted);}
+  .cl-card .out{font-variant-numeric:tabular-nums;font-weight:600;color:var(--ink);}
+  .cl-detail{min-width:0;}
+  .cl-empty{border:1.5px dashed var(--line);border-radius:14px;padding:60px 20px;text-align:center;color:var(--muted);font-size:13.5px;}
+  .cl-empty .big{font-size:34px;margin-bottom:8px;}
+  @media (max-width:900px){ .cl-split{grid-template-columns:1fr;} .cl-list{max-height:300px;} }
+.vrow{display:flex;justify-content:space-between;gap:14px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px;} .vrow span{color:var(--muted);} .vrow b{color:var(--text);}
+html.dark .wa-badge.bad{background:#3b1717;color:#fca5a5;} html.dark .wa-badge.miss{background:#3a2e10;color:#fcd34d;} html.dark .wa-badge.dup{background:#1e2150;color:#c7d2fe;}
+
+/* ---- Cloud sync status pill (top bar) ---- */
+.cloud-status{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;
+  font-size:11.5px;font-weight:600;letter-spacing:.2px;cursor:pointer;user-select:none;
+  border:1px solid var(--line,#e5e9f0);background:var(--field,#f2f5fa);color:var(--muted,#64748b);white-space:nowrap;}
+.cloud-status .cs-dot{width:8px;height:8px;border-radius:50%;background:#94a3b8;flex:0 0 auto;}
+.cloud-status[data-state="synced"]{color:#0b7a4b;border-color:#bfe6d1;background:#eafaf1;}
+.cloud-status[data-state="synced"] .cs-dot{background:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.15);}
+.cloud-status[data-state="syncing"]{color:#8a6100;border-color:#f0dca6;background:#fdf6e3;}
+.cloud-status[data-state="syncing"] .cs-dot{background:#f59e0b;animation:cs-pulse 1s ease-in-out infinite;}
+.cloud-status[data-state="offline"]{color:#64748b;}
+.cloud-status[data-state="offline"] .cs-dot{background:#94a3b8;}
+.cloud-status[data-state="error"]{color:#b00020;border-color:#f2c2c2;background:#fdecec;}
+.cloud-status[data-state="error"] .cs-dot{background:#dc2626;}
+@keyframes cs-pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+/* ---- Aadhaar / PAN masking (password-style with an eye toggle) ---- */
+.id-field{display:flex;align-items:center;gap:4px;}
+.id-field input{flex:1;min-width:0;}
+.id-field .id-eye{border:0;background:transparent;cursor:pointer;font-size:15px;line-height:1;padding:4px 6px;border-radius:6px;opacity:.7;}
+.id-field .id-eye:hover{opacity:1;background:var(--field,#f2f5fa);}
+input.id-masked{-webkit-text-security:disc;text-security:disc;letter-spacing:2px;}
+
+/* ---- Staff permissions: hide actions a role isn't allowed to do ----
+   Enforcement is in the functions (can()); this just removes the buttons so
+   staff/managers don't see options they can't use. Admin sees everything. */
+body[data-role="staff"] [onclick^="openLoan"],
+body[data-role="staff"] [onclick^="delLoan"],
+body[data-role="staff"] [onclick^="openRestructure"],
+body[data-role="manager"] [onclick^="delLoan"]{display:none !important;}

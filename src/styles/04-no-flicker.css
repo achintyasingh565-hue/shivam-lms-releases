@@ -1,0 +1,36 @@
+/* === Fix: remove backdrop-filter (frosted glass) which flickers/strobes on macOS GPUs ===
+   Keeps the navy/gold palette, gradient backdrop, shadows & accents; only the live blur goes,
+   and surfaces become solid so they still read cleanly without it. */
+*, *::before, *::after{ -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
+body, html.dark body{ background-attachment:scroll !important; }
+
+/* formerly-frosted surfaces -> solid */
+.panel,.stat,.kpi,.ptile,.table-wrap,.cert-form,.bk-card,.vault-card{ background:#ffffff !important; }
+html.dark .panel, html.dark .stat, html.dark .kpi, html.dark .ptile, html.dark .table-wrap,
+html.dark .cert-form, html.dark .bk-card, html.dark .vault-card{ background:#141f34 !important; }
+
+.topbar{ background:var(--panel) !important; }
+html.dark .topbar{ background:#0b1324 !important; }
+
+.modal{ background:var(--panel) !important; }
+html.dark .modal{ background:#121c30 !important; }
+
+table.data th{ background:#f7fafe !important; }
+html.dark table.data th{ background:#16223b !important; }
+
+/* login surfaces: SOLID (no blur) and gated on the login's OWN theme (.lockscreen[.dark])
+   -- not html.dark -- so backgrounds always agree with the .lockscreen.dark text colors. */
+.lockscreen .auth-card{ background:#ffffff !important; }
+.lockscreen.dark .auth-card{ background:#0f1a2e !important; }
+.lockscreen .auth-brand{ background:linear-gradient(160deg,#241A6B 0%,#4321A0 60%,#6D3BF5 135%) !important; }
+.lockscreen .auth-field{ background:#eef2f9 !important; }
+.lockscreen .auth-field:focus-within{ background:#ffffff !important; }
+.lockscreen.dark .auth-field{ background:#1e293b !important; }
+.lockscreen.dark .auth-field:focus-within{ background:#22304a !important; }
+.lockscreen .auth-bio{ background:#eef2f9 !important; }
+.lockscreen.dark .auth-bio{ background:#1b2942 !important; }
+.overlay{ background:rgba(15,23,42,.55) !important; }
+/* cover document text must stay dark on its always-white page, in any theme
+   (.cv-line/.cv-box keep their own navy color #0c2d63) */
+.cover-page{ color:#141414 !important; }
+html.dark .cover-page{ color:#141414 !important; }

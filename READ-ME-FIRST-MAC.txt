@@ -1,0 +1,67 @@
+========================================================================
+  MAC: HOW TO OPEN THIS  (one time, ~10 seconds)
+========================================================================
+
+Double-clicking BUILD-MAC.command will ALWAYS show:
+
+    "BUILD-MAC.command" Not Opened
+    Apple could not verify it is free of malware...
+    [ Move to Trash ]   [ Done ]
+
+This is macOS blocking any app that wasn't bought from the App Store or signed
+with Apple's paid developer certificate. It is NOT a virus and NOT a broken
+file — it is your own app. Do NOT click "Move to Trash". Click "Done" and use
+the method below. You only do this ONCE; after that it never asks again.
+
+
+########################################################################
+#  THE EASY WAY — ALWAYS WORKS (do this)                               #
+########################################################################
+
+1. Open the  Terminal  app.
+       (Press  Cmd + Space , type  Terminal , press Return.)
+
+2. In the Terminal window, type these 5 characters:
+
+           bash
+
+   ...then press the SPACE bar once. (So it reads "bash " with a space.)
+
+3. Now DRAG the file  BUILD-MAC.command  from the Finder window and DROP it
+   onto the Terminal window. Terminal fills in its location automatically.
+
+4. Press  Return.
+
+That's it. The build starts immediately with NO security pop-up.
+(Running it through "bash" like this skips Apple's block completely — you are
+not typing any commands, just one word and a drag.)
+
+To just PREVIEW the app first, do the same with  TEST-RUN-MAC.command.
+
+
+########################################################################
+#  ALTERNATIVE — NO TERMINAL AT ALL                                    #
+########################################################################
+
+1. On the warning box, click  Done.
+2. Open  System Settings  ->  Privacy & Security.
+3. Scroll down to the  "Security"  section. You'll see:
+       "BUILD-MAC.command" was blocked to protect your Mac.
+   Click the  Open Anyway  button next to it.
+4. Enter your Mac password / Touch ID. If it asks once more, click
+   "Open Anyway" again. The build starts.
+
+(The "Open Anyway" button only appears AFTER you've tried to open the file
+once and clicked Done, so do step 1 first.)
+
+
+########################################################################
+#  WANT IT TO OPEN WITH ZERO WARNINGS, EVERYWHERE?                     #
+########################################################################
+
+The only way to remove this prompt completely (so it opens like any normal app
+on every Mac, no approval needed) is to sign & "notarize" the app with an
+Apple Developer account (about the cost of a yearly subscription from Apple).
+If you want that, tell me and I'll walk you through it and set up the build to
+do it automatically.
+========================================================================
