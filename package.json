@@ -1,13 +1,12 @@
 {
   "name": "shivam-enterprises-lms",
-  "version": "2.0.1",
+  "version": "2.0.3",
   "description": "Shivam Enterprises Loan Management System — loan records, payments, customers, certificates & documents.",
   "author": "Shivam Enterprises (Finance)",
   "main": "main.js",
   "scripts": {
     "build": "node build.js",
     "test": "node tests/audit.js && node tests/e2e-verify-fixes.js && node tests/cloud-logic.js",
-    "postinstall": "electron-builder install-app-deps",
     "start": "npm run build && electron .",
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac",
@@ -17,9 +16,6 @@
   },
   "dependencies": {
     "electron-updater": "^6.3.9"
-  },
-  "optionalDependencies": {
-    "better-sqlite3": "^11.3.0"
   },
   "devDependencies": {
     "electron": "^28.2.0",

@@ -124,78 +124,7 @@ function setupAutoUpdates() {
   setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 6 * 60 * 60 * 1000);
 }
 
-// ---- ACID-compliant storage (better-sqlite3, main process only) ----
-// WAL journal + FULL synchronous = an interrupted write or power loss can never
-// leave a half-written loan book: a transaction either fully commits or is rolled
-// back on next open. The module is loaded defensively — if the native module is
-// missing or fails to build, the app keeps running on its previous storage.
-let db = null;
-function initDb() {
-  try {
-    const Database = require('better-sqlite3');
-    const fs = require('fs');
-    const dir = app.getPath('userData');
-    try { fs.mkdirSync(dir, { recursive: true }); } catch (_) {}
-    db = new Database(path.join(dir, 'lms.db'));
-    db.pragma('journal_mode = WAL');
-    db.pragma('synchronous = FULL');
-    db.exec(
-      'CREATE TABLE IF NOT EXISTS loans (id TEXT PRIMARY KEY, data TEXT NOT NULL, updated_at TEXT NOT NULL);' +
-      'CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL);' +
-      'CREATE TABLE IF NOT EXISTS snapshots (id INTEGER PRIMARY KEY AUTOINCREMENT, taken_at TEXT NOT NULL, data TEXT NOT NULL);'
-    );
-    return true;
-  } catch (e) {
-    console.error('SQLite unavailable, falling back to renderer storage:', e && e.message);
-    db = null;
-    return false;
-  }
-}
-
 app.whenReady().then(() => {
-  initDb();
-  ipcMain.handle('db-available', () => !!db);
-  ipcMain.handle('db-load-loans', () => {
-    try {
-      if (!db) return { ok: false, error: 'no-db' };
-      const rows = db.prepare('SELECT data FROM loans').all();
-      const loans = [];
-      for (const r of rows) { try { loans.push(JSON.parse(r.data)); } catch (_) {} }
-      return { ok: true, loans };
-    } catch (err) { return { ok: false, error: String(err) }; }
-  });
-  ipcMain.handle('db-save-loans', (e, arr) => {
-    try {
-      if (!db) return { ok: false, error: 'no-db' };
-      if (!Array.isArray(arr)) return { ok: false, error: 'bad-payload' };
-      const now = new Date().toISOString();
-      const del = db.prepare('DELETE FROM loans');
-      const ins = db.prepare('INSERT INTO loans (id, data, updated_at) VALUES (?, ?, ?)');
-      const tx = db.transaction((rows) => {           // <-- all-or-nothing
-        del.run();
-        for (const l of rows) ins.run(String((l && l.id) || ('L' + now)), JSON.stringify(l), now);
-      });
-      tx(arr);
-      // rolling daily snapshot inside the same DB (belt & braces for accidental deletes)
-      try {
-        const last = db.prepare('SELECT taken_at FROM snapshots ORDER BY id DESC LIMIT 1').get();
-        if (!last || String(last.taken_at).slice(0, 10) !== now.slice(0, 10)) {
-          db.prepare('INSERT INTO snapshots (taken_at, data) VALUES (?, ?)').run(now, JSON.stringify(arr));
-          db.prepare("DELETE FROM snapshots WHERE id NOT IN (SELECT id FROM snapshots ORDER BY id DESC LIMIT 30)").run();
-        }
-      } catch (_) {}
-      return { ok: true, count: arr.length };
-    } catch (err) { return { ok: false, error: String(err) }; }
-  });
-  ipcMain.handle('db-kv-get', (e, key) => {
-    try { if (!db) return { ok: false }; const r = db.prepare('SELECT value FROM kv WHERE key=?').get(String(key)); return { ok: true, value: r ? r.value : null }; }
-    catch (err) { return { ok: false, error: String(err) }; }
-  });
-  ipcMain.handle('db-kv-set', (e, p) => {
-    try { if (!db) return { ok: false }; db.prepare('INSERT INTO kv (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at').run(String(p.key), String(p.value), new Date().toISOString()); return { ok: true }; }
-    catch (err) { return { ok: false, error: String(err) }; }
-  });
-
   // Touch ID (macOS) for the app lock
   ipcMain.handle('can-touch-id', () => {
     try { return process.platform === 'darwin' && systemPreferences.canPromptTouchID(); }

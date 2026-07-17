@@ -93,6 +93,13 @@ function assemble() {
   // (end of <body>, so the whole DOM exists before any app code runs).
   html = html.replace(/<!--#appbundle-->/g, '<script src="app.bundle.js"></script>');
 
+  // Inject the real version from package.json wherever __APP_VERSION__ appears,
+  // so the on-screen version always matches the released build (never hardcoded).
+  const pkgVersion = JSON.parse(
+    fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')
+  ).version;
+  html = html.replace(/__APP_VERSION__/g, pkgVersion);
+
   if (html.includes('<!--#include') || html.includes('<!--#appbundle-->')) {
     throw new Error('Unresolved build markers remain in index.html');
   }

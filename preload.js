@@ -13,12 +13,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   waTokenSave: (plain) => ipcRenderer.invoke('wa-token-save', plain),
   waTokenExists: () => ipcRenderer.invoke('wa-token-exists'),
   waTokenClear: () => ipcRenderer.invoke('wa-token-clear'),
-  // ACID storage (SQLite in the main process)
-  dbAvailable: () => ipcRenderer.invoke('db-available'),
-  dbLoadLoans: () => ipcRenderer.invoke('db-load-loans'),
-  dbSaveLoans: (loans) => ipcRenderer.invoke('db-save-loans', loans),
-  dbKvGet: (key) => ipcRenderer.invoke('db-kv-get', key),
-  dbKvSet: (key, value) => ipcRenderer.invoke('db-kv-set', { key, value }),
   // Auto-update status (main -> renderer), so the UI can show "downloading / ready" if desired
   onUpdateStatus: (cb) => ipcRenderer.on('update-status', (_e, s) => { try { cb(s); } catch (_) {} })
 });

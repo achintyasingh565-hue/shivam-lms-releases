@@ -27,10 +27,6 @@
     catch(e){ lsOK=false; window._mem = loans; if(!window._storageWarned){ window._storageWarned=true; toast('\u26a0 Device fast-storage is full. Your records are still saved in the app database \u2014 please take a backup now (Administration \u2192 Backup), then contact support to expand storage.'); } }
     try{ localStorage.setItem('shivam_backup_snapshot', JSON.stringify({at:Date.now(), data:loans})); }catch(_){ }
     try{ if(typeof idbSetLoans==='function') idbSetLoans(loans); }catch(_){ }
-    /* ACID store: transactional write to SQLite in the main process (see 19-sqlite-sync.js).
-       Fire-and-forget with a one-time warning if it starts failing — localStorage/IndexedDB
-       above remain as the in-session cache and fallback. */
-    try{ if(typeof dbPersist==='function') dbPersist(loans); }catch(_){ }
     /* Shared cloud copy (Supabase) — pushes changed loans to the other device.
        No-op when cloud is off or offline; see 20-cloud-sync.js. */
     try{ if(typeof cloudPush==='function') cloudPush(loans); }catch(_){ }
