@@ -1,6 +1,6 @@
 {
   "name": "shivam-enterprises-lms",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "description": "Shivam Enterprises Loan Management System — loan records, payments, customers, certificates & documents.",
   "author": "Shivam Enterprises (Finance)",
   "main": "main.js",
@@ -25,6 +25,7 @@
   "build": {
     "appId": "com.shivamenterprises.lms",
     "productName": "Shivam Enterprises LMS",
+    "afterPack": "build/after-pack.js",
     "files": [
       "main.js",
       "preload.js",
@@ -56,7 +57,7 @@
       "icon": "build/icon.png",
       "category": "public.app-category.business",
       "identity": null,
-      "hardenedRuntime": true,
+      "hardenedRuntime": false,
       "gatekeeperAssess": false
     },
     "dmg": {
