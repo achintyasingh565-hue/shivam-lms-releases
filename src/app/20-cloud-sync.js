@@ -89,6 +89,14 @@
     var cryptoKey = null;       // derived AES key when encryptIds is on
     var pollTimer = null, pushTimer = null, pushQueue = false;
 
+    // read-only: how many local loans differ from what we last uploaded to the
+    // cloud. Derived purely from the existing `loans` + `lastHash` — it observes
+    // state, it does NOT change any sync behaviour.
+    function pendingCount() {
+      var n = 0;
+      try { (loans || []).forEach(function (l) { if (l && l.id != null && lastHash[l.id] !== JSON.stringify(l)) n++; }); } catch (_) {}
+      return n;
+    }
     // Drives the top-bar pill: a friendly label + a colour "state".
     var _statusRaw = 'offline';
     function setStatus(s) {
@@ -102,10 +110,13 @@
         else if (/error/i.test(s)) { state = 'error'; label = 'Sync error'; }
         else if (/signed out/i.test(s)) { state = 'offline'; label = 'Sign in'; }
         else if (/local only/i.test(s)) { state = 'offline'; label = 'Local only'; }
+        else { var _p = session ? pendingCount() : 0; label = _p > 0 ? ('Offline — ' + _p + ' pending') : 'Offline'; }
         el.setAttribute('data-state', state);
         var lab = el.querySelector('.cs-label'); if (lab) lab.textContent = label;
       } catch (_) {}
     }
+    // read-only accessor so a test / the UI can read the true sync state + pending count
+    window.cloudSyncInfo = function () { return { status: _statusRaw, pending: pendingCount(), signedIn: !!session }; };
     // Clicking the pill: signed in -> offer sign out; not signed in -> sign in.
     window.cloudStatusClick = function () {
       if (session) { if (confirm('Signed in to shared data as this device.\n\nSign out of the shared book on THIS computer? (Your local copy stays; other devices are unaffected.)')) window.cloudSignOut(); }
