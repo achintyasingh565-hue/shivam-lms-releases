@@ -92,18 +92,18 @@ function setupAutoUpdates() {
     if (isMacUnsigned) {
       const r = await dialog.showMessageBox(mainWindow, {
         type: 'info', buttons: ['Get update', 'Later'], defaultId: 0, cancelId: 1,
-        title: 'Update available',
-        message: 'A new version (' + v + ') of Shivam Enterprises LMS is available.',
-        detail: 'Click "Get update" to open the download page, then drag the new app into Applications (replacing the old one). Your data is safe and will not be affected.'
+        title: 'Software Update',
+        message: 'A new version of Shivam Enterprises LMS is available!',
+        detail: 'Version ' + v + ' is ready to install. Would you like to get it now?'
       });
       if (r.response === 0) shell.openExternal(RELEASES_URL);
       return;
     }
     const r = await dialog.showMessageBox(mainWindow, {
-      type: 'info', buttons: ['Download & install', 'Later'], defaultId: 0, cancelId: 1,
-      title: 'Update available',
-      message: 'A new version (' + v + ') of Shivam Enterprises LMS is available.',
-      detail: 'Click "Download & install" — it downloads in the background and then asks you to restart. Your data is safe and will not be affected.'
+      type: 'info', buttons: ['Install update', 'Later'], defaultId: 0, cancelId: 1,
+      title: 'Software Update',
+      message: 'A new version of Shivam Enterprises LMS is available!',
+      detail: 'Version ' + v + ' is ready to install. Would you like to install it now?'
     });
     if (r.response === 0) { try { autoUpdater.downloadUpdate(); } catch (e) {} }
   });
@@ -112,9 +112,9 @@ function setupAutoUpdates() {
     notify({ state: 'ready', version: info && info.version });
     const r = await dialog.showMessageBox(mainWindow, {
       type: 'info', buttons: ['Restart now', 'Later'], defaultId: 0, cancelId: 1,
-      title: 'Update ready',
-      message: 'The update (' + (info && info.version) + ') has been downloaded.',
-      detail: 'Restart the app to finish installing it. Your data is safe and will not be affected.'
+      title: 'Software Update',
+      message: 'Update ready to install',
+      detail: 'Shivam Enterprises LMS ' + (info && info.version) + ' has been downloaded. Restart to finish installing.'
     });
     if (r.response === 0) { setImmediate(() => autoUpdater.quitAndInstall()); }
   });
