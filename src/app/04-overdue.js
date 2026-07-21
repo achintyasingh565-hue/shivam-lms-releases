@@ -389,7 +389,7 @@
     if(cat==='EMI Reminder'){ vars={name:l.name, emi:av('emi'), due_date:av('due_date'), acno:l.acno||'', outstanding:av('outstanding'), fine:av('fine'), rate:av('rate'), amount:av('emi'), loanid:l.acno||''}; msg=applyVars(TPL.reminder,l,{}); }
     else if(cat==='Overdue Reminder'){ vars={name:l.name, outstanding:av('outstanding'), due_date:av('due_date'), fine:av('fine'), acno:l.acno||'', emi:av('emi'), amount:av('outstanding'), loanid:l.acno||''}; msg=applyVars(TPL.overdue,l,{}); }
     else if(cat==='Payment Confirmation'){ vars={name:l.name, amount:'', txn:'', acno:l.acno||'', outstanding:av('outstanding')}; msg=applyVars(TPL.thanks,l,{}); }
-    else if(cat==='Loan Approval'){ vars={name:l.name, amount:inr(l.principal), loanid:l.acno||'', acno:l.acno||'', emi:av('emi')}; msg=applyVars(TPL.welcome,l,{}); }
+    else if(cat==='Loan Approval'){ vars={name:l.name, amount:inr(l.principal), loanid:l.acno||'', acno:l.acno||'', emi:av('emi'), due_date:av('due_date')}; msg=applyVars(TPL.welcome,l,{}); }
     else if(cat==='Birthday Greeting'){ vars={name:l.name}; msg=applyVars(TPL.greeting,l,{occasion:'Birthday'}); }
     else { vars={name:l.name}; msg=applyVars(TPL.greeting,l,{}); }
     return {id:'aq'+Date.now().toString(36)+Math.random().toString(36).slice(2,7), key:key, name:l.name, phone:l.phone||'', acno:l.acno||'', cat:cat, vars:vars, msg:msg, reason:reason, createdAt:Date.now()};
