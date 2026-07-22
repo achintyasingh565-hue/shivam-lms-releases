@@ -10,7 +10,7 @@ const EXPECT = {
   'EMI Reminder':            ['emi_due_reminder',     ['name','acno','emi','due_date']],
   'Overdue Reminder':        ['overdue_reminder',     ['name','acno','due_date','outstanding','fine']],
   'Payment Confirmation':    ['payment_received',     ['name','amount','acno','outstanding']],
-  'Loan Approval':           ['loan_sanctioned',      ['name','acno','emi']],
+  'Loan Approval':           ['loan_sanctioned',      ['name','amount','acno','emi']],
   'Final Notice':            ['final_notice',         ['name','outstanding','acno']],
   'Default Notice':          ['default_notice',       ['name','acno','arrears','outstanding']],
   'Cheque Bounce':           ['cheque_bounce_notice', ['name','cheque','acno','amount']],
@@ -57,16 +57,30 @@ const GTYPE = { 'Payment Confirmation':'thanks','Loan Approval':'welcome','Final
       principal:50000, rate:2, tenure:10, tint:10000, tpay:60000, emi:6000, disb:'2024-01-01', due:'2024-02-01',
       payments:[{date:'2024-02-01',amount:60000,status:'Cleared',mode:'Cash'}], status:'Closed' });
 
-    function check(cat, vars) {
+    function check(cat, vars, routedCat) {
       const [wantName, wantVars] = EXPECT[cat];
       const m = maps[cat] || {};
       const nameOk = m.name === wantName;
       const varsOk = (m.vars || '') === wantVars.join(',');
-      const empties = wantVars.filter(k => !ne(vars[k]));
+      // Routing guard: the queued item must carry the EXPECTED category, because
+      // that is the key used to pick the Meta template at send time. A wrong cat
+      // silently selects a different template (this is what caused #131008 on
+      // birthday sends, which were mis-routed to 'Greeting / Notice').
+      const catOk = routedCat == null || routedCat === cat;
+      // Reproduce SEND-TIME behaviour: empties are judged against the template the
+      // item is ACTUALLY routed to (loadWaTpl[it.cat]), not the intended one — so a
+      // mis-route that leaves a required Meta variable empty is caught here.
+      const sendCat = routedCat == null ? cat : routedCat;
+      const sendVars = ((maps[sendCat] || {}).vars || '').split(',').map(s => s.trim()).filter(Boolean);
+      const empties = (sendVars.length ? sendVars : wantVars).filter(k => !ne(vars[k]));
+      // Currency invariant: templates supply the ₹ symbol, so the app must send money
+      // values as PLAIN numbers (digits/commas only). A ₹ or "Rs" here would double-print.
+      const MONEY = ['amount', 'emi', 'outstanding', 'fine', 'arrears', 'principal'];
+      const symLeak = (sendVars.length ? sendVars : wantVars).filter(k => MONEY.includes(k) && ne(vars[k]) && !/^[\d.,\s]+$/.test(String(vars[k])));
       var tk = TPLKEY[cat];
       var bodyVars = (tk && typeof TPL !== 'undefined' && TPL[tk]) ? (String(TPL[tk]).match(/\{[a-z_]+\}/g) || []).length : null;
       var countOk = bodyVars == null || bodyVars === wantVars.length;
-      results.push({ cat, wantName, gotName: m.name, nameOk, varsOk, empties, bodyVars, mapVars: wantVars.length, countOk, sample: wantVars.map(k => k + '=' + (vars[k] ?? '')).join(' · ') });
+      results.push({ cat, routedCat: routedCat == null ? cat : routedCat, catOk, wantName, gotName: m.name, nameOk, varsOk, empties, symLeak, bodyVars, mapVars: wantVars.length, countOk, sample: wantVars.map(k => k + '=' + (vars[k] ?? '')).join(' · ') });
     }
 
     // Reminders (EMI + Overdue share one vars object)
@@ -85,8 +99,9 @@ const GTYPE = { 'Payment Confirmation':'thanks','Loan Approval':'welcome','Final
       setV('grOccasion', type === 'holiday' ? 'Independence Day' : 'Diwali');
       setV('grDate', '15 August 2026');
       renderGreetings();
-      const gv = (window._grList && window._grList[0] && window._grList[0].vars) || {};
-      check(cat, gv);
+      const it0 = (window._grList && window._grList[0]) || {};
+      const gv = it0.vars || {};
+      check(cat, gv, it0.cat);
     }
     return results;
   }, { EXPECT, GTYPE, TPLKEY });
@@ -94,9 +109,11 @@ const GTYPE = { 'Payment Confirmation':'thanks','Loan Approval':'welcome','Final
   console.log('\n===== WHATSAPP TEMPLATE ALIGNMENT =====');
   let bad = 0;
   for (const r of out) {
-    const ok = r.nameOk && r.varsOk && r.empties.length === 0 && r.countOk;
+    const ok = r.nameOk && r.varsOk && r.empties.length === 0 && r.countOk && r.catOk && (!r.symLeak || r.symLeak.length === 0);
     if (!ok) bad++;
     console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${r.cat.padEnd(24)} -> ${r.gotName}  (${r.mapVars} vars)`);
+    if (!r.catOk) console.log(`        ROUTING mismatch: queued as "${r.routedCat}" but should route to "${r.cat}"`);
+    if (r.symLeak && r.symLeak.length) console.log(`        CURRENCY SYMBOL in sent value (should be plain number): ${r.symLeak.join(', ')}  [${r.sample}]`);
     if (!r.nameOk) console.log(`        name mismatch: got ${r.gotName}, want ${r.wantName}`);
     if (!r.varsOk) console.log(`        variable order mismatch`);
     if (!r.countOk) console.log(`        COUNT mismatch: app body has ${r.bodyVars} variables but mapping sends ${r.mapVars}`);
