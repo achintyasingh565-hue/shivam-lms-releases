@@ -31,7 +31,7 @@ html.dark body{ background:#0A0F1C !important; }
 .sidebar{ border-right:1px solid rgba(255,255,255,.06) !important; }
 html:not(.dark) .sidebar{ background:#0F1729 !important; }
 html.dark .sidebar{ background:#0B1220 !important; }
-.sidebar .side-brand .logo{ background:var(--accent) !important; border:0 !important; box-shadow:0 4px 14px rgba(79,70,229,.4) !important; color:#fff !important; }
+.sidebar .side-brand .logo{ background:#131f38 !important; border:2px solid #c8a02a !important; box-shadow:0 3px 10px rgba(3,10,24,.5) !important; color:#eef2fb !important; }
 .sidebar .nav a{ color:#AEB8CC !important; font-weight:500 !important; }
 .sidebar .nav a .ic{ color:#7E8AA6 !important; }
 .sidebar .nav .lbl{ color:#5D6A86 !important; }
@@ -141,10 +141,10 @@ html.dark .hpdoc{
     linear-gradient(160deg,#131C33 0%,#0F1729 58%,#0B1220 120%) !important;
   border-right:1px solid rgba(255,255,255,.10) !important;
 }
-.auth-brand::after{ background:radial-gradient(circle, rgba(99,102,241,.30), transparent 62%) !important; }
-.auth-mark{ background:linear-gradient(150deg,#6366F1,#4338CA) !important;
-  box-shadow:0 8px 20px rgba(67,56,202,.42), inset 0 1px 0 rgba(255,255,255,.16) !important; }
-.auth-mark>span{ border-color:rgba(255,255,255,.55) !important; }
+.auth-brand::after{ background:radial-gradient(circle, rgba(200,160,42,.22), transparent 62%) !important; }
+.auth-mark{ background:#131f38 !important; border:2.5px solid #c8a02a !important;
+  box-shadow:0 8px 20px rgba(3,10,24,.35), inset 0 1px 0 rgba(255,255,255,.10) !important; }
+.auth-mark>span{ border:none !important; }
 .auth-divider{ background:var(--accent) !important; }
 .auth-badge{ background:rgba(99,102,241,.16) !important; border-color:rgba(99,102,241,.45) !important; color:#c7d2fe !important; }
 .auth-badge:before{ background:#a5b4fc !important; }

@@ -413,7 +413,7 @@
         l.payments.forEach(function(p,idx){
           if(p && p.status!=='Pending' && p.date===t){
             var it=autoMkItem(l,'Payment Confirmation','Payment received '+inr(p.amount),'pay:'+l.id+':'+p.date+':'+idx+':'+(Number(p.amount)||0));
-            it.vars.amount=inr(p.amount); it.vars.txn=(p.ref||p.cheque||fmtDate(p.date)||'');
+            it.vars.amount=inrPlain(p.amount); it.vars.txn=(p.ref||p.cheque||fmtDate(p.date)||'');
             if(autoQueueAdd(it)) added++;
           }
         });

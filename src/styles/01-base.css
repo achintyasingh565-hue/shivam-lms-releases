@@ -32,8 +32,8 @@
   }
   .side-brand{padding:22px 20px 18px; border-bottom:1px solid rgba(255,255,255,.06); display:flex; align-items:center; gap:12px;}
   .side-brand .logo{
-    width:42px; height:42px; border-radius:11px; background:linear-gradient(150deg,#16294b,#0b1830); border:1.5px solid #c8a02a;
-    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; color:#eaf0fb; letter-spacing:.5px;
+    width:42px; height:42px; border-radius:11px; background:#131f38; border:2px solid #c8a02a;
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; color:#eef2fb; letter-spacing:.5px;
     box-shadow:0 3px 10px rgba(3,10,24,.5); flex-shrink:0;
   }
   .tb-profile .ava{overflow:hidden; padding:0; background:linear-gradient(150deg,#1e355f,#0b1830); border:1.5px solid #c8a02a; color:#f2e6c4; font-weight:700; letter-spacing:.5px; display:flex; align-items:center; justify-content:center;}
@@ -357,8 +357,8 @@
   .auth-badge{position:relative; align-self:flex-start; display:inline-flex; align-items:center; gap:6px; margin-top:16px; padding:5px 11px; border-radius:999px; background:rgba(212,175,55,.13); border:1px solid rgba(212,175,55,.45); color:#e3c26b; font-size:10px; font-weight:600; letter-spacing:1.2px; text-transform:uppercase;}
   .auth-badge:before{content:""; width:5px; height:5px; border-radius:50%; background:#c8a02a;}
   .auth-card{flex:1; padding:42px 44px; display:flex; flex-direction:column; justify-content:center; background:rgba(255,255,255,.96); box-shadow:inset 0 1px 0 rgba(255,255,255,.7);}
-  .auth-mark{align-self:center; width:66px; height:66px; border-radius:16px; background:linear-gradient(150deg,#6D3BF5,#4321A0); display:flex; align-items:center; justify-content:center; box-shadow:0 6px 18px rgba(3,10,24,.2), inset 0 1px 0 rgba(255,255,255,.14); margin-bottom:22px;}
-  .auth-mark>span{width:50px; height:50px; border:2px solid #c8a02a; border-radius:11px; display:flex; align-items:center; justify-content:center; color:#eaf0fb; font-size:20px; font-weight:700; letter-spacing:1px;}
+  .auth-mark{align-self:center; width:66px; height:66px; border-radius:16px; background:#131f38; border:2.5px solid #c8a02a; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 18px rgba(3,10,24,.2), inset 0 1px 0 rgba(255,255,255,.08); margin-bottom:22px;}
+  .auth-mark>span{width:50px; height:50px; border:none; border-radius:11px; display:flex; align-items:center; justify-content:center; color:#eef2fb; font-size:22px; font-weight:800; letter-spacing:1px;}
   .auth-welcome{text-align:center; font-size:23px; font-weight:700; color:#0f172a; letter-spacing:-.3px;}
   .auth-sub{text-align:center; font-size:14px; color:#64748b; margin:6px 0 26px;}
   .auth-label{font-size:12.5px; font-weight:600; color:#334155; margin-bottom:7px; display:block;}
