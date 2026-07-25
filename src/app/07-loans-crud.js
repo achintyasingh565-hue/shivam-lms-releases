@@ -214,7 +214,7 @@
     if(confirm('Move loan record for '+ (l?l.name:'this borrower') +' to the Recycle Bin? You can restore it within 30 days from Administration.')){
       snapBefore('Before delete: '+(l?l.acno:''));
       if(l){ const bin=recyclePurgeOld(); bin.unshift(Object.assign({}, l, {deletedAt:Date.now(), deletedBy:(currentUser&&currentUser.user)||'system'})); recycleSave(bin); }
-      logAudit('Loan Deleted (to Recycle Bin)', (l?l.name:'')+' ('+(l?l.acno:'')+')'); loans=loans.filter(x=>x.id!==id); save(); try{ if(typeof cloudDelete==='function') cloudDelete(id, l); }catch(_){ } renderLoans(); if(typeof renderRecycle==='function') renderRecycle(); toast('Moved to Recycle Bin — restorable for 30 days');
+      logAudit('Loan Deleted (to Recycle Bin)', (l?l.name:'')+' ('+(l?l.acno:'')+')'); loans=loans.filter(x=>x.id!==id); save(); try{ if(typeof cloudDelete==='function') cloudDelete(id, l); }catch(_){ } try{ if(typeof autoQueueDropForLoan==='function') autoQueueDropForLoan(l); }catch(_){ } renderLoans(); if(typeof renderRecycle==='function') renderRecycle(); if(typeof renderDash==='function'){ try{ renderDash(); }catch(_){ } } toast('Moved to Recycle Bin — restorable for 30 days');
     }
   }
   function renderRecycle(){

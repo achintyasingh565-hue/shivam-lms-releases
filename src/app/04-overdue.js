@@ -368,6 +368,12 @@
   function autoSeenSave(a){ try{ localStorage.setItem(AUTOSEEN_STORE, JSON.stringify(a)); }catch(e){} }
   function autoSeenHas(k){ return autoSeenLoad().some(function(x){ return x.key===k; }); }
   function autoSeenAdd(k){ var a=autoSeenLoad(); var cut=Date.now()-60*86400000; a=a.filter(function(x){ return (x.at||0)>=cut; }); a.push({key:k,at:Date.now()}); autoSeenSave(a); }
+  /* Un-mark a reminder as "seen" so a fresh scan can regenerate it. Called when
+     the user dismisses/clears a reminder they did NOT send — otherwise the 60-day
+     seen-list would suppress it and "Scan now" would keep returning 0. */
+  function autoSeenRemove(k){ try{ autoSeenSave(autoSeenLoad().filter(function(x){ return x.key!==k; })); }catch(e){} }
+  function autoSeenClearAll(){ try{ localStorage.removeItem(AUTOSEEN_STORE); }catch(e){} }
+  window.autoSeenRemove=autoSeenRemove; window.autoSeenClearAll=autoSeenClearAll;
 
   function autoQueueAdd(item){
     if(autoSeenHas(item.key)) return false;
@@ -382,6 +388,27 @@
     q=q.filter(function(it){ return !hist.some(function(h){ return h && h.category===it.cat && intlPhone(h.phone||'')===intlPhone(it.phone||'') && (h.at||0)>=((it.createdAt||0)-1000); }); });
     if(q.length!==before) autoQueueSave(q);
   }
+  /* Drop any pending auto-reminders that belong to a deleted borrower, so a
+     removed customer never lingers in the "pending reminders" panel. Matched by
+     account no / phone / the loan id embedded in the item key. */
+  function autoQueueDropForLoan(l){
+    if(!l) return; try{
+      var q=autoQueueLoad(); if(!q.length) return; var before=q.length;
+      var ac=(l.acno||'').toLowerCase();
+      var ph=(typeof intlPhone==='function')?intlPhone(l.phone||''):(l.phone||'');
+      q=q.filter(function(it){
+        var itAc=(it.acno||'').toLowerCase();
+        var itPh=(typeof intlPhone==='function')?intlPhone(it.phone||''):(it.phone||'');
+        var keyHit=(it.key && l.id && String(it.key).indexOf(':'+l.id)>=0);
+        var mine=(ac && itAc && itAc===ac) || (ph && itPh && itPh===ph) || keyHit;
+        return !mine;
+      });
+      if(q.length!==before){ autoQueueSave(q); if(typeof renderAutoPending==='function'){ try{ renderAutoPending(); }catch(e){} } }
+    }catch(e){}
+  }
+  function autoQueueClearAll(){ try{ localStorage.removeItem(AUTOQ_STORE); }catch(e){} if(typeof renderAutoPending==='function'){ try{ renderAutoPending(); }catch(e){} } }
+  window.autoQueueDropForLoan=autoQueueDropForLoan;
+  window.autoQueueClearAll=autoQueueClearAll;
 
   function autoMkItem(l, cat, reason, key){
     var av=function(tok){ return applyVars('{'+tok+'}', l, {}); };

@@ -25,9 +25,9 @@
       if(it.vars){ var src = over ? it.vars.outstanding : it.vars.emi; if(src!=null) amt=Math.round(Number(String(src).replace(/[^0-9.]/g,''))||0); }
       return {name:it.name, phone:it.phone, acno:it.acno, cat:it.cat, msg:it.msg, vars:it.vars, tpl:tpl, loanId:(L?L.id:''), amt:amt};
     }), cat); }
-  function autoRemDismiss(id){ autoQueueSave(autoQueueLoad().filter(function(it){ return it.id!==id; })); renderAutoPending(); }
-  function autoRemClearCat(cat){ autoQueueSave(autoQueueLoad().filter(function(it){ return it.cat!==cat; })); toast('Cleared '+cat); renderAutoPending(); }
-  function autoRemClearAll(){ autoQueueSave([]); toast('Pending reminders cleared'); renderAutoPending(); }
+  function autoRemDismiss(id){ var q=autoQueueLoad(); var it=q.find(function(x){ return x.id===id; }); autoQueueSave(q.filter(function(x){ return x.id!==id; })); if(it && typeof autoSeenRemove==='function') autoSeenRemove(it.key); renderAutoPending(); }
+  function autoRemClearCat(cat){ var q=autoQueueLoad(); q.filter(function(it){ return it.cat===cat; }).forEach(function(it){ if(typeof autoSeenRemove==='function') autoSeenRemove(it.key); }); autoQueueSave(q.filter(function(it){ return it.cat!==cat; })); toast('Cleared '+cat); renderAutoPending(); }
+  function autoRemClearAll(){ autoQueueSave([]); if(typeof autoSeenClearAll==='function') autoSeenClearAll(); toast('Pending reminders cleared'); renderAutoPending(); }
 
   function go(sec){
     recomputeAll();

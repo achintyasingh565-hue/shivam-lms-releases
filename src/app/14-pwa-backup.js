@@ -312,5 +312,14 @@
           if(extras.wacfg){ let cur={}; try{ cur=JSON.parse(localStorage.getItem('shivam_wacfg_v1')||'{}')||{}; }catch(e){} localStorage.setItem('shivam_wacfg_v1', JSON.stringify(Object.assign({}, extras.wacfg, {token:cur.token, tokenEnc:cur.tokenEnc}))); } } logAudit('Backup Restored', arr.length+' records'+(extras?' + settings':'')); renderLoans(); renderDash(); toast('Backup restored ('+arr.length+' records'+(extras?', settings included':'')+')'); go('loans'); }catch(e){ toast('Invalid backup file'); } };
     rd.readAsText(file); ev.target.value='';
   }
-  function clearAll(){ if(confirm('Delete ALL loan records permanently? Make sure you have a backup.')){ loans=[]; save(); logAudit('All Records Deleted',''); renderLoans(); renderDash(); toast('All records deleted'); } }
+  function clearAll(){ if(confirm('Delete ALL loan records permanently? Make sure you have a backup.')){
+      /* Capture before wiping so we can propagate each deletion to the cloud.
+         Without this, "Delete ALL" cleared only this device and cloud sync
+         re-hydrated every record on the next pull (they were never marked
+         deleted in Supabase). Mirror delLoan's per-record cloudDelete. */
+      var _all=(loans||[]).slice();
+      loans=[]; save();
+      try{ if(typeof cloudDelete==='function'){ _all.forEach(function(l){ if(l && l.id!=null) cloudDelete(l.id, l); }); } }catch(_){ }
+      try{ if(typeof autoQueueClearAll==='function') autoQueueClearAll(); }catch(_){ }
+      logAudit('All Records Deleted', _all.length+' record(s)'); renderLoans(); renderDash(); toast('All records deleted'); } }
 

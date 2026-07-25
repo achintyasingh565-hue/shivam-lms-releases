@@ -33,6 +33,13 @@
     function saveWaCfg(c){ try{ localStorage.setItem(WACFG_STORE, JSON.stringify(c)); }catch(e){} }
   function loadWaHist(){ try{ return JSON.parse(localStorage.getItem(WAHIST_STORE)||'[]'); }catch(e){ return []; } }
   function saveWaHist(h){ try{ localStorage.setItem(WAHIST_STORE, JSON.stringify(h.slice(-5000))); }catch(e){} }
+  /* Most recent send time (ms) to this phone for a given category, 0 if none. */
+  function waLastSent(phone, cat){ try{ var h=loadWaHist(); var pn=intlPhone(phone||''); if(!pn) return 0; var last=0; for(var i=0;i<h.length;i++){ var e=h[i]; if(e && intlPhone(e.phone||'')===pn && (!cat || e.category===cat) && (e.at||0)>last) last=e.at; } return last||0; }catch(e){ return 0; } }
+  /* Small "✓ Sent · <date>" tag for send lists, shown when this borrower already
+     received this category within the last 30 days. Non-destructive — the row
+     still stays so it can be re-sent if needed. */
+  function waSentBadge(phone, cat){ try{ var last=waLastSent(phone, cat); if(!last) return ''; if((Date.now()-last) > 30*86400000) return ''; var d=new Date(last).toLocaleDateString('en-IN'); return '<span title="Already sent '+esc(d)+'" style="display:inline-block;margin-left:6px;color:#16a34a;font-size:10.5px;font-weight:600;white-space:nowrap;">✓ Sent</span>'; }catch(e){ return ''; } }
+  window.waLastSent=waLastSent; window.waSentBadge=waSentBadge;
   let _review={category:'', items:[]};
   function _rvFind(id){ return _review.items.find(x=>x.id===id); }
   function waPhoneState(item, allPhones){
