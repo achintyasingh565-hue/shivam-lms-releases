@@ -1,7 +1,10 @@
   /* ---- UI ---- */
   function renderAutoRem(){ renderAutoPending(); }
+  function autoRemToggle(key, val){ try{ var c=autoRemCfg(); c[key]=!!val; autoRemSaveCfg(c); renderAutoRemToggles(); toast('Reminder settings saved'); }catch(e){} }
+  function renderAutoRemToggles(){ try{ var c=autoRemCfg(); [['arm_emi','emi'],['arm_overdue','overdue'],['arm_payment','payment'],['arm_approval','approval'],['arm_birthday','birthday']].forEach(function(p){ var el=$(p[0]); if(el) el.checked=(c[p[1]]!==false); }); }catch(e){} }
   function renderAutoPending(){
     autoQueuePrune();
+    renderAutoRemToggles();
     var q=autoQueueLoad(); var host=$('autoPending'); if(!host) return;
     if(!q.length){ host.innerHTML='<div class="empty"><div class="big">&#10003;</div><div class="empty-t">You’re all caught up</div><div class="empty-s">No reminders waiting. Run a scan after recording payments, or as EMIs approach.</div></div>'; return; }
     var html='';

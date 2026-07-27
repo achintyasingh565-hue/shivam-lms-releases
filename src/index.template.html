@@ -31,7 +31,9 @@
      img/font data:         : embedded icons & PDF fonts. style 'unsafe-inline': the app styles
                               elements via style="" and injected <style> for printing.
      object-src 'none', base-uri 'none', form-action 'none': closes plugin, <base>-hijack and
-                              form-post exfiltration vectors. -->
+                              form-post exfiltration vectors.
+     NOTE: the connect-src host below MUST match window.CLOUD.url in
+     src/app/00-cloud-config.js — if the Supabase project URL changes, update both. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src https://djbprwbrnioxkakpnilc.supabase.co; media-src 'none'; object-src 'none'; child-src 'self' blob:; frame-src 'self' blob: about:; worker-src 'none'; manifest-src 'self' blob:; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Shivam Enterprises Loan Management System</title>
@@ -89,7 +91,7 @@
   <!-- ============ MAIN ============ -->
   <div class="main">
     <div class="topbar no-print">
-      <button class="side-toggle" onclick="toggleSidebar()" title="Collapse menu">☰</button>
+      <button class="side-toggle" onclick="toggleSidebar()" title="Collapse menu" aria-label="Toggle menu">☰</button>
       <div class="tb-title">
         <h2 id="pageTitle">Dashboard</h2>
         <div class="crumb" id="pageCrumb">Overview of your finance office</div>
@@ -144,7 +146,7 @@
 <!-- ============ LOAN MODAL ============ -->
 <div class="overlay" id="loanOverlay">
   <div class="modal">
-    <div class="modal-head"><h3 id="modalTitle">New Loan Record</h3><button class="x" onclick="closeLoan()">✕</button></div>
+    <div class="modal-head"><h3 id="modalTitle">New Loan Record</h3><button class="x" aria-label="Close" onclick="closeLoan()">✕</button></div>
     <div class="modal-body">
       <div class="loan-tabs" id="loanTabs">
         <button type="button" class="loan-tab active" data-ltab="borrower" onclick="loanTab('borrower')">Borrower<span class="lt-dot" id="dot-borrower"></span></button>
@@ -275,7 +277,7 @@
 <!-- ============ INSTALL HELP MODAL ============ -->
 <div class="overlay" id="installOverlay">
   <div class="modal" style="max-width:540px;">
-    <div class="modal-head"><h3>Install as an App</h3><button class="x" onclick="closeInstall()">✕</button></div>
+    <div class="modal-head"><h3>Install as an App</h3><button class="x" aria-label="Close" onclick="closeInstall()">✕</button></div>
     <div class="modal-body">
       <div class="help-block">
         <h4>💻 On a Computer (Chrome / Edge)</h4>
@@ -299,18 +301,18 @@
   </div>
 </div>
 
-<div class="overlay" id="vaultModal"><div class="modal" style="max-width:780px;"><div class="modal-head"><h3 id="vaultModalTitle">Document</h3><button class="x" onclick="closeVaultModal()">&#10005;</button></div><div id="vaultModalBody" style="padding:18px; text-align:center; max-height:80vh; overflow:auto;"></div></div></div>
+<div class="overlay" id="vaultModal"><div class="modal" style="max-width:780px;"><div class="modal-head"><h3 id="vaultModalTitle">Document</h3><button class="x" aria-label="Close" onclick="closeVaultModal()">&#10005;</button></div><div id="vaultModalBody" style="padding:18px; text-align:center; max-height:80vh; overflow:auto;"></div></div></div>
 
 <div class="overlay" id="batchOverlay">
   <div class="modal" style="max-width:470px;">
-    <div class="modal-head"><h3>Send on WhatsApp</h3><button class="x" onclick="closeBatch()">✕</button></div>
+    <div class="modal-head"><h3>Send on WhatsApp</h3><button class="x" aria-label="Close" onclick="closeBatch()">✕</button></div>
     <div class="modal-body" id="batchBody"></div>
     <div class="modal-foot" id="batchFoot"></div>
   </div>
 </div>
 
 <div class="overlay" id="reviewOverlay"><div class="modal" style="max-width:980px;width:96%;">
-  <div class="modal-head"><h3>Message Review &mdash; <span id="reviewCount">0 selected</span></h3><button class="x" onclick="closeReview()">&#10005;</button></div>
+  <div class="modal-head"><h3>Message Review &mdash; <span id="reviewCount">0 selected</span></h3><button class="x" aria-label="Close" onclick="closeReview()">&#10005;</button></div>
   <div style="padding:14px 18px;">
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
       <button class="btn btn-sm btn-ghost" onclick="reviewSelectAll(true)">Select all</button>
@@ -326,7 +328,7 @@
   </div>
 </div></div>
 <div class="overlay" id="verifyOverlay"><div class="modal" style="max-width:460px;">
-  <div class="modal-head"><h3>WhatsApp Message Verification</h3><button class="x" onclick="closeVerify()">&#10005;</button></div>
+  <div class="modal-head"><h3>WhatsApp Message Verification</h3><button class="x" aria-label="Close" onclick="closeVerify()">&#10005;</button></div>
   <div id="verifyBody" style="padding:16px 18px;"></div>
   <div id="verifyFoot" style="display:flex;justify-content:flex-end;gap:10px;padding:12px 18px;border-top:1px solid var(--line);">
     <button class="btn btn-ghost" onclick="closeVerify()">Cancel</button>
@@ -339,7 +341,7 @@
 
 <div class="overlay" id="rsOverlay">
   <div class="modal" style="max-width:660px;">
-    <div class="modal-head"><h3 id="rsTitle">Restructure / Prepayment</h3><button class="x" onclick="closeRestructure()">&times;</button></div>
+    <div class="modal-head"><h3 id="rsTitle">Restructure / Prepayment</h3><button class="x" aria-label="Close" onclick="closeRestructure()">&times;</button></div>
     <div class="modal-body" style="display:block;">
       <div id="rsCurrent" style="background:var(--field,#f2f5fa);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;"></div>
 
@@ -381,7 +383,7 @@
 </style>
 <div class="overlay" id="defOverlay">
   <div class="modal" style="max-width:820px;">
-    <div class="modal-head"><h3>Default Notice</h3><button class="x" onclick="closeDefaultNotice()">&times;</button></div>
+    <div class="modal-head"><h3>Default Notice</h3><button class="x" aria-label="Close" onclick="closeDefaultNotice()">&times;</button></div>
     <div class="modal-body" style="display:block;max-height:70vh;overflow:auto;" id="defBody"></div>
     <div class="modal-foot" style="flex-wrap:wrap;gap:8px;">
       <div class="seg2" id="dnLangSeg" style="align-self:center;">
@@ -397,7 +399,7 @@
 
 <div class="overlay" id="schedOverlay">
   <div class="modal" style="max-width:780px;">
-    <div class="modal-head"><h3>Repayment Schedule</h3><button class="x" onclick="closeSchedule()">&times;</button></div>
+    <div class="modal-head"><h3>Repayment Schedule</h3><button class="x" aria-label="Close" onclick="closeSchedule()">&times;</button></div>
     <div class="modal-body" style="display:block;max-height:70vh;overflow:auto;" id="schedBody"></div>
     <div class="modal-foot" style="flex-wrap:wrap;gap:8px;">
       <button class="btn btn-ghost" onclick="closeSchedule()">Close</button>
@@ -408,7 +410,7 @@
 
 <div class="overlay" id="docPreviewOverlay">
   <div class="modal" style="max-width:900px;">
-    <div class="modal-head"><h3>Document preview</h3><button class="x" onclick="closeDocPreview()">&times;</button></div>
+    <div class="modal-head"><h3>Document preview</h3><button class="x" aria-label="Close" onclick="closeDocPreview()">&times;</button></div>
     <div class="modal-body" id="docPreviewBody" style="display:flex;justify-content:center;max-height:78vh;overflow:auto;padding:18px;"></div>
     <div class="modal-foot"><button class="btn btn-ghost" onclick="closeDocPreview()">Close</button></div>
   </div>

@@ -15,6 +15,14 @@
                 <button class="btn btn-sm" onclick="autoRemClearAll()">Clear all</button>
               </div>
             </div>
+            <div id="autoRemToggles" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:8px 2px 12px;font-size:12.5px;color:var(--muted);border-bottom:1px solid var(--line);margin-bottom:12px;">
+              <span style="font-weight:600;color:var(--text);">Auto-generate:</span>
+              <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="arm_emi" onchange="autoRemToggle('emi',this.checked)"> EMI due</label>
+              <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="arm_overdue" onchange="autoRemToggle('overdue',this.checked)"> Overdue</label>
+              <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="arm_payment" onchange="autoRemToggle('payment',this.checked)"> Payment received</label>
+              <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="arm_approval" onchange="autoRemToggle('approval',this.checked)"> Loan sanctioned</label>
+              <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="arm_birthday" onchange="autoRemToggle('birthday',this.checked)"> Birthday</label>
+            </div>
             <div id="autoPending"></div>
           </div>
           <div class="panel">

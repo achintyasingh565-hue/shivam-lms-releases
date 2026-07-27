@@ -137,6 +137,16 @@
     const params=keys.map(k=>({type:'text', text:String((it.vars&&it.vars[k]!=null)?it.vars[k]:'')}));
     return [{type:'body', parameters:params}];
   }
+  /* Gentle pacing + retry/backoff so a batch blast doesn't trip Meta's rate limits.
+     Only transient errors (rate limit / timeout / 5xx) are retried, up to twice. */
+  function _waSleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+  function _waTransient(err){ var e=String(err||'').toLowerCase(); return /rate limit|too many|429|timed out|timeout|temporar|try again|#131056|#130429|#80007|http 5/.test(e); }
+  async function _waSendOnce(payload){ try{ return await window.electronAPI.sendWhatsApp(payload); }catch(e){ return {ok:false, error:String(e)}; } }
+  async function _waSendRetry(payload){
+    var res=await _waSendOnce(payload); var delay=800;
+    for(var a=0; a<2 && res && !res.ok && _waTransient(res.error); a++){ await _waSleep(delay); delay*=2; res=await _waSendOnce(payload); }
+    return res;
+  }
   async function approveAndSend(){
     if(currentUser && currentUser.role==='staff'){ toast('You do not have permission to approve & send'); return; }
     const sel=_review.items.filter(it=>it.sel && intlPhone(it.phone));
@@ -159,10 +169,11 @@
       if(vb) vb.innerHTML='<div style="text-align:center;padding:20px;">Sending <b>'+(i+1)+'</b> of '+total+'\u2026<div class="ph-sub" style="margin-top:6px;">'+esc(it.name||it.phone)+'</div></div>';
       const tpl=tpls[it.cat]; let res;
       if(!tpl || !tpl.name){ res={ok:false, error:'No approved template mapped for "'+it.cat+'"'}; }
-      else { try{ res=await window.electronAPI.sendWhatsApp({apiVersion:(cfg.apiVersion||''), token:(cfg.token||''), phoneNumberId:cfg.pnid, to:intlPhone(it.phone), template:{name:tpl.name, lang:(it.lang||tpl.lang||'en'), components:buildTplComponents(it,tpl)}}); }catch(e){ res={ok:false, error:String(e)}; } }
+      else { res=await _waSendRetry({apiVersion:(cfg.apiVersion||''), token:(cfg.token||''), phoneNumberId:cfg.pnid, to:intlPhone(it.phone), template:{name:tpl.name, lang:(it.lang||tpl.lang||'en'), components:buildTplComponents(it,tpl)}}); }
       const rec={id:'wm'+now+i+Math.random().toString(36).slice(2,6), name:it.name, phone:it.phone, acno:it.acno||'', category:it.cat, content:it.msg, at:Date.now(), by};
       if(res && res.ok){ okc++; rec.status='Sent'; rec.mid=res.id||''; } else { failc++; rec.status='Failed'; rec.error=(res&&res.error)||'unknown'; }
       hist.push(rec);
+      if(i < sel.length-1) await _waSleep(250);   // pace between recipients
     }
     saveWaHist(hist);
     logAudit('WhatsApp Sent via API', 'sent '+okc+', failed '+failc+' \u00b7 '+[...new Set(sel.map(s=>s.cat))].join(', ')+' \u00b7 by '+by);

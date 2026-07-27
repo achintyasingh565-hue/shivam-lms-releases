@@ -73,7 +73,8 @@
   window.openSchedule=function(id){
     L=loans.find(function(x){return x.id===id;}); if(!L){ toast('Loan not found'); return; }
     var d=build(L); window._schedData=d;
-    $('schedBody').innerHTML='<div style="background:var(--field,#f2f5fa);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px;"><b>'+esc(L.name||'')+'</b> &nbsp;·&nbsp; '+esc(L.acno||'')+summaryHTML(d)+'</div>'+
+    var _capNote = d.capped ? '<div style="background:#fff7e6;border:1px solid #e7c766;color:#8a6d1a;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12.5px;">This schedule is unusually long and has been capped at '+d.months+' installments (~50 years). Please double-check the EMI against the balance — a very small EMI on a large balance can produce a schedule like this.</div>' : '';
+    $('schedBody').innerHTML='<div style="background:var(--field,#f2f5fa);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px;"><b>'+esc(L.name||'')+'</b> &nbsp;·&nbsp; '+esc(L.acno||'')+summaryHTML(d)+'</div>'+_capNote+
       '<style>table.sched{width:100%;border-collapse:collapse;font-size:12.5px;}table.sched th,table.sched td{border:1px solid var(--line);padding:5px 8px;}table.sched th{background:var(--navy,#0b1f4b);color:#fff;text-align:left;}</style>'+tableHTML(d);
     $('schedOverlay').classList.add('show');
   };

@@ -165,7 +165,7 @@ ipcMain.handle('save-pdf', async (e, payload) => {
     const fs = require('fs'); const os = require('os'); const p = require('path');
     const tmp = p.join(os.tmpdir(), 'se_doc_' + Date.now() + '.html');
     fs.writeFileSync(tmp, (payload && payload.html) || '<html><body></body></html>', 'utf8');
-    win = new BrowserWindow({ show: false, webPreferences: { sandbox: true } });
+    win = new BrowserWindow({ show: false, webPreferences: { sandbox: true, nodeIntegration: false, contextIsolation: true } });
     await win.loadFile(tmp);
     const pdf = await win.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { marginType: 'default' } });
     try { fs.unlinkSync(tmp); } catch (e2) {}

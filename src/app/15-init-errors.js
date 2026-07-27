@@ -2,20 +2,24 @@
   load();
   bootStore();
   try{ migrateStore(); }catch(e){}
+  try{ if(typeof recyclePurgeOld==='function') recyclePurgeOld(); }catch(e){}   // clear >30-day recycled records even if the bin is never opened
   /* ---------- global error reporting (errors used to vanish silently) ---------- */
   window._errSeen={}; window._errCount=0;
-  function reportError(where, msg){
+  function reportError(where, msg, stack){
     try{
       const key=(where+'|'+msg).slice(0,180);
       if(window._errSeen[key]) return;          /* never spam the same fault twice */
       window._errSeen[key]=1;
       if(++window._errCount>25) return;          /* hard ceiling per session */
       logAudit('App Error', (where?where+': ':'')+String(msg).slice(0,300));
+      /* rolling diagnostic log (last 50) with stack traces, for support */
+      try{ var lg=JSON.parse(localStorage.getItem('shivam_errlog_v1')||'[]'); if(!Array.isArray(lg)) lg=[]; lg.push({at:Date.now(), where:where||'', msg:String(msg).slice(0,300), stack:String(stack||'').slice(0,700)}); localStorage.setItem('shivam_errlog_v1', JSON.stringify(lg.slice(-50))); }catch(_){}
       if(window._errCount<=2) toast('\u26a0 Something went wrong \u2014 it has been recorded in the Audit Log (Administration).', 6000);
     }catch(_){}
   }
-  window.addEventListener('error', function(e){ reportError((e.filename?'':'')+'line '+(e.lineno||'?'), (e.message||'Unknown error')); });
-  window.addEventListener('unhandledrejection', function(e){ reportError('async', (e.reason && (e.reason.message||e.reason))||'Unhandled rejection'); });
+  window.errorLog=function(){ try{ return JSON.parse(localStorage.getItem('shivam_errlog_v1')||'[]'); }catch(e){ return []; } };
+  window.addEventListener('error', function(e){ reportError((e.filename?'':'')+'line '+(e.lineno||'?'), (e.message||'Unknown error'), e.error&&e.error.stack); });
+  window.addEventListener('unhandledrejection', function(e){ reportError('async', (e.reason && (e.reason.message||e.reason))||'Unhandled rejection', e.reason&&e.reason.stack); });
   recomputeAll();
   loadTpl();
   try{ autoRemBoot(); }catch(e){}

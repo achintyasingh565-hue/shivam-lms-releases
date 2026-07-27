@@ -15,18 +15,20 @@
   };
 
   const STORE = "shivam_loans_v1";
+  const STORE_TS = "shivam_loans_ts_v1";   // last-write timestamp, used to reconcile localStorage vs the IndexedDB mirror on boot
   let loans = [];
   let editId = null;
   let modalPayments = [];
 
   /* ---------- storage (safe) ---------- */
   function load(){ try{ const r=localStorage.getItem(STORE); loans = r?JSON.parse(r):[]; }catch(e){ loans = window._mem||[]; } }
-  function save(){ var lsOK=true;
+  function save(){ var lsOK=true; var _ts=Date.now();
     try{ (loans||[]).forEach(function(l){ if(l && l.v===undefined) l.v=SCHEMA_VERSION; }); }catch(e){}
     try{ localStorage.setItem(STORE, JSON.stringify(loans)); }
     catch(e){ lsOK=false; window._mem = loans; if(!window._storageWarned){ window._storageWarned=true; toast('\u26a0 Device fast-storage is full. Your records are still saved in the app database \u2014 please take a backup now (Administration \u2192 Backup), then contact support to expand storage.'); } }
-    try{ localStorage.setItem('shivam_backup_snapshot', JSON.stringify({at:Date.now(), data:loans})); }catch(_){ }
-    try{ if(typeof idbSetLoans==='function') idbSetLoans(loans); }catch(_){ }
+    try{ localStorage.setItem(STORE_TS, String(_ts)); }catch(_){ }
+    try{ localStorage.setItem('shivam_backup_snapshot', JSON.stringify({at:_ts, data:loans})); }catch(_){ }
+    try{ if(typeof idbSetLoans==='function') idbSetLoans(loans, _ts); }catch(_){ }
     /* Shared cloud copy (Supabase) — pushes changed loans to the other device.
        No-op when cloud is off or offline; see 20-cloud-sync.js. */
     try{ if(typeof cloudPush==='function') cloudPush(loans); }catch(_){ }
@@ -34,8 +36,9 @@
   /* ---------- durable storage (IndexedDB) ---------- */
   var _seidb=null;
   function idbOpen(){ return new Promise(function(res,rej){ if(_seidb) return res(_seidb); try{ var rq=indexedDB.open('shivam_lms_db',1); rq.onupgradeneeded=function(){ try{ rq.result.createObjectStore('kv'); }catch(e){} }; rq.onsuccess=function(){ _seidb=rq.result; res(_seidb); }; rq.onerror=function(){ rej(rq.error); }; }catch(e){ rej(e); } }); }
-  function idbSetLoans(arr){ return idbOpen().then(function(db){ return new Promise(function(res,rej){ try{ var tx=db.transaction('kv','readwrite'); tx.objectStore('kv').put(JSON.stringify(arr),'loans'); tx.oncomplete=function(){res(true);}; tx.onerror=function(){rej(tx.error);}; }catch(e){ rej(e); } }); }); }
+  function idbSetLoans(arr, ts){ return idbOpen().then(function(db){ return new Promise(function(res,rej){ try{ var tx=db.transaction('kv','readwrite'); var os=tx.objectStore('kv'); os.put(JSON.stringify(arr),'loans'); os.put(String(ts||Date.now()),'loans_ts'); tx.oncomplete=function(){res(true);}; tx.onerror=function(){rej(tx.error);}; }catch(e){ rej(e); } }); }); }
   function idbGetLoans(){ return idbOpen().then(function(db){ return new Promise(function(res){ try{ var tx=db.transaction('kv','readonly'); var rq=tx.objectStore('kv').get('loans'); rq.onsuccess=function(){ try{ res(rq.result?JSON.parse(rq.result):null); }catch(e){ res(null); } }; rq.onerror=function(){ res(null); }; }catch(e){ res(null); } }); }); }
+  function idbGetMetaTs(){ return idbOpen().then(function(db){ return new Promise(function(res){ try{ var tx=db.transaction('kv','readonly'); var rq=tx.objectStore('kv').get('loans_ts'); rq.onsuccess=function(){ res(Number(rq.result)||0); }; rq.onerror=function(){ res(0); }; }catch(e){ res(0); } }); }); }
   /* ---------- schema version & migrations ---------- */
   const SCHEMA_VERSION=1;
   function storeSchema(){ try{ return parseInt(localStorage.getItem('shivam_schema_v')||'0',10)||0; }catch(e){ return 0; } }
@@ -53,9 +56,20 @@
     if(changed){ try{ save(); }catch(e){} }
     try{ logAudit('Data Migrated','schema v'+from+' \u2192 v'+SCHEMA_VERSION); }catch(e){}
   }
-  function bootStore(){ try{ idbGetLoans().then(function(idbLoans){
-        if(idbLoans && idbLoans.length){
-          if(!loans || idbLoans.length>=loans.length){ loans=idbLoans; try{ localStorage.setItem(STORE, JSON.stringify(loans)); }catch(e){} if(typeof currentUser!=='undefined' && currentUser && typeof renderLoans==='function'){ try{ renderLoans(); if(typeof renderDash==='function') renderDash(); }catch(e){} } }
-        } else if(loans && loans.length){ idbSetLoans(loans); }
+  function bootStore(){ try{ Promise.all([idbGetLoans(), idbGetMetaTs()]).then(function(vals){
+        var idbLoans=vals[0], idbTs=vals[1]||0;
+        var lsTs=0; try{ lsTs=Number(localStorage.getItem(STORE_TS)||'0')||0; }catch(e){}
+        var lsEmpty=!loans || !loans.length;
+        // Restore from the durable IndexedDB mirror ONLY when localStorage looks lost:
+        //   * localStorage empty  -> restore if the mirror is at least as new (wipe recovery)
+        //   * localStorage present -> restore only if the mirror is strictly NEWER
+        // Equal timestamps mean localStorage is the current copy (including a deliberate
+        // delete), so its rows are NOT resurrected. (Old fix compared array LENGTHS,
+        // which wrongly brought deleted records back.)
+        if(idbLoans && idbLoans.length && (lsEmpty ? (idbTs>=lsTs) : (idbTs>lsTs))){
+          loans=idbLoans;
+          try{ localStorage.setItem(STORE, JSON.stringify(loans)); localStorage.setItem(STORE_TS, String(idbTs||Date.now())); }catch(e){}
+          if(typeof currentUser!=='undefined' && currentUser && typeof renderLoans==='function'){ try{ renderLoans(); if(typeof renderDash==='function') renderDash(); }catch(e){} }
+        } else if(loans && loans.length){ idbSetLoans(loans, lsTs||Date.now()); }
       }).catch(function(){}); }catch(e){} }
 

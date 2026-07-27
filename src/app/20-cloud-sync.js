@@ -271,25 +271,67 @@
         lastHash[l.id] = s;
       }
       if (!rows.length) return;
+      var _ids = rows.map(function (x) { return x.id; });
       try {
         var r = await api('/loans', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(rows) });
-        if (!r.ok) { rows.forEach(function (x) { delete lastHash[x.id]; }); setStatus('sync error'); }
-        else setStatus('synced');
-      } catch (e) { rows.forEach(function (x) { delete lastHash[x.id]; }); setStatus('offline'); }
+        if (!r.ok) { rows.forEach(function (x) { delete lastHash[x.id]; }); _ids.forEach(pendingEditAdd); setStatus('sync error'); }
+        else { _ids.forEach(pendingEditRemove); setStatus('synced'); }
+      } catch (e) { rows.forEach(function (x) { delete lastHash[x.id]; }); _ids.forEach(pendingEditAdd); setStatus('offline'); }
     }
     async function pushDelete(id, obj) {
       if (!session || id == null) return;
-      try { await api('/loans', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify([{ id: id, data: await encryptLoan(obj || { id: id }), deleted: true, updated_by: deviceId }]) }); delete lastHash[id]; } catch (_) {}
+      try {
+        var r = await api('/loans', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify([{ id: id, data: await encryptLoan(obj || { id: id }), deleted: true, updated_by: deviceId }]) });
+        if (r && r.ok === false) { pendingDelAdd(id); }
+        else { pendingDelRemove(id); delete lastHash[id]; }
+      } catch (_) { pendingDelAdd(id); }
     }
+    // ---- offline-safe outbox --------------------------------------------------
+    // Deletes and edits that fail to reach Supabase (offline / server error) are
+    // remembered and re-sent on the next successful poll and at initial sync, so a
+    // change made while offline can never be silently lost or resurrected.
+    var PENDING_DEL_STORE = 'shivam_cloud_pending_del_v1';
+    var PENDING_EDIT_STORE = 'shivam_cloud_pending_edit_v1';
+    function _pendLoad(k) { try { var a = JSON.parse(localStorage.getItem(k) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+    function _pendSave(k, a) { try { localStorage.setItem(k, JSON.stringify(a)); } catch (e) {} }
+    function pendingDelLoad() { return _pendLoad(PENDING_DEL_STORE); }
+    function pendingDelAdd(id) { if (id == null) return; var a = pendingDelLoad(); if (a.indexOf(id) < 0) { a.push(id); _pendSave(PENDING_DEL_STORE, a); } }
+    function pendingDelRemove(id) { var a = pendingDelLoad(); var b = a.filter(function (x) { return x !== id; }); if (b.length !== a.length) _pendSave(PENDING_DEL_STORE, b); }
+    function pendingEditLoad() { return _pendLoad(PENDING_EDIT_STORE); }
+    function pendingEditAdd(id) { if (id == null) return; var a = pendingEditLoad(); if (a.indexOf(id) < 0) { a.push(id); _pendSave(PENDING_EDIT_STORE, a); } }
+    function pendingEditRemove(id) { var a = pendingEditLoad(); var b = a.filter(function (x) { return x !== id; }); if (b.length !== a.length) _pendSave(PENDING_EDIT_STORE, b); }
+    async function flushPendingDeletes() {
+      if (!session) return;
+      var a = pendingDelLoad(); if (!a.length) return;
+      for (var i = 0; i < a.length; i++) { try { await pushDelete(a[i], { id: a[i] }); } catch (_) {} }
+    }
+    async function flushPendingEdits() {
+      if (!session) return;
+      var ids = pendingEditLoad(); if (!ids.length) return;
+      var list = [];
+      ids.forEach(function (id) {
+        var l = (loans || []).find(function (x) { return x && x.id === id; });
+        if (l) list.push(l); else pendingEditRemove(id);   // record was deleted -> delete outbox owns it
+      });
+      if (!list.length) return;
+      list.forEach(function (l) { delete lastHash[l.id]; }); // force re-send of current value
+      await pushChanged(list);
+    }
+    window.cloudPendingDeletes = function () { return pendingDelLoad(); };
+    window.cloudPendingEdits = function () { return pendingEditLoad(); };
+    // Diagnostic/test surface for the outbox queue mechanics (no network involved).
+    window.__cloudOutbox = { delAdd: pendingDelAdd, delRemove: pendingDelRemove, delLoad: pendingDelLoad, editAdd: pendingEditAdd, editRemove: pendingEditRemove, editLoad: pendingEditLoad };
 
     // ---- pull loop
     async function poll() {
       if (!session) return;
       try {
+        await flushPendingDeletes();                 // retry offline deletes first (idempotent)
         var q = '/loans?select=*&updated_by=neq.' + encodeURIComponent(deviceId) + '&order=updated_at.asc';
         if (since) q += '&updated_at=gt.' + encodeURIComponent(since);
         var r = await api(q, { method: 'GET' });
         if (r.ok) { var rows = await r.json(); if (rows && rows.length) await applyRemote(rows); setStatus('synced'); }
+        await flushPendingEdits();                    // then re-upload any edits that failed earlier
       } catch (e) { setStatus('offline'); }
     }
 
@@ -304,8 +346,12 @@
       // push any purely-local loans the cloud has never seen (first run / created offline)
       var localOnly = (loans || []).filter(function (l) { return l && l.id != null && !cloudIds[l.id]; });
       if (localOnly.length) await pushChanged(localOnly);
-      // seed hashes so we don't immediately re-upload everything
-      (loans || []).forEach(function (l) { if (l && l.id != null && lastHash[l.id] == null) lastHash[l.id] = JSON.stringify(l); });
+      try { await flushPendingDeletes(); } catch (_) {}
+      try { await flushPendingEdits(); } catch (_) {}
+      // seed hashes so we don't immediately re-upload everything — but NOT for edits
+      // still waiting to upload; those must stay "dirty" so the outbox retries them.
+      var _pend = pendingEditLoad();
+      (loans || []).forEach(function (l) { if (l && l.id != null && lastHash[l.id] == null && _pend.indexOf(l.id) < 0) lastHash[l.id] = JSON.stringify(l); });
       setStatus('synced');
       try { await maybeDailySnapshot(); } catch (_) {}   // central daily backup
       if (pollTimer) clearInterval(pollTimer);
