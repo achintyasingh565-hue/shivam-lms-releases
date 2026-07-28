@@ -22,7 +22,7 @@
     $('m_disb').value=f.disb||''; $('m_tenure').value=f.tenure||''; $('m_tint').value=f.tint||''; $('m_tpay').value=f.tpay||'';
     $('m_emi').value=f.emi||''; $('m_due').value=f.due||'';
     $('m_status').value=f.status||'Active'; $('m_gname').value=f.gname||''; $('m_gphone').value=f.gphone||''; if($('m_coname'))$('m_coname').value=f.coname||''; if($('m_cophone'))$('m_cophone').value=f.cophone||''; if($('m_corel'))$('m_corel').value=f.corel||''; if($('m_coid'))$('m_coid').value=f.coid||''; if($('m_coaddr'))$('m_coaddr').value=f.coaddr||''; $('m_remarks').value=f.remarks||'';
-    $('m_age').value=f.age||''; $('m_residence').value=f.residence||''; $('m_occupation').value=f.occupation||''; $('m_designation').value=f.designation||''; $('m_officeaddr').value=f.officeaddr||''; $('m_idtype').value=f.idtype||'';
+    $('m_age').value=f.age||''; $('m_residence').value=f.residence||''; $('m_occupation').value=f.occupation||''; $('m_designation').value=f.designation||''; $('m_officeaddr').value=f.officeaddr||''; $('m_idtype').value=(f.idtype==='PAN'?'PAN Card':(f.idtype||''));
     $('m_caseno').value=f.caseno||''; $('m_refno').value=f.refno||''; $('m_product').value=f.product||''; $('m_dealer').value=f.dealer||''; $('m_downpay').value=f.downpay||''; $('m_officer').value=f.officer||'';
     $('m_deductions').value=f.deductions!=null?f.deductions:0; $('m_remaining').value=Math.max(0,(Number(f.principal)||0)-(Number(f.deductions)||0));
     $('m_propdesc').value=f.propdesc||''; $('m_propaddr').value=f.propaddr||''; $('m_proparea').value=f.proparea||''; $('m_propvalue').value=f.propvalue||''; $('m_bN').value=f.bN||''; $('m_bS').value=f.bS||''; $('m_bE').value=f.bE||''; $('m_bW').value=f.bW||''; $('m_title').value=f.title||'';
