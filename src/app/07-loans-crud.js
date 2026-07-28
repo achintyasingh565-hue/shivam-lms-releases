@@ -13,11 +13,11 @@
     editId = id||null;
     $('modalTitle').textContent = id?'Edit Loan Record':'New Loan Record';
     // ID numbers open masked every time (Aadhaar/PAN privacy) — eye toggle reveals.
-    try{ ['m_idproof','m_coid'].forEach(function(x){ var e=$(x); if(e) e.classList.add('id-masked'); }); }catch(_){}
+    try{ ['m_idproof','m_pan','m_coid'].forEach(function(x){ var e=$(x); if(e) e.classList.add('id-masked'); }); }catch(_){}
     const f = id ? loans.find(l=>l.id===id) : {};
     $('m_name').value=f.name||''; $('m_acno').value=f.acno||(id?'':'SE-'+(loans.length+1).toString().padStart(4,'0'));
     $('m_reltype').value=f.reltype||'son of'; $('m_relname').value=f.relname||'';
-    $('m_phone').value=f.phone||''; $('m_addr').value=f.addr||''; $('m_idproof').value=f.idproof||'';
+    $('m_phone').value=f.phone||''; $('m_addr').value=f.addr||''; $('m_idproof').value=f.idproof||''; if($('m_pan'))$('m_pan').value=f.pan||'';
     $('m_type').value=f.type||'Personal'; $('m_principal').value=f.principal||''; $('m_rate').value=f.rate||'';
     $('m_disb').value=f.disb||''; $('m_tenure').value=f.tenure||''; $('m_tint').value=f.tint||''; $('m_tpay').value=f.tpay||'';
     $('m_emi').value=f.emi||''; $('m_due').value=f.due||'';
@@ -61,7 +61,7 @@
       var body=document.querySelector('#loanOverlay .modal-body'); if(body) body.scrollTop=0;
     }catch(e){}
   };
-  var LOAN_TAB_OF={ m_name:'borrower',m_acno:'borrower',m_reltype:'borrower',m_relname:'borrower',m_phone:'borrower',m_addr:'borrower',m_idproof:'borrower',m_type:'borrower',m_age:'borrower',m_residence:'borrower',m_occupation:'borrower',m_designation:'borrower',m_officeaddr:'borrower',m_idtype:'borrower',
+  var LOAN_TAB_OF={ m_name:'borrower',m_acno:'borrower',m_reltype:'borrower',m_relname:'borrower',m_phone:'borrower',m_addr:'borrower',m_idproof:'borrower',m_pan:'borrower',m_type:'borrower',m_age:'borrower',m_residence:'borrower',m_occupation:'borrower',m_designation:'borrower',m_officeaddr:'borrower',m_idtype:'borrower',
     m_caseno:'terms',m_refno:'terms',m_product:'terms',m_dealer:'terms',m_downpay:'terms',m_officer:'terms',m_principal:'terms',m_deductions:'terms',m_remaining:'terms',m_rate:'terms',m_disb:'terms',m_tenure:'terms',m_tint:'terms',m_tpay:'terms',m_emi:'terms',m_due:'terms',
     m_propdesc:'property',m_propaddr:'property',m_proparea:'property',m_propvalue:'property',m_bN:'property',m_bS:'property',m_bE:'property',m_bW:'property',m_title:'property',
     m_coname:'coapp',m_cophone:'coapp',m_corel:'coapp',m_coid:'coapp',m_coaddr:'coapp',m_gname:'coapp',m_gphone:'coapp',m_remarks:'coapp',
@@ -173,7 +173,7 @@
     const rec = {
       id: editId||('L'+Date.now()),
       name, acno, reltype:$('m_reltype').value, relname:$('m_relname').value.trim(),
-      phone:normPhone($('m_phone').value), addr:$('m_addr').value.trim(), idproof:$('m_idproof').value.trim(),
+      phone:normPhone($('m_phone').value), addr:$('m_addr').value.trim(), idproof:$('m_idproof').value.trim(), pan:($('m_pan')?$('m_pan').value.trim():''),
       type:$('m_type').value, principal:Number($('m_principal').value)||0, rate:Number($('m_rate').value)||0,
       disb:$('m_disb').value, tenure:Number($('m_tenure').value)||0, tint:Number($('m_tint').value)||0,
       tpay:_safeTotals().tpay, emi:_safeTotals().emi, due:$('m_due').value,

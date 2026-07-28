@@ -353,6 +353,7 @@
       var _pend = pendingEditLoad();
       (loans || []).forEach(function (l) { if (l && l.id != null && lastHash[l.id] == null && _pend.indexOf(l.id) < 0) lastHash[l.id] = JSON.stringify(l); });
       setStatus('synced');
+      try { if (typeof pullUserRoster === 'function') await pullUserRoster(); } catch (_) {}   // adopt central user list
       try { await maybeDailySnapshot(); } catch (_) {}   // central daily backup
       if (pollTimer) clearInterval(pollTimer);
       pollTimer = setInterval(poll, Math.max(3000, C.pollMs || 7000));
@@ -413,6 +414,18 @@
     window.cloudDelete = function (id, obj) { pushDelete(id, obj); };
     window.cloudSignOut = function () { clearSession(); if (pollTimer) clearInterval(pollTimer); setStatus('signed out'); showSignIn(); };
     window.cloudPullNow = function () { try { poll(); } catch (e) {} };
+    // ---- generic shared settings (app_settings table) — used by the user-list sync
+    window.cloudGetSetting = async function (key) {
+      if (!session) return null;
+      try { var r = await api('/app_settings?select=data,updated_at,updated_by&key=eq.' + encodeURIComponent(key) + '&limit=1', { method: 'GET' });
+        if (!r.ok) return null; var rows = await r.json(); return (rows && rows[0]) ? rows[0] : null; } catch (e) { return null; }
+    };
+    window.cloudSetSetting = async function (key, data) {
+      if (!session) return { ok: false, error: 'not signed in' };
+      try { var r = await api('/app_settings', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify([{ key: key, data: data, updated_by: deviceId, updated_at: new Date().toISOString() }]) });
+        return { ok: !!(r && r.ok), status: r && r.status }; } catch (e) { return { ok: false, error: String(e) }; }
+    };
 
     // ---- optimistic-concurrency guard: called before committing an edit to an
     // existing loan. Returns {ok:true} if it is safe to save, or {ok:false, by, at}
@@ -490,6 +503,29 @@
     };
     window.disableIdEncryption = function(){ try{ localStorage.setItem('shivam_idenc_on','0'); cryptoKey=null; logAudit('ID Encryption Disabled','turned off on this device'); }catch(e){} return {ok:true}; };
     window.idEncryptionStatus = function(){ try{ return { on: idEncOn(), keyed: !!cryptoKey, forcedByConfig: !!C.encryptIds }; }catch(e){ return {on:false, keyed:false, forcedByConfig:false}; } };
+    // Recovery: decrypt every 'enc1:' ID field back to plain text, turn encryption
+    // OFF, and re-push plaintext so the other device shows readable numbers again.
+    // Run on the device that has the passphrase (in its keychain).
+    window.restoreReadableIds = async function(passphrase){
+      try{
+        if(passphrase && String(passphrase).trim()){ try{ cryptoKey = await deriveKey(String(passphrase).trim()); }catch(_){ } }
+        if(!cryptoKey){ try{ await ensureCryptoKey(); }catch(_){ } }
+        if(!cryptoKey) return {ok:false, error:'Enter the data-protection passphrase in the box above first, then try again.'};
+        var FIELDS=['idproof','coid']; var total=0, done=0, failed=0;
+        for(var i=0;i<(loans||[]).length;i++){ var l=loans[i]; if(!l) continue;
+          for(var f=0;f<FIELDS.length;f++){ var v=l[FIELDS[f]];
+            if(typeof v==='string' && v.indexOf('enc1:')===0){ total++; var pt=await decField(v);
+              if(typeof pt==='string' && pt.indexOf('enc1:')!==0){ l[FIELDS[f]]=pt; done++; } else { failed++; } } } }
+        localStorage.setItem('shivam_idenc_on','0'); cryptoKey=null;   // stop encrypting future saves
+        try{ if(typeof save==='function') save(); }catch(_){}
+        try{ (loans||[]).forEach(function(l){ if(l&&l.id!=null) delete lastHash[l.id]; }); if(session) await pushChanged(loans); }catch(_){}
+        try{ if(typeof rerenderAll==='function') rerenderAll(); }catch(_){}
+        try{ logAudit('ID Encryption Turned Off','restored '+done+' readable ID(s)'+(failed?(', '+failed+' could not be decrypted'):'')); }catch(_){}
+        return {ok:true, total:total, done:done, failed:failed};
+      }catch(e){ return {ok:false, error:String(e&&e.message||e)}; }
+    };
+    // Test/diagnostic hook (no secrets exposed — derives a key from a supplied passphrase, same as the real flow).
+    window.__idcrypto = { setKey: async function(p){ cryptoKey = await deriveKey(String(p)); return true; }, enc: function(v){ return encField(v); }, dec: function(v){ return decField(v); }, hasKey: function(){ return !!cryptoKey; } };
     async function ensureCryptoKey() {
       // passphrase for the optional Aadhaar/PAN encryption; stored per-device via keychain
       try {

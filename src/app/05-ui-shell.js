@@ -51,7 +51,7 @@
     if(sec==='pay') renderPayTab();
     if(sec==='reports') renderReports();
     if(sec==='cust') setCustView(_cvWanted);
-    if(sec==='backup'){ try{ renderRecycle(); }catch(e){} renderAudit(); try{ renderWaSettings(); }catch(e){} try{ fillTplForm(); }catch(e){} try{ if($('autoLockMins')) $('autoLockMins').value=autoLockCfg().mins; }catch(e){} try{ if(typeof renderCloudBackups==='function') renderCloudBackups(); }catch(e){} try{ if(typeof renderIdEncPanel==='function') renderIdEncPanel(); }catch(e){} }
+    if(sec==='backup'){ try{ renderRecycle(); }catch(e){} renderAudit(); try{ renderWaSettings(); }catch(e){} try{ fillTplForm(); }catch(e){} try{ if($('autoLockMins')) $('autoLockMins').value=autoLockCfg().mins; }catch(e){} try{ if(typeof renderCloudBackups==='function') renderCloudBackups(); }catch(e){} try{ if(typeof renderIdEncPanel==='function') renderIdEncPanel(); }catch(e){} try{ if(typeof renderUserRosterPanel==='function') renderUserRosterPanel(); }catch(e){} try{ if(typeof pullUserRoster==='function') pullUserRoster(); }catch(e){} }
     if(window.innerWidth<=820){ var _ap=document.querySelector('.app'); if(_ap) _ap.classList.remove('nav-open'); }
   }
   $('nav').addEventListener('click', e=>{ const a=e.target.closest('a'); if(a) go(a.dataset.sec); });

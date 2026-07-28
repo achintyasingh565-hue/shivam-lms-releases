@@ -111,6 +111,14 @@
                 <div class="fg"><label>Role</label><select id="nuRole"><option value="staff">Staff</option><option value="manager">Manager</option><option value="admin">Admin</option></select></div>
               </div>
               <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="addUser()">＋ Add team member</button>
+              <div id="rosterAdmin" style="margin-top:16px; padding:12px 14px; border:1px solid var(--line); border-radius:9px; background:var(--field,#f6f8fc);">
+                <h4 style="font-size:13px; margin:0 0 4px;">Central user list (all devices)</h4>
+                <p class="ph-sub" style="margin:0 0 10px;">Publish this user list as the <b>master copy</b>. Every signed-in device then adopts these accounts and roles on its next sync, so a person has the <b>same role everywhere</b>. It updates roles and adds missing users — it never deletes an account or changes a password, so no one gets locked out. Publish from the <b>owner-administrator's</b> computer.</p>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                  <button class="btn btn-sm btn-primary" onclick="publishUserRoster()">Publish user list to all devices</button>
+                  <span id="rosterMsg" class="ph-sub" style="margin:0;"></span>
+                </div>
+              </div>
             </div>
           </div>
           <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
@@ -130,6 +138,7 @@
           <div class="fg" style="max-width:360px;"><label>Data-protection passphrase</label><input type="password" id="idEncPass" placeholder="Same on both devices" autocomplete="new-password"></div>
           <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <button class="btn btn-primary btn-sm" onclick="idEncTurnOn()">Turn on encryption</button>
+            <button class="btn btn-sm" onclick="idEncRestore()">Restore readable IDs &amp; turn off</button>
             <button class="btn btn-sm btn-danger" id="idEncOffBtn" onclick="idEncTurnOff()" style="display:none;">Turn off on this device</button>
             <span id="idEncMsg" style="font-size:12px;color:var(--muted);"></span>
           </div>
