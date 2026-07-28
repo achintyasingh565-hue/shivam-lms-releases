@@ -33,9 +33,11 @@
 
             <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
               <button class="btn btn-ghost" onclick="openDocPreview()">👁 Preview</button>
-              <button class="btn btn-primary" style="flex:1;" onclick="printProposal()">🖨 Print</button>
+              <button class="btn btn-primary" style="flex:1;min-width:160px;" onclick="printHPAll()">🖨 Print Full File</button>
+              <button class="btn btn-primary" style="flex:1;min-width:200px;" onclick="downloadCombinedPDF()">⬇ Download full file as one PDF (with vault papers)</button>
               <button class="btn btn-ghost" onclick="resetProp()">Reset</button>
             </div>
+            <div style="font-size:11.5px;color:var(--grey);margin-top:8px;line-height:1.5;">Printing always produces the whole loan file (Cover, Proposal, Agreement &amp; Security) as one document.</div>
             <button class="btn btn-gold" style="width:100%;margin-top:10px;" onclick="proposalToLoan()">＋ Create Loan Record from this Proposal</button>
           </div>
 

@@ -110,14 +110,61 @@
   function _dnAddDays(iso,n){ var d=new Date(iso); d.setDate(d.getDate()+(Number(n)||0)); return d.toISOString().slice(0,10); }
   function _dnShort(iso){ if(!iso) return '—'; var p=String(iso).split('-'); return p.length===3?(p[2]+'-'+p[1]+'-'+p[0].slice(2)):iso; }
   function _dnLong(iso){ if(!iso) return '—'; try{ return new Date(iso).toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'}); }catch(e){ return _dnShort(iso); } }
-  function _dnOut(l){ return Math.max(0, (Number(l.tpay)||0)-(Number(l.paid)||0)); }
+  function _dnOut(l){ var o=Number(l.outstanding); if(o>0) return o; return Math.max(0, (Number(l.tpay)||0)-(Number(l.paid)||0)); }
   function _dnIsDefault(l){ return l && l.status!=='Closed' && (l.status==='Overdue' || (Number(l.arrears)||0)>0); }
   window._dnLang = window._dnLang || 'en';
+  window._dnType = window._dnType || 'demand';
   function _dnTitle(type){
-    if(window._dnLang==='hi') return type==='reminder'?'भुगतान स्मरण पत्र':(type==='final'?'अंतिम मांग सूचना':'मांग सूचना');
-    return type==='reminder'?'PAYMENT REMINDER':(type==='final'?'FINAL DEMAND NOTICE':'NOTICE OF DEMAND');
+    if(window._dnLang==='hi') return type==='final'?'अंतिम मांग सूचना':'मांग सूचना';
+    return type==='final'?'FINAL DEMAND NOTICE':'NOTICE OF DEMAND';
   }
-  function _dnRef(l, iso){ var y=String(iso).replace(/-/g,'').slice(2); return 'SE/DN/'+((l.acno||'').replace(/\s+/g,'')||'ACC')+'/'+y; }
+  function _dnRelLabel(r){ if(window._dnLang==='hi'){ return r==='daughter of'?'पुत्री':(r==='wife of'?'पत्नी':'पुत्र'); } return r||'S/o'; }
+  function _dnRef(acno, iso){ var y=String(iso).replace(/-/g,'').slice(2); return 'SE/DN/'+((acno||'').replace(/\s+/g,'')||'ACC')+'/'+y; }
+  /* ---- editable, savable notice wording (per type + language) ---- */
+  var DN_TPL_STORE='shivam_dn_tpl_v1';
+  function _dnDefaultTpl(type,lang){
+    if(lang==='hi'){
+      var conHi = type==='final'
+        ? 'कृपया इसे अंतिम सूचना समझें। यदि उपर्युक्त अवधि के भीतर बकाया राशि का भुगतान नहीं होता है, तो शिवम एंटरप्राइजेज को न्यायिक कार्यवाही आरंभ करने तथा विधि के अंतर्गत उपलब्ध अन्य उपायों का सहारा लेने के लिए विवश होना पड़ेगा, जिसकी समस्त लागत एवं परिणामों का उत्तरदायित्व आपका होगा।'
+        : 'यदि उपर्युक्त अवधि के भीतर बकाया राशि का भुगतान नहीं किया जाता है, तो हमें विधि अनुसार देय राशि की वसूली हेतु न्यायिक कार्यवाही आरंभ करने के लिए विवश होना पड़ेगा।';
+      return 'महोदय/महोदया {name},\n\nआपको औपचारिक रूप से सूचित किया जाता है कि शिवम एंटरप्राइजेज से लिया गया आपका ऋण खाता संख्या {acno} अतिदेय हो गया है। हमारे अभिलेखों के अनुसार, दिनांक {date} तक निम्नलिखित राशियाँ देय हैं:\n\n{amounts_table}\n\nआपसे अपेक्षा की जाती है कि इस सूचना की तिथि से {days} दिन के भीतर, अर्थात {deadline} तक, अतिदेय राशि {arrears} का भुगतान कर उक्त खाते को नियमित करें।\n\n'+conHi+'\n\nबकाया राशि के निपटान अथवा उपयुक्त पुनर्भुगतान व्यवस्था हेतु कृपया शीघ्र हमारे कार्यालय से संपर्क करें।';
+    }
+    var con = type==='final'
+      ? 'Please treat this as a FINAL notice. Should the outstanding dues remain unpaid within the period stated above, Shivam Enterprises shall be constrained to initiate judicial proceedings and pursue such other remedies as are available under law, entirely at your risk as to costs and consequences.'
+      : 'In the event the outstanding dues are not cleared within the period stated above, we shall be constrained to initiate judicial proceedings for recovery of the amount due, as per applicable law.';
+    return 'Dear {name},\n\nThis is to formally notify you that loan account {acno}, availed by you from Shivam Enterprises, has fallen overdue. As per our records, the following amounts stand due against the said account as on {date}:\n\n{amounts_table}\n\nYou are hereby called upon to pay the overdue amount of {arrears} and to regularise the said account within {days} day(s) from the date of this notice, i.e. on or before {deadline}.\n\n'+con+'\n\nYou are advised to contact our office at the earliest to settle the dues or to discuss a suitable repayment arrangement.';
+  }
+  function _dnLoadTpls(){ try{ return JSON.parse(localStorage.getItem(DN_TPL_STORE)||'{}')||{}; }catch(e){ return {}; } }
+  function _dnGetTpl(type,lang){ var all=_dnLoadTpls(); var v=all[type+'_'+lang]; return (v!=null && v!=='')?v:_dnDefaultTpl(type,lang); }
+  window.saveDnTpl=function(){ var el=$('dnTplText'); if(!el) return; var all=_dnLoadTpls(); all[window._dnType+'_'+window._dnLang]=el.value; try{ localStorage.setItem(DN_TPL_STORE, JSON.stringify(all)); }catch(e){} toast('Default wording saved — '+(window._dnType==='final'?'Final Demand':'Demand')+' ('+(window._dnLang==='hi'?'हिन्दी':'English')+')'); };
+  window.resetDnTpl=function(){ var all=_dnLoadTpls(); delete all[window._dnType+'_'+window._dnLang]; try{ localStorage.setItem(DN_TPL_STORE, JSON.stringify(all)); }catch(e){} renderDnTplBox(); toast('Wording reset to the built-in default'); };
+  function renderDnTplBox(){ var el=$('dnTplText'); if(el) el.value=_dnGetTpl(window._dnType, window._dnLang); }
+  function _dnAmountsTable(d){
+    var hi=window._dnLang==='hi';
+    var L=hi?{principal:'मूलधन वितरित',out:'कुल बकाया राशि',arr:'अतिदेय (बकाया) राशि',missed:'अंतिम चूकी हुई देय तिथि',dpd:'अतिदेय दिवस',days:' दिन'}
+            :{principal:'Principal disbursed',out:'Total outstanding',arr:'Overdue (arrears) amount',missed:'Due date last missed',dpd:'Days overdue',days:' day(s)'};
+    return '<table class="dn-tbl"><tbody>'
+      +'<tr><td>'+L.principal+'</td><td style="text-align:right;">'+rupee(Number(d.principal)||0)+'</td></tr>'
+      +'<tr><td>'+L.out+'</td><td style="text-align:right;">'+rupee(d.out)+'</td></tr>'
+      +'<tr><td><b>'+L.arr+'</b></td><td style="text-align:right;"><b>'+rupee(d.arrears)+'</b></td></tr>'
+      +'<tr><td>'+L.missed+'</td><td style="text-align:right;">'+(d.due?_dnLong(d.due):'—')+'</td></tr>'
+      +'<tr><td>'+L.dpd+'</td><td style="text-align:right;">'+((d.dpd>0?d.dpd:0))+L.days+'</td></tr>'
+      +'</tbody></table>';
+  }
+  function _dnFill(tpl, d){
+    var deadline=_dnLong(_dnAddDays(d.today, d.days));
+    var map={ '{name}':esc(d.name||''), '{acno}':esc(d.acno||''), '{date}':_dnLong(d.today), '{deadline}':deadline,
+      '{days}':String(d.days), '{arrears}':rupee(d.arrears), '{outstanding}':rupee(d.out), '{principal}':rupee(Number(d.principal)||0),
+      '{dpd}':String(d.dpd>0?d.dpd:0), '{due}':(d.due?_dnLong(d.due):'—'), '{address}':esc(d.addr||''), '{phone}':esc(d.phone||'') };
+    var txt=String(tpl);
+    Object.keys(map).forEach(function(k){ txt=txt.split(k).join(map[k]); });
+    var parts=txt.split('{amounts_table}'), htmlOut='';
+    for(var i=0;i<parts.length;i++){
+      parts[i].split(/\n\n+/).forEach(function(par){ if(par.trim()!=='') htmlOut+='<p>'+par.replace(/\n/g,'<br>')+'</p>'; });
+      if(i<parts.length-1) htmlOut+=_dnAmountsTable(d);
+    }
+    return htmlOut;
+  }
 
   function _dnConsequence(type){
     if(window._dnLang==='hi'){
@@ -268,5 +315,66 @@
     var msg=head+' from Shivam Enterprises for loan account '+(l.acno||'')+'.\n\nDear '+(l.name||'')+', your account is overdue.\nOverdue amount: '+rupee(d.arrears)+'\nTotal outstanding: '+rupee(d.out)+'\nDays overdue: '+(d.dpd>0?d.dpd:0)+'\n\nPlease clear the overdue amount on or before '+deadline+'. The formal notice is attached. — Shivam Enterprises';
     window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg), '_blank');
     toast('WhatsApp opened — attach the downloaded PDF and send');
+  };
+
+  /* ===== form-driven notice builder (overrides the list-based version above) ===== */
+  function _dnBody(d){
+    var hi=window._dnLang==='hi';
+    var ref=_dnRef(d.acno, d.today);
+    var L=hi?{to:'सेवा में,',mob:'मोबाइल: ',refL:'संदर्भ:',dateL:'दिनांक:',sub:'विषय: ',acct:' — ऋण खाता ',forSig:'शिवम एंटरप्राइजेज की ओर से',signer:'अधिकृत हस्ताक्षरकर्ता'}
+             :{to:'To,',mob:'Mobile: ',refL:'Ref:',dateL:'Date:',sub:'Subject: ',acct:' — Loan Account ',forSig:'For <b>Shivam Enterprises</b>',signer:'Authorised Signatory'};
+    var relLine=(d.relname?('<br>'+esc(_dnRelLabel(d.relation))+' '+esc(d.relname)):'');
+    var toBlock='<div class="dn-meta"><b>'+L.to+'</b><br>'+esc(d.name||'')+relLine+(d.addr?('<br>'+esc(String(d.addr)).replace(/\n/g,'<br>')):'')+(d.phone?('<br>'+L.mob+esc(d.phone)):'')+'</div>';
+    return ''
+      +'<div class="dn-refrow"><span><b>'+L.refL+'</b> '+esc(ref)+'</span><span><b>'+L.dateL+'</b> '+_dnLong(d.today)+'</span></div>'
+      +toBlock
+      +'<div class="dn-sub"><b>'+L.sub+_dnTitle(d.type)+L.acct+esc(d.acno||'')+'</b></div>'
+      +_dnFill(_dnGetTpl(d.type, window._dnLang), d)
+      +'<div class="dn-sign">'+L.forSig+_dnSig()+'<br>'+L.signer+'</div>';
+  }
+  function _dnFormData(){
+    var t=_dnIso();
+    var v=function(id){ var e=$(id); return e?String(e.value):''; };
+    var num=function(id){ return Math.round(Number(v(id).replace(/[^0-9.]/g,''))||0); };
+    var due=v('dnDue'); var today=v('dnDate')||t;
+    var d={ type:window._dnType, today:today, days:Math.max(1, parseInt(v('dnDays'),10)||7),
+      name:v('dnName').trim(), relation:v('dnRel')||'son of', relname:v('dnRelname').trim(), addr:v('dnAddr'), phone:v('dnPhone').trim(),
+      acno:v('dnAcno').trim(), principal:num('dnPrincipal'), out:num('dnOut'), arrears:num('dnArr'), due:due };
+    d.dpd = (v('dnDpd')!=='') ? (parseInt(v('dnDpd'),10)||0) : (due?_dnDays(due, today):0);
+    return d;
+  }
+  function _dnFillForm(l){
+    var t=_dnIso(); var s=function(id,val){ var e=$(id); if(e) e.value=(val==null?'':val); };
+    s('dnName', l.name||''); s('dnRel', l.reltype||'son of'); s('dnRelname', l.relname||''); s('dnAddr', l.addr||''); s('dnPhone', l.phone||'');
+    s('dnAcno', l.acno||''); s('dnPrincipal', Math.round(Number(l.principal)||0)); s('dnOut', Math.round(_dnOut(l))); s('dnArr', Math.round(Number(l.arrears)||0));
+    s('dnDue', l.due||''); s('dnDpd', l.due?_dnDays(l.due,t):0); if($('dnDate')&&!$('dnDate').value) s('dnDate', t);
+    var ps=$('defPick'); if(ps) ps.value=l.id;
+  }
+  window.defPickBorrower=function(id){ if(!id) return; var l=(loans||[]).find(function(x){return x.id===id;}); if(!l){ toast('Loan not found'); return; } _dnFillForm(l); toast('Loaded '+(l.name||'')+' — review, then Preview'); };
+  window.defPreview=function(){ var d=_dnFormData(); if(!d.name){ toast('Enter or select a borrower first'); return; } window._defData=d; $('defBody').innerHTML=_dnPreview(d); $('defOverlay').classList.add('show'); };
+  window.defReset=function(){ ['dnName','dnRelname','dnAddr','dnPhone','dnAcno','dnPrincipal','dnOut','dnArr','dnDue','dnDpd'].forEach(function(id){ var e=$(id); if(e) e.value=''; }); if($('dnDate')) $('dnDate').value=_dnIso(); if($('dnDays')) $('dnDays').value=7; if($('defPick')) $('defPick').value=''; if($('dnRel')) $('dnRel').value='son of'; };
+  window.setDnType=function(val){ window._dnType=(val==='final')?'final':'demand'; var seg=$('defTypeSeg'); if(seg){ [].forEach.call(seg.children, function(b){ b.classList.toggle('active', b.dataset.dnt===window._dnType); }); } renderDnTplBox(); if(window._defData && $('defOverlay').classList.contains('show')){ window._defData.type=window._dnType; $('defBody').innerHTML=_dnPreview(window._defData); } };
+  window.setDnLang=function(val){ window._dnLang=(val==='hi')?'hi':'en'; var seg=$('dnLangSeg'); if(seg){ [].forEach.call(seg.children, function(b){ b.classList.toggle('active', b.dataset.dnl===window._dnLang); }); } renderDnTplBox(); if(window._defData && $('defOverlay').classList.contains('show')) $('defBody').innerHTML=_dnPreview(window._defData); };
+  window.openDefaultNotice=function(id){ defPickBorrower(id); defPreview(); };
+  window.renderDefaults=function(){
+    var pick=$('defPick');
+    if(pick){ var cur=pick.value; pick.innerHTML='<option value="">— Select a borrower —</option>'+(loans||[]).slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');}).map(function(l){return '<option value="'+esc(l.id)+'">'+esc(l.name||'')+' ('+esc(l.acno||'')+')</option>';}).join(''); pick.value=cur; }
+    renderDnTplBox();
+    var seg=$('defTypeSeg'); if(seg){ [].forEach.call(seg.children, function(b){ b.classList.toggle('active', b.dataset.dnt===window._dnType); }); }
+    var lseg=$('dnLangSeg'); if(lseg){ [].forEach.call(lseg.children, function(b){ b.classList.toggle('active', b.dataset.dnl===window._dnLang); }); }
+    var tb=$('defBodyRows'); if(!tb) return;
+    var t=_dnIso(); var rows=(loans||[]).filter(_dnIsDefault); rows.sort(function(a,b){ return _dnDays(b.due,t)-_dnDays(a.due,t); });
+    if(!rows.length){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--grey);padding:22px;">No overdue accounts right now.</td></tr>'; return; }
+    tb.innerHTML=rows.map(function(l){ var dpd=l.due?_dnDays(l.due,t):0, out=_dnOut(l), arr=Number(l.arrears)||0;
+      return '<tr><td>'+esc(l.name||'')+'</td><td>'+esc(l.acno||'')+'</td><td>'+esc(l.phone||'—')+'</td><td class="right">'+rupee(out)+'</td><td class="right" style="color:var(--bad);font-weight:600;">'+rupee(arr)+'</td><td class="right" style="color:var(--bad);font-weight:600;">'+(dpd>0?dpd:0)+'</td><td class="right"><button class="btn btn-sm btn-notice" onclick="defPickBorrower(\''+l.id+'\')">Load into notice</button></td></tr>'; }).join('');
+  };
+  window.sendDefaultWA=function(){ var d=window._defData; if(!d) return;
+    var phone=(d.phone||'').replace(/\D/g,''); if(phone.length===10) phone='91'+phone; else if(phone.length===11&&phone[0]==='0') phone='91'+phone.slice(1);
+    if(!phone){ toast('No phone number for this notice'); return; }
+    var deadline=_dnLong(_dnAddDays(d.today, d.days));
+    var head=d.type==='final'?'FINAL demand notice':'Demand notice';
+    var msg=head+' from Shivam Enterprises for loan account '+(d.acno||'')+'.\n\nDear '+(d.name||'')+', your account is overdue.\nOverdue amount: '+rupee(d.arrears)+'\nTotal outstanding: '+rupee(d.out)+'\nDays overdue: '+(d.dpd>0?d.dpd:0)+'\n\nPlease clear the overdue amount on or before '+deadline+'. The formal notice is attached. — Shivam Enterprises';
+    window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg), '_blank');
+    toast('WhatsApp opened — attach the printed PDF and send');
   };
 })();

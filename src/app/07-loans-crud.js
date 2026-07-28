@@ -21,6 +21,9 @@
     $('m_type').value=f.type||'Personal'; $('m_principal').value=f.principal||''; $('m_rate').value=f.rate||'';
     $('m_disb').value=f.disb||''; $('m_tenure').value=f.tenure||''; $('m_tint').value=f.tint||''; $('m_tpay').value=f.tpay||'';
     $('m_emi').value=f.emi||''; $('m_due').value=f.due||'';
+    // Only treat the Next Due Date as a manual override if this record was explicitly
+    // flagged that way. Otherwise the due date auto-follows the disbursement/schedule.
+    window._dueUserEdited = !!f.dueManual;
     $('m_status').value=f.status||'Active'; $('m_gname').value=f.gname||''; $('m_gphone').value=f.gphone||''; if($('m_coname'))$('m_coname').value=f.coname||''; if($('m_cophone'))$('m_cophone').value=f.cophone||''; if($('m_corel'))$('m_corel').value=f.corel||''; if($('m_coid'))$('m_coid').value=f.coid||''; if($('m_coaddr'))$('m_coaddr').value=f.coaddr||''; $('m_remarks').value=f.remarks||'';
     $('m_age').value=f.age||''; $('m_residence').value=f.residence||''; $('m_occupation').value=f.occupation||''; $('m_designation').value=f.designation||''; $('m_officeaddr').value=f.officeaddr||''; $('m_idtype').value=(f.idtype==='PAN'?'PAN Card':(f.idtype||''));
     $('m_caseno').value=f.caseno||''; $('m_refno').value=f.refno||''; $('m_product').value=f.product||''; $('m_dealer').value=f.dealer||''; $('m_downpay').value=f.downpay||''; $('m_officer').value=f.officer||'';
@@ -81,20 +84,31 @@
   function recalc(){
     const p=Number($('m_principal').value)||0, r=Number($('m_rate').value)||0, n=Number($('m_tenure').value)||0;
     if(p>0 && r>=0 && n>0){
-      const _t=calcLoanTotals(p,r,n); const tint=_t.tint, tpay=_t.tpay, emi=_t.emi;
-      $('m_tint').value=tint; $('m_tpay').value=tpay; $('m_emi').value=emi;
-      if(!$('m_due').value && $('m_disb').value){ const d=new Date($('m_disb').value); d.setMonth(d.getMonth()+1); $('m_due').value=d.toISOString().slice(0,10); }
+      const _t=calcLoanTotals(p,r,n); $('m_tint').value=_t.tint; $('m_tpay').value=_t.tpay; $('m_emi').value=_t.emi;
     }
     const ded=Number($('m_deductions').value)||0;
     $('m_remaining').value=Math.max(0,p-ded);
-    const tpayV=Number($('m_tpay').value)||0, paid=Number($('m_paid').value)||0;
-    const out=Math.max(0,tpayV-paid);
+    // Build a temp record and run the REAL recomputeLoan so the preview — Next Due Date,
+    // status, and outstanding (incl. cheque-bounce fees) — matches exactly what saving
+    // will produce. This is what keeps the due date in sync with the disbursement date,
+    // and makes the edit-time and saved "overdue" status agree.
+    var _ed = editId ? loans.find(function(l){return l.id===editId;}) : null;
+    var temp = Object.assign({}, _ed||{}, {
+      tpay:Number($('m_tpay').value)||0, emi:Number($('m_emi').value)||0, tenure:n,
+      disb:$('m_disb').value, payments:(modalPayments||[]).map(function(x){return Object.assign({},x);}),
+      dueManual: !!window._dueUserEdited,
+      due: window._dueUserEdited ? $('m_due').value : (_ed?_ed.due:$('m_due').value)
+    });
+    try{ recomputeLoan(temp); }catch(e){}
+    if(!window._dueUserEdited && temp.due) $('m_due').value=temp.due;   // due follows the schedule/disbursement
+    const out=Math.max(0, Number(temp.outstanding)||0);
     $('m_out').value=out;
-    const today=todayISO();
-    $('m_status').value = (out<=0 && tpayV>0) ? 'Closed' : (($('m_due').value && $('m_due').value<today)?'Overdue':'Active');
+    $('m_status').value=temp.status||'Active';
     updatePaySummary(out);
     try{ if(window._loanRefresh) window._loanRefresh(); }catch(e){}
   }
+  window.dueEdited=function(){ window._dueUserEdited=true; recalc(); };   // user typed a custom due date
+  window.dueUseSchedule=function(){ window._dueUserEdited=false; recalc(); };   // "↻ use schedule" — drop the manual override
   function updatePaySummary(out){
     const cleared=Number($('m_paid').value)||0;
     const pending=(modalPayments||[]).filter(p=>p.status==='Pending').reduce((a,p)=>a+(Number(p.amount)||0),0);
@@ -124,8 +138,12 @@
     $('m_paid').value=cleared;
     const rows=(modalPayments||[]).map((p,i)=>{
       const chq=p.mode==='Cheque'?` · Chq ${esc(p.cheque||'—')}${p.bank?(' / '+esc(p.bank)):''}`:(p.mode==='Online'?` · Ref ${esc(p.ref||'—')}`:'');
-      const badge=p.status==='Cleared'?'<span class="pp ok">Cleared</span>':'<span class="pp pend">Pending</span>';
-      const tog=p.mode==='Cheque'?`<button type="button" class="lnk" onclick="togglePayStatus(${i})">${p.status==='Cleared'?'mark pending':'mark cleared'}</button>`:'';
+      const badge=p.status==='Cleared'?'<span class="pp ok">Cleared</span>':(p.status==='Bounced'?'<span class="pp" style="background:#fde8e8;color:#b42318;">Bounced</span>':'<span class="pp pend">Pending</span>');
+      let tog='';
+      if(p.mode==='Cheque'){
+        if(p.status==='Bounced'){ tog=(p._bounceFee!=null&&!p._bounceCharged)?`<button type="button" class="lnk" onclick="unbouncePay(${i})">undo</button>`:''; }
+        else { tog=`<button type="button" class="lnk" onclick="togglePayStatus(${i})">${p.status==='Cleared'?'mark pending':'mark cleared'}</button> <button type="button" class="lnk del" onclick="markPayBounced(${i})">mark bounced</button>`; }
+      }
       return `<div class="pay-item"><div class="pay-info"><b>${inr(p.amount)}</b> <span class="muted">${esc(p.mode)}${chq} · ${fmtDate(p.date)}</span></div><div class="pay-act">${badge}${tog}<button type="button" class="lnk del" onclick="removePayment(${i})">remove</button></div></div>`;
     }).join('');
     $('payList').innerHTML = rows || '<div class="pay-empty">No payments recorded yet.</div>';
@@ -170,7 +188,11 @@
     if((Number($('m_rate').value)||0)>100){ toast('\u26a0 The interest rate looks too high \u2014 please check (over 100%).'); focusLoanField('m_rate'); return; }
     if(_tenureV>600){ toast('\u26a0 The tenure looks too long \u2014 please check (over 600 months / 50 years).'); focusLoanField('m_tenure'); return; }
     const out=Math.max(0,(Number($('m_tpay').value)||0)-(Number($('m_paid').value)||0));
-    const rec = {
+    // Merge onto the existing record so fields the modal doesn't edit — charges
+    // (bounce/late fees), restructure baseline, date of birth, etc. — are NOT lost
+    // on edit. The explicit fields below still overwrite whatever the form changed.
+    const _prevLoan = editId ? (loans.find(l=>l.id===editId)||{}) : {};
+    const rec = Object.assign({}, _prevLoan, {
       id: editId||('L'+Date.now()),
       name, acno, reltype:$('m_reltype').value, relname:$('m_relname').value.trim(),
       phone:normPhone($('m_phone').value), addr:$('m_addr').value.trim(), idproof:$('m_idproof').value.trim(), pan:($('m_pan')?$('m_pan').value.trim():''),
@@ -183,7 +205,7 @@
       caseno:$('m_caseno').value.trim(), refno:$('m_refno').value.trim(), product:$('m_product').value.trim(), dealer:$('m_dealer').value.trim(), downpay:Number($('m_downpay').value)||0, deductions:Number($('m_deductions').value)||0, officer:$('m_officer').value.trim(),
       propdesc:$('m_propdesc').value.trim(), propaddr:$('m_propaddr').value.trim(), proparea:$('m_proparea').value.trim(), propvalue:Number($('m_propvalue').value)||0, bN:$('m_bN').value.trim(), bS:$('m_bS').value.trim(), bE:$('m_bE').value.trim(), bW:$('m_bW').value.trim(), title:$('m_title').value.trim(),
       createdAt: editId ? (loans.find(l=>l.id===editId)||{}).createdAt||todayISO() : todayISO()
-    };
+    });
     /* two-device safety: if this loan was changed on another device since we opened it,
        warn before overwriting instead of silently winning (last-write-wins). */
     if(editId && typeof window.cloudGuardSave==='function'){
@@ -197,12 +219,42 @@
       }
     }
     if(editId){ loans = loans.map(l=>l.id===editId?rec:l); } else { loans.unshift(rec); }
-    // (c) If the user typed a Next Due Date that differs from the auto-computed one, keep it as a manual override.
-    var _formDue=rec.due; rec.dueManual=false;
+    // Apply any freshly-marked cheque bounces: add the bounce fee as a charge on THIS
+    // loan so it's added to what the customer owes (see recomputeLoan).
+    var _bounceCharge=null;
+    (rec.payments||[]).forEach(function(p){
+      if(p && Number(p._bounceFee)>0 && !p._bounceCharged){
+        if(!Array.isArray(rec.charges)) rec.charges=[];
+        _bounceCharge={ id:'C'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), date:todayISO(), type:'Cheque bounce', amount:Number(p._bounceFee)||0, cheque:p.cheque||'', note:'Cheque returned by bank — bounce fee' };
+        rec.charges.unshift(_bounceCharge);
+        p._bounceCharged=true; delete p._bounceFee;
+        try{ logAudit('Cheque Bounce Fee Added', inr(_bounceCharge.amount)+' — '+name+' ('+acno+')'+(p.cheque?(' cheque '+p.cheque):'')); }catch(e){}
+      }
+    });
+    // (c) The Next Due Date is a manual override ONLY when the user typed into that field
+    // directly (tracked by window._dueUserEdited). Otherwise it auto-follows the schedule:
+    // recomputeLoan advances rec.due to the next unpaid EMI from the disbursement date.
+    rec.dueManual = !!window._dueUserEdited;
     recomputeLoan(rec);
-    if(_formDue && _formDue!==rec.due){ rec.due=_formDue; rec.dueManual=true; }
+    // Guard (Fix 2): a due date before the disbursement date is almost always a mistake.
+    // Only possible now via a manual override; warn so the user can correct it.
+    if(rec.dueManual && rec.due && rec.disb && rec.due < rec.disb){
+      toast('⚠ Next Due Date ('+rec.due+') is before the disbursement date ('+rec.disb+') — please check.');
+    }
     logAudit(editId?'Loan Modified':'Loan Created', name+' ('+acno+')'); save(); closeLoan(); renderLoans(); var _w=[]; var _tp=Number($('m_tpay')?$('m_tpay').value:0)||0, _emi=Number($('m_emi')?$('m_emi').value:0)||0; if(_tp>0 && _tp<principal) _w.push('total payable is less than the loan amount'); if(_emi<=0) _w.push('EMI is zero'); if(!($('m_disb')&&$('m_disb').value)) _w.push('no disbursement date'); if(_w.length) toast('Saved \u2014 but please check: '+_w.join(', ')+'.'); else toast(editId?'Record updated':'Loan record added');
+    if(_bounceCharge){ try{ if(typeof waBounce==='function' && confirm('A bounce fee of '+inr(_bounceCharge.amount)+' was added to '+name+'\u2019s balance.\n\nSend the cheque-bounce notice on WhatsApp now?')) waBounce(rec, _bounceCharge); }catch(e){} }
   }
+  function getBounceFee(){ try{ var v=Number(localStorage.getItem('shivam_bouncefee_v1')); return v>0?v:500; }catch(e){ return 500; } }
+  function setBounceFee(v){ try{ if(v>0) localStorage.setItem('shivam_bouncefee_v1', String(v)); }catch(e){} }
+  function markPayBounced(i){
+    var p=modalPayments[i]; if(!p || p.mode!=='Cheque'){ toast('Only cheque payments can bounce'); return; }
+    var v=prompt('Cheque bounced. Enter the bounce fee to add to what the customer owes\n(the amount your bank charged you):', String(getBounceFee()));
+    if(v===null) return; var fee=Math.round(Number(v)||0); if(fee<0) fee=0; setBounceFee(fee);
+    p.status='Bounced'; p._bounceFee=fee; delete p._bounceCharged;
+    renderPayments();
+    toast('Marked bounced \u2014 \u20b9'+fee+' fee is added when you Save; you can send the notice then.');
+  }
+  function unbouncePay(i){ var p=modalPayments[i]; if(!p) return; if(p._bounceCharged){ toast('Already recorded \u2014 remove the charge from the Charges screen to reverse it.'); return; } p.status='Pending'; delete p._bounceFee; renderPayments(); }
   function snapBefore(reason){ try{ localStorage.setItem('shivam_backup_snapshot', JSON.stringify({at:Date.now(), reason:reason||'', data:loans})); }catch(e){} }
   const RECYCLE_STORE='shivam_recycle_v1';
   function recycleLoad(){ try{ return JSON.parse(localStorage.getItem(RECYCLE_STORE)||'[]')||[]; }catch(e){ return []; } }

@@ -35,9 +35,13 @@
     const cleared=pays.filter(p=>p.status==='Cleared').reduce((a,p)=>a+(Number(p.amount)||0),0);
     l.paid=cleared;
     const tpay=Number(l.tpay)||0;
+    // Cheque-bounce fees the customer must repay are ADDED to what they owe, so the
+    // bounced EMI + the bank's return fee are recovered together. (Paid via a normal
+    // cleared payment, which brings the balance back down.)
+    const _bounceFees=(Array.isArray(l.charges)?l.charges:[]).filter(function(c){return c&&c.type==='Cheque bounce';}).reduce(function(a,c){return a+(Number(c.amount)||0);},0);
     // Processing / deductions are withheld at disbursement only — the customer is liable for the FULL amount,
     // so they do NOT reduce the outstanding.
-    l.outstanding=Math.max(0, tpay-cleared);
+    l.outstanding=Math.max(0, tpay + _bounceFees - cleared);
     const paidBase=Number(l.paidBase)||0;            // amount already paid as of the last restructure baseline
     const fwdCleared=Math.max(0, cleared-paidBase);  // payments counted against the current (forward) schedule
     const emi=Math.round(Number(l.emi)||0);

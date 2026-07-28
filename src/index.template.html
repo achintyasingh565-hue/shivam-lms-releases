@@ -196,7 +196,7 @@
         <div class="fg"><label>Total Interest ₹</label><input id="m_tint" class="calc" type="number"></div>
         <div class="fg"><label>Total Payable ₹</label><input id="m_tpay" class="calc" type="number"></div>
         <div class="fg"><label>Monthly EMI ₹</label><input id="m_emi" class="calc" type="number"></div>
-        <div class="fg"><label>Next Due Date</label><input id="m_due" type="date"><div class="calc-note" style="margin-top:4px;">Set a custom date here to override the auto-schedule — it will be kept on save.</div></div>
+        <div class="fg"><label>Next Due Date</label><input id="m_due" type="date" oninput="dueEdited()"><div class="calc-note" style="margin-top:4px;">Auto-follows the disbursement date &amp; schedule. Type a custom date to override it — <a href="#" onclick="dueUseSchedule();return false;" style="color:#0b7a4b;">↻ use schedule</a> to go back to automatic.</div></div>
         </div>
       </div>
 
