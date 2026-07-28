@@ -42,7 +42,7 @@
   function makeBackupPayload(){
     const grab=k=>{ try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch(e){ return null; } };
     const wc=grab('shivam_wacfg_v1')||{}; const wcSafe=Object.assign({},wc); delete wcSafe.token; delete wcSafe.tokenEnc;
-    return JSON.stringify({ app:'ShivamLMS', v:2, schema:SCHEMA_VERSION, at:new Date().toISOString(), loans:loans, expenses:loadExpenses(), firm:(function(){ try{ return JSON.parse(localStorage.getItem('shivam_firm_v1')||'null'); }catch(e){ return null; } })(),
+    return JSON.stringify({ app:'ShivamLMS', v:2, schema:SCHEMA_VERSION, at:new Date().toISOString(), count:(loans||[]).length, sum:(typeof _backupChecksum==='function'?_backupChecksum(loans):null), loans:loans, expenses:loadExpenses(), firm:(function(){ try{ return JSON.parse(localStorage.getItem('shivam_firm_v1')||'null'); }catch(e){ return null; } })(),
       recycle:grab('shivam_recycle_v1'), users:grab('shivam_users_v1'), watpl:grab('shivam_watpl_v1'), wacfg:wcSafe, audit:grab('shivam_audit_v1'), wahist:grab('shivam_wamsg_v1') }, null, 2);
   }
   function scheduleAutoBackup(){ clearTimeout(_abkTimer); _abkTimer=setTimeout(()=>checkAutoBackup(false), 1500); }

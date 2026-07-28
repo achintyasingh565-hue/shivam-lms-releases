@@ -24,6 +24,7 @@ const path = require('path');
       { id: 'R1', name: 'Due Soon', acno: 'SE-R001', phone: '9333333333', principal: 120000, rate: 2, tenure: 12,
         tint: 28800, tpay: 148800, emi: 12400, outstanding: 148800, arrears: 0, payments: [], disb: iso(disb), due: iso(due) });
     try { recomputeLoan(loans[0]); } catch (e) {}
+    loans[0].due = iso(due);   // recomputeLoan derives due from disb; pin it to our trigger day so the test is calendar-independent
     save();
 
     const scan1 = autoRemScan();

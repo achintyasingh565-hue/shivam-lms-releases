@@ -302,11 +302,21 @@
     const rows=loans.map(l=>cols.map(c=>{ let v=l[c]==null?'':String(l[c]); if(/[",\n]/.test(v)) v='"'+v.replace(/"/g,'""')+'"'; return v; }).join(','));
     download('shivam-loans-'+todayISO()+'.csv', head.join(',')+'\n'+rows.join('\n'), 'text/csv'); logAudit('Data Exported','Loans CSV'); toast('Excel file exported');
   }
+  /* Deterministic checksum of the loan book, stored in each backup so a corrupted
+     or hand-edited file is caught on restore instead of silently loading bad data. */
+  function _backupChecksum(arr){ try{ var s=JSON.stringify(arr||[]); var h=5381; for(var i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))>>>0; } return h; }catch(e){ return 0; } }
   function importJSON(ev){
     const file=ev.target.files[0]; if(!file) return;
     const rd=new FileReader();
     rd.onload=()=>{ try{ const data=JSON.parse(rd.result); let arr=null, extras=null; if(Array.isArray(data)){ arr=data; } else if(data && data.app==='ShivamLMS' && Array.isArray(data.loans)){ arr=data.loans; extras=data; } else throw 0;
         if(extras && typeof extras.schema==='number' && extras.schema>SCHEMA_VERSION){ toast('\u26a0 This backup was made by a NEWER version of the app. Update the app first \u2014 restoring it now could damage your records.', 7000); return; }
+        /* integrity check \u2014 count + checksum must match what the backup recorded */
+        if(extras && (extras.sum!=null || extras.count!=null)){
+          var okCount=(extras.count==null)||(extras.count===arr.length);
+          var okSum=(extras.sum==null)||(extras.sum===_backupChecksum(arr));
+          if(!okCount || !okSum){ if(!confirm('\u26a0 This backup failed its integrity check \u2014 it may be corrupted or was edited by hand.\n\nExpected '+(extras.count!=null?extras.count:'?')+' record(s); the file contains '+arr.length+'.\n\nRestore anyway?')){ toast('Restore cancelled'); return; } }
+        }
+        if(typeof normalizeLoans==='function') arr=normalizeLoans(arr);   // repair any bad rows before applying
         snapBefore('Before restore'); loans=arr; try{recomputeAll();}catch(e){} save(); if(extras){ const put=(k,v)=>{ if(v!=null && !(Array.isArray(v) && !v.length)){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} } }; put('shivam_recycle_v1', extras.recycle); put('shivam_expenses_v1', extras.expenses); put('shivam_firm_v1', extras.firm); put('shivam_users_v1', extras.users); put('shivam_watpl_v1', extras.watpl); put('shivam_wamsg_v1', extras.wahist);
           try{ if(Array.isArray(extras.audit) && extras.audit.length){ const cur=auditAll(); const seen={}; const merged=cur.concat(extras.audit).filter(function(x){ if(!x||!x.ts) return false; const k=x.ts+'|'+(x.user||'')+'|'+(x.action||'')+'|'+(x.detail||''); if(seen[k]) return false; seen[k]=1; return true; }).sort(function(a,b){ return a.ts-b.ts; }); localStorage.setItem('shivam_audit_v1', JSON.stringify(merged.slice(-5000))); } }catch(e){}
           if(extras.wacfg){ let cur={}; try{ cur=JSON.parse(localStorage.getItem('shivam_wacfg_v1')||'{}')||{}; }catch(e){} localStorage.setItem('shivam_wacfg_v1', JSON.stringify(Object.assign({}, extras.wacfg, {token:cur.token, tokenEnc:cur.tokenEnc}))); } } logAudit('Backup Restored', arr.length+' records'+(extras?' + settings':'')); renderLoans(); renderDash(); toast('Backup restored ('+arr.length+' records'+(extras?', settings included':'')+')'); go('loans'); }catch(e){ toast('Invalid backup file'); } };

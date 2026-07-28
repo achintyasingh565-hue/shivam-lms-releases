@@ -22,6 +22,7 @@ const path = require('path');
       { id: 'T1', name: 'Toggle Test', acno: 'SE-T101', phone: '9555500001', principal: 120000, rate: 2, tenure: 12,
         tint: 28800, tpay: 148800, emi: 12400, outstanding: 148800, arrears: 0, payments: [], disb: iso(disb), due: iso(due) });
     try { recomputeLoan(loans[0]); } catch (e) {}
+    loans[0].due = iso(due);   // pin due to the trigger day so the test is calendar-independent
     save();
 
     // EMI OFF -> scan should add nothing

@@ -458,7 +458,7 @@
         try {
           await saveSession(await authPassword(em, pw));
           wrap.remove();
-          if (C.encryptIds) await ensureCryptoKey();
+          if (idEncOn()) await ensureCryptoKey();
           await initialSync();
         } catch (e) { btn.disabled = false; btn.textContent = 'Sign in'; document.getElementById('cloudSignInErr').textContent = String(e.message || e); }
       };
@@ -467,6 +467,29 @@
       document.getElementById('cloudSkip').onclick = function () { wrap.remove(); setStatus('offline (local only)'); };
     }
 
+    // Runtime switch for Aadhaar/PAN field encryption: the shipped config default
+    // OR a per-device flag set from Administration → Data protection.
+    function idEncOn(){ try{ return !!C.encryptIds || localStorage.getItem('shivam_idenc_on')==='1'; }catch(e){ return !!C.encryptIds; } }
+    // Guided enable (called from the Admin panel): store the shared passphrase in
+    // the OS keychain, flip the flag, derive the key now, and re-push so existing
+    // ID fields get encrypted in the cloud on their next sync. Leaves ensureCryptoKey
+    // and deriveKey untouched — reuses the same 'shivam_idkey' the app already uses.
+    window.enableIdEncryption = async function(passphrase){
+      try{
+        if(!passphrase || !String(passphrase).trim()) return {ok:false, error:'Enter a passphrase.'};
+        if(!(window.electronAPI && window.electronAPI.secureEncrypt)) return {ok:false, error:'Secure keychain is not available on this device.'};
+        var enc = await window.electronAPI.secureEncrypt(String(passphrase));
+        if(!enc) return {ok:false, error:'Could not store the passphrase securely.'};
+        localStorage.setItem('shivam_idkey', enc);
+        localStorage.setItem('shivam_idenc_on','1');
+        cryptoKey = await deriveKey(String(passphrase));
+        try{ logAudit('ID Encryption Enabled','Aadhaar/PAN field encryption turned on'); }catch(_){}
+        try{ (loans||[]).forEach(function(l){ if(l&&l.id!=null) delete lastHash[l.id]; }); if(session) await pushChanged(loans); }catch(_){}
+        return {ok:true};
+      }catch(e){ return {ok:false, error:String(e&&e.message||e)}; }
+    };
+    window.disableIdEncryption = function(){ try{ localStorage.setItem('shivam_idenc_on','0'); cryptoKey=null; logAudit('ID Encryption Disabled','turned off on this device'); }catch(e){} return {ok:true}; };
+    window.idEncryptionStatus = function(){ try{ return { on: idEncOn(), keyed: !!cryptoKey, forcedByConfig: !!C.encryptIds }; }catch(e){ return {on:false, keyed:false, forcedByConfig:false}; } };
     async function ensureCryptoKey() {
       // passphrase for the optional Aadhaar/PAN encryption; stored per-device via keychain
       try {
@@ -492,7 +515,7 @@
           try { await saveSession(await authRefresh()); } catch (e) { clearSession(); }
         }
         if (session && session.access_token) {
-          if (C.encryptIds) await ensureCryptoKey();
+          if (idEncOn()) await ensureCryptoKey();
           await initialSync();
         } else {
           setStatus('signed out');   // pill shows "Sign in"

@@ -21,13 +21,36 @@
   let modalPayments = [];
 
   /* ---------- storage (safe) ---------- */
-  function load(){ try{ const r=localStorage.getItem(STORE); loans = r?JSON.parse(r):[]; }catch(e){ loans = window._mem||[]; } }
+  /* Fail-safe: a corrupt/partial record must never crash rendering or the maths.
+     Drops junk entries (no id / not an object), guarantees payments & charges are
+     arrays, and coerces clearly-invalid numeric fields to 0. Non-destructive for
+     valid data. */
+  function normalizeLoans(arr){
+    if(!Array.isArray(arr)) return [];
+    var out=[], dropped=0;
+    for(var i=0;i<arr.length;i++){
+      var l=arr[i];
+      if(!l || typeof l!=='object' || l.id==null){ dropped++; continue; }
+      if(!Array.isArray(l.payments)) l.payments=[];
+      if(!Array.isArray(l.charges)) l.charges=[];
+      ['principal','rate','tenure','tint','tpay','emi','outstanding','arrears','deductions'].forEach(function(k){ if(l[k]!=null && l[k]!=='' && isNaN(Number(l[k]))) l[k]=0; });
+      out.push(l);
+    }
+    if(dropped){ try{ logAudit('Data Repaired', dropped+' unreadable record(s) skipped on load'); }catch(e){} }
+    return out;
+  }
+  function load(){ try{ const r=localStorage.getItem(STORE); loans = r?JSON.parse(r):[]; }catch(e){ loans = window._mem||[]; } loans = normalizeLoans(loans); }
   function save(){ var lsOK=true; var _ts=Date.now();
     try{ (loans||[]).forEach(function(l){ if(l && l.v===undefined) l.v=SCHEMA_VERSION; }); }catch(e){}
     try{ localStorage.setItem(STORE, JSON.stringify(loans)); }
-    catch(e){ lsOK=false; window._mem = loans; if(!window._storageWarned){ window._storageWarned=true; toast('\u26a0 Device fast-storage is full. Your records are still saved in the app database \u2014 please take a backup now (Administration \u2192 Backup), then contact support to expand storage.'); } }
+    catch(e){
+      /* localStorage full: the in-localStorage snapshot duplicates the whole book
+         (also mirrored in IndexedDB), so free it and retry once before giving up. */
+      try{ localStorage.removeItem('shivam_backup_snapshot'); localStorage.setItem(STORE, JSON.stringify(loans)); }
+      catch(e2){ lsOK=false; window._mem = loans; if(!window._storageWarned){ window._storageWarned=true; toast('\u26a0 Device fast-storage is full. Your records are still saved in the app database \u2014 please take a backup now (Administration \u2192 Backup), then contact support to expand storage.'); } }
+    }
     try{ localStorage.setItem(STORE_TS, String(_ts)); }catch(_){ }
-    try{ localStorage.setItem('shivam_backup_snapshot', JSON.stringify({at:_ts, data:loans})); }catch(_){ }
+    if(lsOK){ try{ localStorage.setItem('shivam_backup_snapshot', JSON.stringify({at:_ts, data:loans})); }catch(_){ } }
     try{ if(typeof idbSetLoans==='function') idbSetLoans(loans, _ts); }catch(_){ }
     /* Shared cloud copy (Supabase) — pushes changed loans to the other device.
        No-op when cloud is off or offline; see 20-cloud-sync.js. */
