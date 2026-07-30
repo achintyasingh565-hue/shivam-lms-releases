@@ -37,10 +37,17 @@ function createWindow() {
   // Safety fallback: if ready-to-show is delayed for any reason, show after load finishes.
   mainWindow.webContents.once('did-finish-load', () => { if (!mainWindow.isVisible()) mainWindow.show(); });
 
-  // Open any external links (if ever added) in the system browser, not in-app
+  // Open external links in the system browser, not in-app — but only safe web
+  // schemes (the app opens https://wa.me/... and GitHub release links). This prevents
+  // any unexpected file:// or custom-scheme URL from being handed to the OS.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    try { const u = new URL(url); if (u.protocol === 'https:' || u.protocol === 'http:') shell.openExternal(url); }
+    catch (e) {}
     return { action: 'deny' };
+  });
+  // Never allow in-app navigation away from the bundled page.
+  mainWindow.webContents.on('will-navigate', (e, url) => {
+    if (url !== mainWindow.webContents.getURL()) e.preventDefault();
   });
 }
 

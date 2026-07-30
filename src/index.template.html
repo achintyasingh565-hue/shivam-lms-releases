@@ -99,6 +99,7 @@
       <div class="gsearch"><span class="si">⌕</span><input id="globalSearch" placeholder="Search borrower, A/C no or phone…" oninput="topSearchLive()" onkeydown="if(event.key==='Enter')globalSearch()"></div>
       <div class="right" id="topActions">
         <div id="cloudStatus" class="cloud-status" style="display:none;" title="Shared data status — click for options" onclick="try{cloudStatusClick&&cloudStatusClick()}catch(e){}"><span class="cs-dot"></span><span class="cs-label">…</span></div>
+        <button id="refreshTopBtn" onclick="manualRefresh(this)" title="Refresh — get the latest and update this screen" aria-label="Refresh" style="border:0;width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:16px;background:#eef1f6;">↻</button>
         <button id="themeBtn" onclick="toggleTheme()" title="Light / Dark mode" style="border:0;width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:15px;background:#eef1f6;">🌙</button>
         <div class="tb-bell" onclick="toggleNotif(event)" title="Notifications">🔔<span class="bell-badge" id="bellBadge" style="display:none;">0</span><div class="notif-pop" id="notifPop"></div></div>
         <button id="lockTopBtn" class="btn btn-ghost btn-sm" style="display:none;" onclick="lockNow()">🔒</button>
@@ -387,7 +388,7 @@
     <div class="modal-head"><h3>Default Notice</h3><button class="x" aria-label="Close" onclick="closeDefaultNotice()">&times;</button></div>
     <div class="modal-body" style="display:block;max-height:70vh;overflow:auto;" id="defBody"></div>
     <div class="modal-foot" style="flex-wrap:wrap;gap:8px;">
-      <div class="seg2" id="dnLangSeg" style="align-self:center;">
+      <div class="seg2" id="dnLangSegModal" style="align-self:center;">
         <button data-dnl="en" class="active" onclick="setDnLang('en')">English</button>
         <button data-dnl="hi" onclick="setDnLang('hi')">हिन्दी</button>
       </div>

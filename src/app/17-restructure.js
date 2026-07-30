@@ -136,9 +136,23 @@
   }
   function _dnLoadTpls(){ try{ return JSON.parse(localStorage.getItem(DN_TPL_STORE)||'{}')||{}; }catch(e){ return {}; } }
   function _dnGetTpl(type,lang){ var all=_dnLoadTpls(); var v=all[type+'_'+lang]; return (v!=null && v!=='')?v:_dnDefaultTpl(type,lang); }
-  window.saveDnTpl=function(){ var el=$('dnTplText'); if(!el) return; var all=_dnLoadTpls(); all[window._dnType+'_'+window._dnLang]=el.value; try{ localStorage.setItem(DN_TPL_STORE, JSON.stringify(all)); }catch(e){} toast('Default wording saved — '+(window._dnType==='final'?'Final Demand':'Demand')+' ('+(window._dnLang==='hi'?'हिन्दी':'English')+')'); };
-  window.resetDnTpl=function(){ var all=_dnLoadTpls(); delete all[window._dnType+'_'+window._dnLang]; try{ localStorage.setItem(DN_TPL_STORE, JSON.stringify(all)); }catch(e){} renderDnTplBox(); toast('Wording reset to the built-in default'); };
-  function renderDnTplBox(){ var el=$('dnTplText'); if(el) el.value=_dnGetTpl(window._dnType, window._dnLang); }
+  // The wording EDITOR lives in Administration → Notice Wording and keeps its OWN
+  // type/language selection (independent of whichever notice is being prepared on
+  // the Default Notice page), so editing the master template never disturbs a
+  // notice in progress.
+  window._dnTplType = window._dnTplType || 'demand';
+  window._dnTplLang = window._dnTplLang || 'en';
+  function _dnTplSyncSegs(){
+    var ts=$('dnTplTypeSeg'); if(ts){ [].forEach.call(ts.children, function(b){ b.classList.toggle('active', b.dataset.dnt===window._dnTplType); }); }
+    var ls=$('dnTplLangSeg'); if(ls){ [].forEach.call(ls.children, function(b){ b.classList.toggle('active', b.dataset.dnl===window._dnTplLang); }); }
+  }
+  function renderDnTplBox(){ var el=$('dnTplText'); if(el) el.value=_dnGetTpl(window._dnTplType, window._dnTplLang); }
+  window.renderDnTplBox=renderDnTplBox;
+  window.initDnTplBox=function(){ _dnTplSyncSegs(); renderDnTplBox(); };
+  window.setDnTplType=function(v){ window._dnTplType=(v==='final')?'final':'demand'; _dnTplSyncSegs(); renderDnTplBox(); };
+  window.setDnTplLang=function(v){ window._dnTplLang=(v==='hi')?'hi':'en'; _dnTplSyncSegs(); renderDnTplBox(); };
+  window.saveDnTpl=function(){ var el=$('dnTplText'); if(!el) return; var all=_dnLoadTpls(); all[window._dnTplType+'_'+window._dnTplLang]=el.value; try{ localStorage.setItem(DN_TPL_STORE, JSON.stringify(all)); }catch(e){} try{ logAudit('Notice Wording Saved', (window._dnTplType==='final'?'Final Demand':'Demand')+' / '+(window._dnTplLang==='hi'?'Hindi':'English')); }catch(e){} toast('Default wording saved — '+(window._dnTplType==='final'?'Final Demand':'Demand')+' ('+(window._dnTplLang==='hi'?'हिन्दी':'English')+')'); };
+  window.resetDnTpl=function(){ var all=_dnLoadTpls(); delete all[window._dnTplType+'_'+window._dnTplLang]; try{ localStorage.setItem(DN_TPL_STORE, JSON.stringify(all)); }catch(e){} renderDnTplBox(); toast('Wording reset to the built-in default'); };
   function _dnAmountsTable(d){
     var hi=window._dnLang==='hi';
     var L=hi?{principal:'मूलधन वितरित',out:'कुल बकाया राशि',arr:'अतिदेय (बकाया) राशि',missed:'अंतिम चूकी हुई देय तिथि',dpd:'अतिदेय दिवस',days:' दिन'}
@@ -350,18 +364,23 @@
     s('dnDue', l.due||''); s('dnDpd', l.due?_dnDays(l.due,t):0); if($('dnDate')&&!$('dnDate').value) s('dnDate', t);
     var ps=$('defPick'); if(ps) ps.value=l.id;
   }
-  window.defPickBorrower=function(id){ if(!id) return; var l=(loans||[]).find(function(x){return x.id===id;}); if(!l){ toast('Loan not found'); return; } _dnFillForm(l); toast('Loaded '+(l.name||'')+' — review, then Preview'); };
+  window.defPickBorrower=function(id){ if(!id) return; var l=(loans||[]).find(function(x){return x.id===id;}); if(!l){ toast('Loan not found'); return; } try{ recomputeLoan(l); }catch(e){} _dnFillForm(l); toast('Loaded '+(l.name||'')+' — review, then Preview'); };
   window.defPreview=function(){ var d=_dnFormData(); if(!d.name){ toast('Enter or select a borrower first'); return; } window._defData=d; $('defBody').innerHTML=_dnPreview(d); $('defOverlay').classList.add('show'); };
   window.defReset=function(){ ['dnName','dnRelname','dnAddr','dnPhone','dnAcno','dnPrincipal','dnOut','dnArr','dnDue','dnDpd'].forEach(function(id){ var e=$(id); if(e) e.value=''; }); if($('dnDate')) $('dnDate').value=_dnIso(); if($('dnDays')) $('dnDays').value=7; if($('defPick')) $('defPick').value=''; if($('dnRel')) $('dnRel').value='son of'; };
-  window.setDnType=function(val){ window._dnType=(val==='final')?'final':'demand'; var seg=$('defTypeSeg'); if(seg){ [].forEach.call(seg.children, function(b){ b.classList.toggle('active', b.dataset.dnt===window._dnType); }); } renderDnTplBox(); if(window._defData && $('defOverlay').classList.contains('show')){ window._defData.type=window._dnType; $('defBody').innerHTML=_dnPreview(window._defData); } };
-  window.setDnLang=function(val){ window._dnLang=(val==='hi')?'hi':'en'; var seg=$('dnLangSeg'); if(seg){ [].forEach.call(seg.children, function(b){ b.classList.toggle('active', b.dataset.dnl===window._dnLang); }); } renderDnTplBox(); if(window._defData && $('defOverlay').classList.contains('show')) $('defBody').innerHTML=_dnPreview(window._defData); };
+  window.setDnType=function(val){ window._dnType=(val==='final')?'final':'demand'; var seg=$('defTypeSeg'); if(seg){ [].forEach.call(seg.children, function(b){ b.classList.toggle('active', b.dataset.dnt===window._dnType); }); } if(window._defData && $('defOverlay').classList.contains('show')){ window._defData.type=window._dnType; $('defBody').innerHTML=_dnPreview(window._defData); } };
+  // There are two language selectors (the form on the notice page and the one inside
+  // the preview modal) — keep BOTH in sync so their highlight never disagrees.
+  function _dnSyncLangSegs(){ ['dnLangSeg','dnLangSegModal'].forEach(function(sid){ var seg=$(sid); if(seg){ [].forEach.call(seg.children, function(b){ b.classList.toggle('active', b.dataset.dnl===window._dnLang); }); } }); }
+  window.setDnLang=function(val){ window._dnLang=(val==='hi')?'hi':'en'; _dnSyncLangSegs(); if(window._defData && $('defOverlay').classList.contains('show')) $('defBody').innerHTML=_dnPreview(window._defData); };
   window.openDefaultNotice=function(id){ defPickBorrower(id); defPreview(); };
   window.renderDefaults=function(){
+    // Refresh every record's arrears/outstanding/status against today before listing,
+    // so the overdue table (and the figures loaded into a notice) are never stale.
+    try{ (loans||[]).forEach(function(l){ recomputeLoan(l); }); }catch(e){}
     var pick=$('defPick');
     if(pick){ var cur=pick.value; pick.innerHTML='<option value="">— Select a borrower —</option>'+(loans||[]).slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');}).map(function(l){return '<option value="'+esc(l.id)+'">'+esc(l.name||'')+' ('+esc(l.acno||'')+')</option>';}).join(''); pick.value=cur; }
-    renderDnTplBox();
     var seg=$('defTypeSeg'); if(seg){ [].forEach.call(seg.children, function(b){ b.classList.toggle('active', b.dataset.dnt===window._dnType); }); }
-    var lseg=$('dnLangSeg'); if(lseg){ [].forEach.call(lseg.children, function(b){ b.classList.toggle('active', b.dataset.dnl===window._dnLang); }); }
+    _dnSyncLangSegs();
     var tb=$('defBodyRows'); if(!tb) return;
     var t=_dnIso(); var rows=(loans||[]).filter(_dnIsDefault); rows.sort(function(a,b){ return _dnDays(b.due,t)-_dnDays(a.due,t); });
     if(!rows.length){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--grey);padding:22px;">No overdue accounts right now.</td></tr>'; return; }

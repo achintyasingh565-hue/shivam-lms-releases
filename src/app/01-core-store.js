@@ -55,7 +55,11 @@
     /* Shared cloud copy (Supabase) — pushes changed loans to the other device.
        No-op when cloud is off or offline; see 20-cloud-sync.js. */
     try{ if(typeof cloudPush==='function') cloudPush(loans); }catch(_){ }
-    if(typeof scheduleAutoBackup==='function') scheduleAutoBackup(); }
+    if(typeof scheduleAutoBackup==='function') scheduleAutoBackup();
+    // Safety net: reflect this change on whatever screen is currently open, so the
+    // user never has to reopen the app to see it. Guarded (skips open dialogs and
+    // in-progress typing) so it can't disturb an edit in progress.
+    try{ if(typeof window.refreshActiveView==='function') window.refreshActiveView(); }catch(_){ } }
   /* ---------- durable storage (IndexedDB) ---------- */
   var _seidb=null;
   function idbOpen(){ return new Promise(function(res,rej){ if(_seidb) return res(_seidb); try{ var rq=indexedDB.open('shivam_lms_db',1); rq.onupgradeneeded=function(){ try{ rq.result.createObjectStore('kv'); }catch(e){} }; rq.onsuccess=function(){ _seidb=rq.result; res(_seidb); }; rq.onerror=function(){ rej(rq.error); }; }catch(e){ rej(e); } }); }

@@ -230,6 +230,10 @@
       try { if (typeof renderLoans === 'function') renderLoans(); } catch (_) {}
       try { if (typeof renderDash === 'function') renderDash(); } catch (_) {}
       try { if (typeof renderBackupStatus === 'function') renderBackupStatus(); } catch (_) {}
+      // Also refresh whatever screen the user is currently looking at (Reports,
+      // Reminders, Payments, Notices…) so a change synced from the other device
+      // shows immediately, without needing to reopen the app.
+      try { if (typeof window.refreshActiveView === 'function') window.refreshActiveView(); } catch (_) {}
     }
     function addToRecycle(row) {
       try {

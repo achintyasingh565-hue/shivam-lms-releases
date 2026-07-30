@@ -98,7 +98,7 @@
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.4 2.4 4.6-5"/></svg> Audit Logging Enabled</span>
       </div>
       <div class="auth-meta"><span id="lastLogin"></span></div>
-      <div class="auth-meta auth-verline">Version 2.0.22 &nbsp;·&nbsp; © Shivam Enterprises</div>
+      <div class="auth-meta auth-verline">Version 2.0.25 &nbsp;·&nbsp; © Shivam Enterprises</div>
     </div>
   </div>
 </div>
@@ -147,6 +147,7 @@
       <div class="gsearch"><span class="si">⌕</span><input id="globalSearch" placeholder="Search borrower, A/C no or phone…" oninput="topSearchLive()" onkeydown="if(event.key==='Enter')globalSearch()"></div>
       <div class="right" id="topActions">
         <div id="cloudStatus" class="cloud-status" style="display:none;" title="Shared data status — click for options" onclick="try{cloudStatusClick&&cloudStatusClick()}catch(e){}"><span class="cs-dot"></span><span class="cs-label">…</span></div>
+        <button id="refreshTopBtn" onclick="manualRefresh(this)" title="Refresh — get the latest and update this screen" aria-label="Refresh" style="border:0;width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:16px;background:#eef1f6;">↻</button>
         <button id="themeBtn" onclick="toggleTheme()" title="Light / Dark mode" style="border:0;width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:15px;background:#eef1f6;">🌙</button>
         <div class="tb-bell" onclick="toggleNotif(event)" title="Notifications">🔔<span class="bell-badge" id="bellBadge" style="display:none;">0</span><div class="notif-pop" id="notifPop"></div></div>
         <button id="lockTopBtn" class="btn btn-ghost btn-sm" style="display:none;" onclick="lockNow()">🔒</button>
@@ -554,14 +555,7 @@
           </div>
         </div>
 
-        <div class="panel">
-          <div class="panel-head"><div class="t"><h3>Default notice wording</h3><p>Edit and save your standard wording for the selected type &amp; language above. Use placeholders: <code>{name} {acno} {arrears} {outstanding} {principal} {deadline} {days} {date} {dpd} {due} {address} {phone}</code> and <code>{amounts_table}</code> for the figures table.</p></div></div>
-          <textarea id="dnTplText" rows="10" style="width:100%;font-family:inherit;font-size:13px;line-height:1.6;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--field);color:var(--text);"></textarea>
-          <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
-            <button class="btn btn-sm btn-primary" onclick="saveDnTpl()">Save wording</button>
-            <button class="btn btn-sm btn-ghost" onclick="resetDnTpl()">Reset to built-in default</button>
-          </div>
-        </div>
+        <div style="margin:2px;font-size:12px;color:var(--grey);">Want to change the standard wording of these notices? Open <b>Administration → Notice Wording</b>.</div>
       </section>
 
       <section class="section" id="sec-messages">
@@ -734,6 +728,7 @@
           <button data-adm="firm" onclick="admTab('firm')">Firm Details</button>
           <button data-adm="security" onclick="admTab('security')">Security &amp; Team</button>
           <button data-adm="whatsapp" onclick="admTab('whatsapp')">WhatsApp</button>
+          <button data-adm="notices" onclick="admTab('notices')">Notice Wording</button>
           <button data-adm="maint" onclick="admTab('maint')">Maintenance</button>
         </div>
 
@@ -759,6 +754,20 @@
               <p>Load records from a previously downloaded <b>.json</b> backup file. This replaces current data.</p>
               <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
               <button class="btn btn-gold" onclick="document.getElementById('importFile').click()">Choose backup file…</button>
+            </div>
+          </div>
+          <div style="margin-top:14px;padding:10px 14px;border:1px solid #e7c873;background:#fff7e2;color:#6b5413;border-radius:9px;font-size:12.5px;line-height:1.55;">⚠ <b>Uploaded document scans</b> (Aadhaar, PAN, photographs, signed agreements) are stored on <b>this device only</b> — they are <b>not</b> inside the record backup above and are not synced to the cloud. Back them up separately below.</div>
+          <div class="backup-grid" style="margin-top:14px;">
+            <div class="bk-card">
+              <h4>⤓ Back up documents</h4>
+              <p>Saves every uploaded scan &amp; photograph as one file. Keep it with your record backup.</p>
+              <button class="btn btn-primary" onclick="exportVault()">Download all documents</button>
+            </div>
+            <div class="bk-card">
+              <h4>⤒ Restore documents</h4>
+              <p>Load scans from a previously downloaded documents file. Existing documents are kept; duplicates are skipped.</p>
+              <input type="file" id="importVaultFile" accept=".json" style="display:none" onchange="importVault(event)">
+              <button class="btn btn-gold" onclick="document.getElementById('importVaultFile').click()">Choose documents file…</button>
             </div>
           </div>
         </div>
@@ -925,6 +934,27 @@
             </div>
             <div class="fg" style="max-width:240px;margin-top:14px;"><label>Late fee amount ₹ (for {fine})</label><input id="tpl_fine" type="number"></div>
             <button class="btn btn-primary" style="margin-top:14px;" onclick="saveTemplates()">Save Templates</button>
+          </div>
+        </div>
+        </div>
+
+        <div class="adm-tab" data-adm="notices">
+        <div class="panel">
+          <h3>Default notice wording</h3>
+          <p class="ph-sub">This is the master wording for your Demand &amp; Final Demand notices. Every notice you prepare on the <b>Default Notice</b> page starts from the text you save here — placeholders like <code>{name}</code>, <code>{arrears}</code> and <code>{amounts_table}</code> are filled in automatically from each borrower's loan record. Editing here does not change notices you have already printed.</p>
+          <div class="seg2" id="dnTplTypeSeg" style="max-width:440px;margin:6px 0 10px;">
+            <button data-dnt="demand" class="active" onclick="setDnTplType('demand')">Demand Notice</button>
+            <button data-dnt="final" onclick="setDnTplType('final')">Final Demand Notice</button>
+          </div>
+          <div class="seg2" id="dnTplLangSeg" style="max-width:300px;margin:0 0 12px;">
+            <button data-dnl="en" class="active" onclick="setDnTplLang('en')">English</button>
+            <button data-dnl="hi" onclick="setDnTplLang('hi')">हिन्दी</button>
+          </div>
+          <p class="ph-sub" style="margin:0 0 8px;">Placeholders: <code>{name} {acno} {arrears} {outstanding} {principal} {deadline} {days} {date} {dpd} {due} {address} {phone}</code> and <code>{amounts_table}</code> for the figures table.</p>
+          <textarea id="dnTplText" rows="12" style="width:100%;font-family:inherit;font-size:13px;line-height:1.6;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--field);color:var(--text);"></textarea>
+          <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-primary" onclick="saveDnTpl()">Save wording</button>
+            <button class="btn btn-sm btn-ghost" onclick="resetDnTpl()">Reset to built-in default</button>
           </div>
         </div>
         </div>
@@ -1204,7 +1234,7 @@
     <div class="modal-head"><h3>Default Notice</h3><button class="x" aria-label="Close" onclick="closeDefaultNotice()">&times;</button></div>
     <div class="modal-body" style="display:block;max-height:70vh;overflow:auto;" id="defBody"></div>
     <div class="modal-foot" style="flex-wrap:wrap;gap:8px;">
-      <div class="seg2" id="dnLangSeg" style="align-self:center;">
+      <div class="seg2" id="dnLangSegModal" style="align-self:center;">
         <button data-dnl="en" class="active" onclick="setDnLang('en')">English</button>
         <button data-dnl="hi" onclick="setDnLang('hi')">हिन्दी</button>
       </div>

@@ -139,6 +139,47 @@
   function closeVaultModal(){ const m=$('vaultModal'); if(m) m.classList.remove('show'); const b=$('vaultModalBody'); if(b) b.innerHTML=''; }
   function downloadDoc(id){ vaultGet(id).then(d=>{ if(!d) return; const url=URL.createObjectURL(d.blob); const a=document.createElement('a'); a.href=url; a.download=d.name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),4000); logAudit('Document Downloaded', d.name); }); }
   function deleteDoc(id){ vaultGet(id).then(d=>{ if(!confirm('Delete this document permanently?')) return; vaultDelete(id).then(()=>{ renderVault(); logAudit('Document Deleted', d?d.name:('#'+id)); toast('Document deleted'); }); }); }
+  /* ===== Whole-vault backup =====
+     KYC scans / photographs live ONLY in this device's IndexedDB. The JSON backup
+     and the cloud sync do NOT include them, so provide a dedicated document backup
+     that packs every uploaded file (base64) into one restorable file. */
+  function vaultGetAll(){ return vaultOpen().then(db=>new Promise((res)=>{ try{ const rq=db.transaction('docs','readonly').objectStore('docs').getAll(); rq.onsuccess=()=>res(rq.result||[]); rq.onerror=()=>res([]); }catch(e){ res([]); } })); }
+  function _blobToDataURL(blob){ return new Promise((res)=>{ try{ const fr=new FileReader(); fr.onload=()=>res(String(fr.result||'')); fr.onerror=()=>res(''); fr.readAsDataURL(blob); }catch(e){ res(''); } }); }
+  function _dataURLToBlob(durl){ try{ const parts=String(durl).split(','); const mime=(parts[0].match(/:(.*?);/)||[])[1]||'application/octet-stream'; const bin=atob(parts[1]||''); const n=bin.length; const u8=new Uint8Array(n); for(var i=0;i<n;i++) u8[i]=bin.charCodeAt(i); return new Blob([u8],{type:mime}); }catch(e){ return null; } }
+  // Core (exposed so it can be exercised by tests) — build the restorable payload.
+  window._vaultBackupData=async function(){
+    const docs=await vaultGetAll(); const items=[];
+    for(const d of docs){ if(!d||!d.blob) continue; const durl=await _blobToDataURL(d.blob); if(!durl) continue; items.push({custKey:d.custKey,name:d.name,category:d.category,type:d.type,size:d.size,addedAt:d.addedAt,data:durl}); }
+    return { app:'ShivamVault', v:1, at:new Date().toISOString(), count:items.length, docs:items };
+  };
+  // Core — restore payload additively (never deletes; skips duplicates). Returns count added.
+  window._vaultRestoreData=async function(data){
+    if(!data || data.app!=='ShivamVault' || !Array.isArray(data.docs)) throw new Error('bad-vault-file');
+    const existing=await vaultGetAll(); const seen={}; existing.forEach(function(d){ seen[(d.custKey||'')+'|'+(d.name||'')+'|'+(d.addedAt||'')]=1; });
+    let added=0;
+    for(const it of data.docs){ const key=(it.custKey||'')+'|'+(it.name||'')+'|'+(it.addedAt||''); if(seen[key]) continue; const blob=_dataURLToBlob(it.data); if(!blob) continue;
+      await vaultOpen().then(db=>new Promise((res)=>{ try{ const tx=db.transaction('docs','readwrite'); tx.objectStore('docs').add({custKey:it.custKey,name:it.name,category:it.category,type:it.type||blob.type,size:it.size||blob.size,addedAt:it.addedAt||Date.now(),blob:blob}); tx.oncomplete=()=>res(); tx.onerror=()=>res(); }catch(e){ res(); } })); added++; }
+    return added;
+  };
+  window.exportVault=async function(){
+    try{
+      toast('Preparing document backup — this can take a moment…');
+      const out=await window._vaultBackupData();
+      if(!out.count){ toast('No documents in the vault to back up yet'); return; }
+      download('shivam-documents-backup-'+todayISO()+'.json', JSON.stringify(out), 'application/json');
+      logAudit('Documents Exported', out.count+' document(s)'); toast(out.count+' document(s) backed up');
+    }catch(e){ toast('Could not back up documents'); }
+  };
+  window.importVault=function(ev){
+    const file=ev.target.files[0]; if(!file) return; const rd=new FileReader();
+    rd.onload=async ()=>{ try{
+      const data=JSON.parse(rd.result); const total=(data&&Array.isArray(data.docs))?data.docs.length:0;
+      const added=await window._vaultRestoreData(data);
+      logAudit('Documents Restored', added+' document(s)'); toast(added+' document(s) restored'+((added<total)?(' — '+(total-added)+' were already present'):''));
+      try{ renderVault(); }catch(e){}
+    }catch(e){ toast('Invalid documents backup file'); } };
+    rd.readAsText(file); ev.target.value='';
+  };
 
   /* ===== Audit Logs ===== */
   const AUDIT_STORE='shivam_audit_v1';

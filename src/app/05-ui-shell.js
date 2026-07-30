@@ -56,4 +56,49 @@
   }
   $('nav').addEventListener('click', e=>{ const a=e.target.closest('a'); if(a) go(a.dataset.sec); });
 
+  /* Re-render whatever section is currently on screen, in place. Used after a
+     background data change (cloud sync from the other device) or a local save, so
+     changes always show WITHOUT closing and reopening the app. It is deliberately
+     conservative: it does nothing while a dialog is open or while the user is
+     typing in a field (so a sync can never wipe half-entered data), and it never
+     switches the sub-tab the user is on. */
+  window.refreshActiveView=function(){
+    try{
+      if(document.querySelector('.overlay.show')) return;                 // a modal is open — leave it alone
+      var active=document.querySelector('.section.active'); if(!active || !active.id) return;
+      var ae=document.activeElement;
+      // Skip only if the user is typing INSIDE this screen's own fields (e.g. the
+      // payment-entry or notice form). A focused top-bar search box must NOT block
+      // the data view from refreshing.
+      if(ae && active.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName||'')) return;
+      var sec=active.id.replace(/^sec-/,'');
+      if(sec==='dash'){ if(typeof renderDash==='function') renderDash(); }
+      else if(sec==='reports'){ if(typeof renderReports==='function') renderReports(); }
+      else if(sec==='pay'){ if(typeof renderPayTab==='function') renderPayTab(); }
+      else if(sec==='defaults'){ try{ recomputeAll(); }catch(e){} if(typeof renderDefaults==='function') renderDefaults(); }
+      else if(sec==='messages'){
+        var cur='reminders'; ['reminders','greetings','history'].forEach(function(k){ var e=$('mv-'+k); if(e && e.style.display!=='none') cur=k; });
+        if(typeof setMsgView==='function') setMsgView(cur);   // refresh the CURRENT sub-tab, don't switch it
+      }
+      else if(sec==='cert'){ if(typeof refreshLoanDropdown==='function') refreshLoanDropdown(); }
+      else if(sec==='proposal'){ if(typeof refreshPropDropdown==='function') refreshPropDropdown(); }
+      else if(sec==='hpfile'){ if(typeof refreshHPDropdown==='function') refreshHPDropdown(); }
+      // 'cust' is already refreshed by renderLoans(); 'backup' is intentionally skipped
+      // so a background sync never resets the settings forms.
+    }catch(e){}
+  };
+
+  /* Manual "↻ Refresh" button in the top bar — a one-click way to pull the latest
+     from the other device and redraw the current screen, so the user never has to
+     close and reopen the app. Safe to press any time. */
+  window.manualRefresh=function(btn){
+    try{ if(btn){ btn.disabled=true; btn.style.opacity='.5'; setTimeout(function(){ try{ btn.disabled=false; btn.style.opacity=''; }catch(e){} }, 900); } }catch(e){}
+    try{ if(typeof recomputeAll==='function') recomputeAll(); }catch(e){}
+    try{ if(typeof renderLoans==='function') renderLoans(); }catch(e){}       // customers + open profile
+    try{ if(typeof renderDash==='function') renderDash(); }catch(e){}
+    try{ if(typeof window.refreshActiveView==='function') window.refreshActiveView(); }catch(e){}
+    try{ if(typeof cloudPullNow==='function') cloudPullNow(); }catch(e){}      // fetch newest from the other device (re-renders again on arrival)
+    try{ toast('Refreshed'); }catch(e){}
+  };
+
   /* ---------- dashboard ---------- */

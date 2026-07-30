@@ -1,13 +1,13 @@
 {
   "name": "shivam-enterprises-lms",
-  "version": "2.0.22",
+  "version": "2.0.25",
   "description": "Shivam Enterprises Loan Management System — loan records, payments, customers, certificates & documents.",
   "author": "Shivam Enterprises (Finance)",
   "main": "main.js",
   "scripts": {
     "build": "node build.js",
     "lint": "eslint \"src/app/**/*.js\" src/theme-boot.js",
-    "test": "node tests/audit.js && node tests/loan-alignment.js && node tests/e2e-verify-fixes.js && node tests/cloud-logic.js && node tests/e2e-clearall-cloud.js && node tests/e2e-delete-everywhere.js && node tests/e2e-reminder-rescan.js && node tests/e2e-sent-indicator.js && node tests/e2e-outbox.js && node tests/e2e-durability.js && node tests/e2e-reminder-toggle.js && node tests/main-contract.js && node tests/e2e-integrity.js && node tests/e2e-id-encryption.js && node tests/e2e-id-restore.js && node tests/e2e-pan-field.js && node tests/e2e-user-roster.js && node tests/e2e-bounce-fee.js && node tests/e2e-default-notice.js && node tests/e2e-due-schedule.js",
+    "test": "node tests/audit.js && node tests/loan-alignment.js && node tests/e2e-verify-fixes.js && node tests/cloud-logic.js && node tests/e2e-clearall-cloud.js && node tests/e2e-delete-everywhere.js && node tests/e2e-reminder-rescan.js && node tests/e2e-sent-indicator.js && node tests/e2e-outbox.js && node tests/e2e-durability.js && node tests/e2e-reminder-toggle.js && node tests/main-contract.js && node tests/e2e-integrity.js && node tests/e2e-id-encryption.js && node tests/e2e-id-restore.js && node tests/e2e-pan-field.js && node tests/e2e-user-roster.js && node tests/e2e-bounce-fee.js && node tests/e2e-default-notice.js && node tests/e2e-due-schedule.js && node tests/e2e-vault-backup.js && node tests/e2e-live-refresh.js",
     "start": "npm run build && electron .",
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac",

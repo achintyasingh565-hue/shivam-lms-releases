@@ -13,42 +13,49 @@ const path = require('path');
 
   const out = await p.evaluate(() => {
     const $ = id => document.getElementById(id);
+    // A realistic loan WITH a schedule (disbursed months ago, nothing paid) so the
+    // notice figures come from a live recompute — as they now do in the app.
     loans.splice(0, loans.length,
       { id: 'DN1', name: 'Ramesh Kumar', reltype: 'son of', relname: 'Suresh Kumar', addr: '12 Test Rd, Lucknow',
-        phone: '9838100001', acno: 'SE-0009', principal: 100000, tpay: 124000, paid: 0, outstanding: 124000,
-        arrears: 24000, due: '2026-06-01', status: 'Overdue' });
+        phone: '9838100001', acno: 'SE-0009', principal: 100000, rate: 2, tenure: 12,
+        tint: 24000, tpay: 124000, emi: 10333, disb: '2026-01-05', paid: 0, payments: [] });
 
     const typeBtns = document.querySelectorAll('#defTypeSeg button').length;
 
     renderDefaults();
-    defPickBorrower('DN1');
+    defPickBorrower('DN1');            // recomputes loans[0] in place, then fills the form
+    const expectedArr = String(Math.round(Number(loans[0].arrears) || 0));
+    const expectedArrFmt = (Math.round(Number(loans[0].arrears) || 0)).toLocaleString('en-IN');
     const formName = $('dnName').value;
     const formArr = $('dnArr').value;
     const formAcno = $('dnAcno').value;
+    const arrearsIsLive = Number(loans[0].arrears) > 0;   // schedule produced real arrears
 
     setDnType('demand'); defPreview();
     const html = $('defBody').innerHTML;
     const hasName = html.indexOf('Ramesh Kumar') >= 0;
     const hasAcno = html.indexOf('SE-0009') >= 0;
-    const hasArrears = /24,000/.test(html);
+    const hasArrears = html.indexOf(expectedArrFmt) >= 0;   // the recomputed arrears appears in the notice
 
     setDnType('final'); defPreview();
     const hasFinal = /FINAL DEMAND NOTICE/.test($('defBody').innerHTML);
 
-    // save custom wording for Demand/English and confirm it's used
+    // save custom wording for Demand/English (via the moved Administration editor) and confirm it's used
+    initDnTplBox();                       // simulates opening Administration → Notice Wording
+    setDnTplType('demand'); setDnTplLang('en');
     $('dnTplText').value = 'CUSTOM: {name} owes {arrears}. {amounts_table}';
-    window._dnType = 'demand'; window._dnLang = 'en'; saveDnTpl();
+    saveDnTpl();
     setDnType('demand'); defPreview();
     const htmlCustom = $('defBody').innerHTML;
     const usesCustom = htmlCustom.indexOf('CUSTOM: Ramesh Kumar owes') >= 0;
 
-    return { typeBtns, formName, formArr, formAcno, hasName, hasAcno, hasArrears, hasFinal, usesCustom };
+    return { typeBtns, formName, formArr, formAcno, expectedArr, arrearsIsLive, hasName, hasAcno, hasArrears, hasFinal, usesCustom };
   });
 
   const checks = {
     'only two notice types (Demand + Final)': out.typeBtns === 2,
     'auto-fill loads name from loan':          out.formName === 'Ramesh Kumar',
-    'auto-fill loads arrears + A/c':           out.formArr === '24000' && out.formAcno === 'SE-0009',
+    'auto-fill loads recomputed arrears + A/c': out.formArr === out.expectedArr && out.arrearsIsLive && out.formAcno === 'SE-0009',
     'notice reflects synced values':           out.hasName && out.hasAcno && out.hasArrears,
     'Final Demand renders its title':          out.hasFinal === true,
     'saved custom wording is used':            out.usesCustom === true,

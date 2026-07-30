@@ -11,6 +11,8 @@
       document.querySelectorAll('#admSeg button').forEach(function (b) {
         b.classList.toggle('active', b.getAttribute('data-adm') === name);
       });
+      // Populate the notice-wording editor the moment its tab is opened.
+      if (name === 'notices' && typeof window.initDnTplBox === 'function') { try { window.initDnTplBox(); } catch (e) {} }
     } catch (e) {}
   };
 })();
