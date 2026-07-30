@@ -94,7 +94,11 @@
     const l=(typeof loans!=='undefined' && Array.isArray(loans))?loans.find(x=>x.id===it.loanId):null;
     const ex={};
     if(it.amt!=null && (/\{emi\}/.test(it.tpl||'')||/\{amount\}/.test(it.tpl||''))){ const f=inr(it.amt); ex.emi=f; ex.amount=f; if(it.vars){ const p=inrPlain(it.amt); it.vars.emi=p; it.vars.amount=p; } }
-    if(it.amt!=null && /\{outstanding\}/.test(it.tpl||'')){ ex.outstanding=inr(it.amt); if(it.vars){ it.vars.outstanding=inrPlain(it.amt); } }
+    // Only treat the amount box AS the outstanding for templates whose sole money field
+    // is {outstanding} (overdue / final / demand). For a payment message that has BOTH a
+    // payment {amount} and a {outstanding} balance, editing the amount must NOT overwrite
+    // the balance.
+    if(it.amt!=null && /\{outstanding\}/.test(it.tpl||'') && !/\{(amount|emi)\}/.test(it.tpl||'')){ ex.outstanding=inr(it.amt); if(it.vars){ it.vars.outstanding=inrPlain(it.amt); } }
     if(it.dueStr){ ex.due_date=it.dueStr; if(it.vars){ it.vars.due_date=it.dueStr; } }
     if(l && it.tpl){ it.msg=applyVars(it.tpl, l, ex); }
   }

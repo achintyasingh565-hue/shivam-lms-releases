@@ -240,7 +240,7 @@
         <div class="pay-add">
           <div class="pay-row1">
             <input id="pay_date" type="date" title="Payment date">
-            <select id="pay_mode" onchange="payModeUI()"><option value="Cash">Cash</option><option value="Cheque">Cheque</option><option value="Online">Online</option></select>
+            <select id="pay_mode" onchange="payModeUI()"><option value="Cash">Cash</option><option value="Cheque">Cheque</option><option value="Online">Online (UPI / NEFT / IMPS)</option></select>
             <input id="pay_amt" type="number" min="0" placeholder="Amount ₹">
           </div>
           <div class="pay-row2" id="pay_chequeRow" style="display:none;">
@@ -351,7 +351,7 @@
 
       <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;gap:12px;">
         <div><label>Lump-sum payment</label><input id="rs_amt" type="number" min="0" placeholder="0" oninput="calcRestructure()"></div>
-        <div><label>Mode</label><select id="rs_mode"><option>Cash</option><option>Online</option><option>Cheque</option></select></div>
+        <div><label>Mode</label><select id="rs_mode"><option value="Cash">Cash</option><option value="Online">Online (UPI / NEFT / IMPS)</option><option value="Cheque">Cheque</option></select></div>
         <div><label>Date</label><input id="rs_date" type="date"></div>
       </div>
       <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:4px;">

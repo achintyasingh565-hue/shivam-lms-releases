@@ -75,6 +75,19 @@
       l.status=(l.arrears>0)?'Overdue':'Active';
     }
   }
+  // Balance a borrower still owed immediately AFTER a given payment (by index in the
+  // payments array, chronological). Used so a "Payment Received" message shows the
+  // running balance as of THAT payment — e.g. after ₹75,000 on an ₹87,000 loan it
+  // reads ₹12,000, and only the next ₹12,000 payment reads ₹0.
+  function balanceAtPayment(l, idx){
+    if(!l) return 0;
+    var pays=Array.isArray(l.payments)?l.payments:[];
+    var clearedThrough=0;
+    for(var i=0;i<=idx && i<pays.length;i++){ var p=pays[i]; if(p && p.status==='Cleared') clearedThrough+=Number(p.amount)||0; }
+    var bounce=(Array.isArray(l.charges)?l.charges:[]).filter(function(c){return c&&c.type==='Cheque bounce';}).reduce(function(a,c){return a+(Number(c.amount)||0);},0);
+    return Math.max(0, (Number(l.tpay)||0) + bounce - clearedThrough);
+  }
+  window.balanceAtPayment=balanceAtPayment;
   function recomputeAll(){ if(typeof loans!=='undefined' && Array.isArray(loans)) loans.forEach(recomputeLoan); }
 
   /* ===== Sample / Test data (admin) — merges labelled (TEST) loans, removable in one click ===== */

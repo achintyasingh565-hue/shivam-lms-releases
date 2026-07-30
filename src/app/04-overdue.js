@@ -438,9 +438,14 @@
       }
       if(c.payment && Array.isArray(l.payments)){
         l.payments.forEach(function(p,idx){
-          if(p && p.status!=='Pending' && p.date===t){
+          // Only a CLEARED payment sends a "payment received, thanks" note (a pending or
+          // bounced cheque must not). The balance shown is the running balance as of THIS
+          // payment, not the loan's final balance.
+          if(p && p.status==='Cleared' && p.date===t){
             var it=autoMkItem(l,'Payment Confirmation','Payment received '+inr(p.amount),'pay:'+l.id+':'+p.date+':'+idx+':'+(Number(p.amount)||0));
-            it.vars.amount=inrPlain(p.amount); it.vars.txn=(p.ref||p.cheque||fmtDate(p.date)||'');
+            var _bal=(typeof balanceAtPayment==='function')?balanceAtPayment(l, idx):(Number(l.outstanding)||0);
+            it.vars.amount=inrPlain(p.amount); it.vars.outstanding=inrPlain(_bal); it.vars.txn=(p.ref||p.cheque||fmtDate(p.date)||'');
+            it.msg=applyVars(TPL.thanks, l, {amount:inr(p.amount), outstanding:inr(_bal), txn:it.vars.txn});
             if(autoQueueAdd(it)) added++;
           }
         });
