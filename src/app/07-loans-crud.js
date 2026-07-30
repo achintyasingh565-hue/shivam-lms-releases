@@ -8,16 +8,70 @@
     }catch(e){}
   }
 
+  /* ---------- Identity documents (unlimited IDs) ----------
+     The loan form stores an unlimited list of IDs in `modalIds` (each {t:type, n:number}).
+     On save this becomes rec.ids, and we ALSO mirror the primary ID and PAN into the
+     legacy idproof/idtype/pan fields so documents, exports and cloud-encryption keep
+     working unchanged. Old records (idtype/idproof + pan) are migrated into the list. */
+  var modalIds = [];
+  var ID_TYPES = ['Aadhaar','PAN','Voter Card','Driving Licence','Passport','Ration Card','Other'];
+  function _idNormType(t){ t=String(t||''); if(/pan/i.test(t)) return 'PAN'; if(/aadhaar/i.test(t)) return 'Aadhaar'; if(/voter/i.test(t)) return 'Voter Card'; if(/driv/i.test(t)) return 'Driving Licence'; if(/passport/i.test(t)) return 'Passport'; if(/ration/i.test(t)) return 'Ration Card'; return (ID_TYPES.indexOf(t)>=0)?t:(t?'Other':'Aadhaar'); }
+  function _idsFromRecord(f){
+    if(f && Array.isArray(f.ids) && f.ids.length){ return f.ids.map(function(x){ return { t:_idNormType(x.t||x.type), n:String(x.n||x.number||'').trim() }; }).filter(function(x){ return x.n!==''; }); }
+    var out=[];
+    if(f && f.idproof) out.push({ t:_idNormType(f.idtype||'Aadhaar'), n:String(f.idproof).trim() });
+    if(f && f.pan) out.push({ t:'PAN', n:String(f.pan).trim() });
+    return out;
+  }
+  function _idPlaceholder(t){ return t==='PAN'?'ABCDE1234F':(t==='Aadhaar'?'12-digit number':'ID number'); }
+  function renderIdRows(){
+    var host=$('m_idlist'); if(!host) return;
+    if(!modalIds.length){ host.innerHTML='<div class="calc-note" style="margin:2px 0 0;color:var(--grey);">No ID added yet — tap “＋ Add ID”.</div>'; return; }
+    host.innerHTML=modalIds.map(function(row,i){
+      var opts=ID_TYPES.map(function(t){ return '<option'+(t===row.t?' selected':'')+'>'+t+'</option>'; }).join('');
+      return '<div class="id-row" style="display:flex;gap:8px;margin-bottom:6px;align-items:center;">'
+        +'<select style="max-width:160px;" onchange="idRowType('+i+',this.value)">'+opts+'</select>'
+        +'<div class="id-field" style="flex:1;"><input class="id-masked" autocomplete="off" value="'+esc(row.n||'')+'" oninput="idRowNum('+i+',this.value)" placeholder="'+esc(_idPlaceholder(row.t))+'"><button type="button" class="id-eye" title="Show / hide" onclick="toggleIdReveal(this)">👁</button></div>'
+        +'<button type="button" class="lnk del" title="Remove this ID" onclick="removeIdRow('+i+')">✕</button>'
+        +'</div>';
+    }).join('');
+  }
+  window.addIdRow=function(){ var hasAad=modalIds.some(function(r){return r.t==='Aadhaar';}); var hasPan=modalIds.some(function(r){return r.t==='PAN';}); modalIds.push({ t:(!hasAad?'Aadhaar':(!hasPan?'PAN':'Other')), n:'' }); renderIdRows(); try{ var ins=$('m_idlist').querySelectorAll('.id-row input'); if(ins.length) ins[ins.length-1].focus(); }catch(e){} };
+  window.removeIdRow=function(i){ modalIds.splice(i,1); renderIdRows(); };
+  window.idRowType=function(i,v){ if(modalIds[i]) modalIds[i].t=_idNormType(v); };
+  window.idRowNum=function(i,v){ if(modalIds[i]) modalIds[i].n=v; };
+  // Validate + collect the list. Returns {ok:true, ids:[...]} or {ok:false, msg}.
+  function _collectIds(){
+    var out=[];
+    for(var i=0;i<modalIds.length;i++){ var t=_idNormType(modalIds[i].t), raw=String(modalIds[i].n||'').trim(); if(raw==='') continue;
+      var v=raw.toUpperCase().replace(/[\s-]/g,'');
+      if(t==='PAN' && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(v)) return {ok:false, msg:'⚠ PAN should look like ABCDE1234F (5 letters, 4 digits, 1 letter).'};
+      if(t==='Aadhaar'){ if(!/^\d{12}$/.test(v)) return {ok:false, msg:'⚠ Aadhaar should be 12 digits.'}; if(/^[01]/.test(v) || /^(\d)\1{11}$/.test(v)) return {ok:false, msg:'⚠ That Aadhaar number does not look valid (it cannot start with 0 or 1, or be the same digit repeated).'}; }
+      out.push({ t:t, n:raw });
+    }
+    return {ok:true, ids:out};
+  }
+  // Derive the legacy mirror fields (for documents / exports / encryption) from an ID list.
+  function _idMirror(ids){
+    var aad=null, pan=null; for(var i=0;i<ids.length;i++){ if(!aad && ids[i].t==='Aadhaar') aad=ids[i]; if(!pan && ids[i].t==='PAN') pan=ids[i]; }
+    var primary = aad || ids[0] || null;
+    return { idproof: primary?primary.n:'', idtype: primary?primary.t:'', pan: pan?pan.n:'' };
+  }
+
   /* ---------- modal CRUD ---------- */
   function openLoan(id){
     editId = id||null;
     $('modalTitle').textContent = id?'Edit Loan Record':'New Loan Record';
     // ID numbers open masked every time (Aadhaar/PAN privacy) — eye toggle reveals.
-    try{ ['m_idproof','m_pan','m_coid'].forEach(function(x){ var e=$(x); if(e) e.classList.add('id-masked'); }); }catch(_){}
+    try{ ['m_coid'].forEach(function(x){ var e=$(x); if(e) e.classList.add('id-masked'); }); }catch(_){}
     const f = id ? loans.find(l=>l.id===id) : {};
+    // Identity documents: an unlimited list. Load from the record's `ids` array, or
+    // migrate a legacy record (idtype/idproof + pan) into the list on the fly.
+    modalIds = _idsFromRecord(f);
+    renderIdRows();
     $('m_name').value=f.name||''; $('m_acno').value=f.acno||(id?'':'SE-'+(loans.length+1).toString().padStart(4,'0'));
     $('m_reltype').value=f.reltype||'son of'; $('m_relname').value=f.relname||'';
-    $('m_phone').value=f.phone||''; $('m_addr').value=f.addr||''; $('m_idproof').value=f.idproof||''; if($('m_pan'))$('m_pan').value=f.pan||'';
+    $('m_phone').value=f.phone||''; $('m_addr').value=f.addr||'';
     $('m_type').value=f.type||'Personal'; $('m_principal').value=f.principal||''; $('m_rate').value=f.rate||'';
     $('m_disb').value=f.disb||''; $('m_tenure').value=f.tenure||''; $('m_tint').value=f.tint||''; $('m_tpay').value=f.tpay||'';
     $('m_emi').value=f.emi||''; $('m_due').value=f.due||'';
@@ -25,7 +79,7 @@
     // flagged that way. Otherwise the due date auto-follows the disbursement/schedule.
     window._dueUserEdited = !!f.dueManual;
     $('m_status').value=f.status||'Active'; $('m_gname').value=f.gname||''; $('m_gphone').value=f.gphone||''; if($('m_coname'))$('m_coname').value=f.coname||''; if($('m_cophone'))$('m_cophone').value=f.cophone||''; if($('m_corel'))$('m_corel').value=f.corel||''; if($('m_coid'))$('m_coid').value=f.coid||''; if($('m_coaddr'))$('m_coaddr').value=f.coaddr||''; $('m_remarks').value=f.remarks||'';
-    $('m_age').value=f.age||''; $('m_residence').value=f.residence||''; $('m_occupation').value=f.occupation||''; $('m_designation').value=f.designation||''; $('m_officeaddr').value=f.officeaddr||''; $('m_idtype').value=(f.idtype==='PAN'?'PAN Card':(f.idtype||''));
+    $('m_age').value=f.age||''; $('m_residence').value=f.residence||''; $('m_occupation').value=f.occupation||''; $('m_designation').value=f.designation||''; $('m_officeaddr').value=f.officeaddr||'';
     $('m_caseno').value=f.caseno||''; $('m_refno').value=f.refno||''; $('m_product').value=f.product||''; $('m_dealer').value=f.dealer||''; $('m_downpay').value=f.downpay||''; $('m_officer').value=f.officer||'';
     $('m_deductions').value=f.deductions!=null?f.deductions:0; $('m_remaining').value=Math.max(0,(Number(f.principal)||0)-(Number(f.deductions)||0));
     $('m_propdesc').value=f.propdesc||''; $('m_propaddr').value=f.propaddr||''; $('m_proparea').value=f.proparea||''; $('m_propvalue').value=f.propvalue||''; $('m_bN').value=f.bN||''; $('m_bS').value=f.bS||''; $('m_bE').value=f.bE||''; $('m_bW').value=f.bW||''; $('m_title').value=f.title||'';
@@ -64,7 +118,7 @@
       var body=document.querySelector('#loanOverlay .modal-body'); if(body) body.scrollTop=0;
     }catch(e){}
   };
-  var LOAN_TAB_OF={ m_name:'borrower',m_acno:'borrower',m_reltype:'borrower',m_relname:'borrower',m_phone:'borrower',m_addr:'borrower',m_idproof:'borrower',m_pan:'borrower',m_type:'borrower',m_age:'borrower',m_residence:'borrower',m_occupation:'borrower',m_designation:'borrower',m_officeaddr:'borrower',m_idtype:'borrower',
+  var LOAN_TAB_OF={ m_name:'borrower',m_acno:'borrower',m_reltype:'borrower',m_relname:'borrower',m_phone:'borrower',m_addr:'borrower',m_idlist:'borrower',m_type:'borrower',m_age:'borrower',m_residence:'borrower',m_occupation:'borrower',m_designation:'borrower',m_officeaddr:'borrower',
     m_caseno:'terms',m_refno:'terms',m_product:'terms',m_dealer:'terms',m_downpay:'terms',m_officer:'terms',m_principal:'terms',m_deductions:'terms',m_remaining:'terms',m_rate:'terms',m_disb:'terms',m_tenure:'terms',m_tint:'terms',m_tpay:'terms',m_emi:'terms',m_due:'terms',
     m_propdesc:'property',m_propaddr:'property',m_proparea:'property',m_propvalue:'property',m_bN:'property',m_bS:'property',m_bE:'property',m_bW:'property',m_title:'property',
     m_coname:'coapp',m_cophone:'coapp',m_corel:'coapp',m_coid:'coapp',m_coaddr:'coapp',m_gname:'coapp',m_gphone:'coapp',m_remarks:'coapp',
@@ -167,11 +221,11 @@
     if(!name){ toast('\u26a0 Please enter the borrower name.'); focusLoanField('m_name'); return; }
     if(!acno){ toast('\u26a0 Please enter the account number (A/C no.).'); focusLoanField('m_acno'); return; }
     if(loans.some(function(l){ return l.acno && acno && l.acno.toLowerCase()===acno.toLowerCase() && l.id!==editId; })){ toast('\u26a0 Account number "'+acno+'" already belongs to another borrower. Please use a unique A/C number.'); focusLoanField('m_acno'); return; }
-    var _idt=($('m_idtype')&&$('m_idtype').value)||'', _idv=(($('m_idproof')&&$('m_idproof').value)||'').trim().toUpperCase();
-    if(_idv){
-      if(/PAN/i.test(_idt) && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(_idv)){ toast('\u26a0 PAN should look like ABCDE1234F (5 letters, 4 digits, 1 letter).'); focusLoanField('m_idproof'); return; }
-      if(/Aadhaar/i.test(_idt)){ var _aa=_idv.replace(/[\s-]/g,''); if(!/^\d{12}$/.test(_aa)){ toast('\u26a0 Aadhaar should be 12 digits.'); focusLoanField('m_idproof'); return; } if(/^[01]/.test(_aa) || /^(\d)\1{11}$/.test(_aa)){ toast('\u26a0 That Aadhaar number does not look valid (it cannot start with 0 or 1, or be the same digit repeated).'); focusLoanField('m_idproof'); return; } }
-    }
+    // Each ID is validated against its OWN type (Aadhaar as Aadhaar, PAN as PAN) \u2014
+    // the type is chosen per row, so they can never validate against each other.
+    var _idres=_collectIds();
+    if(!_idres.ok){ toast(_idres.msg); focusLoanField('m_idlist'); return; }
+    var _idList=_idres.ids, _idMir=_idMirror(_idList);
     var _ph=normPhone($('m_phone').value||'');
     if(_ph && !/^[6-9]\d{9}$/.test(_ph)){ toast('\u26a0 Phone number should be 10 digits starting with 6-9 (e.g. 9839125800).'); focusLoanField('m_phone'); return; }
     if(!_ph && !confirm('No phone number entered.\n\nWithout it you will not be able to send this borrower reminders or notices on WhatsApp.\n\nSave anyway?')){ focusLoanField('m_phone'); return; }
@@ -195,13 +249,13 @@
     const rec = Object.assign({}, _prevLoan, {
       id: editId||('L'+Date.now()),
       name, acno, reltype:$('m_reltype').value, relname:$('m_relname').value.trim(),
-      phone:normPhone($('m_phone').value), addr:$('m_addr').value.trim(), idproof:$('m_idproof').value.trim(), pan:($('m_pan')?$('m_pan').value.trim():''),
+      phone:normPhone($('m_phone').value), addr:$('m_addr').value.trim(), ids:_idList, idproof:_idMir.idproof, pan:_idMir.pan,
       type:$('m_type').value, principal:Number($('m_principal').value)||0, rate:Number($('m_rate').value)||0,
       disb:$('m_disb').value, tenure:Number($('m_tenure').value)||0, tint:Number($('m_tint').value)||0,
       tpay:_safeTotals().tpay, emi:_safeTotals().emi, due:$('m_due').value,
       paid:Number($('m_paid').value)||0, outstanding:out, status:$('m_status').value, payments:(modalPayments||[]).map(p=>({...p})),
       gname:$('m_gname').value.trim(), gphone:$('m_gphone').value.trim(), coname:($('m_coname')||{}).value?.trim()||'', cophone:($('m_cophone')||{}).value?.trim()||'', corel:($('m_corel')||{}).value?.trim()||'', coid:($('m_coid')||{}).value?.trim()||'', coaddr:($('m_coaddr')||{}).value?.trim()||'', remarks:$('m_remarks').value.trim(),
-      age:$('m_age').value, residence:$('m_residence').value, occupation:$('m_occupation').value.trim(), designation:$('m_designation').value.trim(), officeaddr:$('m_officeaddr').value.trim(), idtype:$('m_idtype').value,
+      age:$('m_age').value, residence:$('m_residence').value, occupation:$('m_occupation').value.trim(), designation:$('m_designation').value.trim(), officeaddr:$('m_officeaddr').value.trim(), idtype:_idMir.idtype,
       caseno:$('m_caseno').value.trim(), refno:$('m_refno').value.trim(), product:$('m_product').value.trim(), dealer:$('m_dealer').value.trim(), downpay:Number($('m_downpay').value)||0, deductions:Number($('m_deductions').value)||0, officer:$('m_officer').value.trim(),
       propdesc:$('m_propdesc').value.trim(), propaddr:$('m_propaddr').value.trim(), proparea:$('m_proparea').value.trim(), propvalue:Number($('m_propvalue').value)||0, bN:$('m_bN').value.trim(), bS:$('m_bS').value.trim(), bE:$('m_bE').value.trim(), bW:$('m_bW').value.trim(), title:$('m_title').value.trim(),
       createdAt: editId ? (loans.find(l=>l.id===editId)||{}).createdAt||todayISO() : todayISO()

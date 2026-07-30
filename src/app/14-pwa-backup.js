@@ -36,11 +36,12 @@
   function buildCustomers(){
     const map={};
     loans.forEach(l=>{ const k=custKeyOf(l);
-      if(!map[k]) map[k]={key:k, name:l.name||'', phone:l.phone||'', addr:l.addr||'', reltype:l.reltype||'', relname:l.relname||'', idtype:l.idtype||'', idproof:l.idproof||'', pan:l.pan||'', age:l.age||'', occupation:l.occupation||'', loans:[]};
+      if(!map[k]) map[k]={key:k, name:l.name||'', phone:l.phone||'', addr:l.addr||'', reltype:l.reltype||'', relname:l.relname||'', idtype:l.idtype||'', idproof:l.idproof||'', pan:l.pan||'', ids:(Array.isArray(l.ids)&&l.ids.length?l.ids:null), age:l.age||'', occupation:l.occupation||'', loans:[]};
       const c=map[k];
       if(!c.phone&&l.phone)c.phone=l.phone; if(!c.addr&&l.addr)c.addr=l.addr;
       if(!c.idproof&&l.idproof){ c.idproof=l.idproof; c.idtype=l.idtype||c.idtype; }
       if(!c.pan&&l.pan) c.pan=l.pan;
+      if((!c.ids||!c.ids.length)&&Array.isArray(l.ids)&&l.ids.length) c.ids=l.ids;
       if(!c.relname&&l.relname){ c.relname=l.relname; c.reltype=l.reltype||c.reltype; }
       if(!c.occupation&&l.occupation)c.occupation=l.occupation; if(!c.age&&l.age)c.age=l.age;
       c.loans.push(l);
@@ -91,8 +92,11 @@
         <div class="cust-head"><div class="cust-av">${esc((c.name||'?').slice(0,1).toUpperCase())}</div><div><h3 style="margin:0;">${esc(c.name)}</h3><div class="muted">${c.relname?esc((c.reltype||'')+' '+c.relname)+' \u00b7 ':''}${esc(c.phone||'No phone on file')}</div></div></div>
         ${(function(){ var f=[];
           if(c.addr) f.push('<div><label>Address</label><div>'+esc(c.addr)+'</div></div>');
-          if(c.idproof||c.idtype) f.push('<div><label>ID</label><div>'+esc((c.idtype?c.idtype+': ':'')+(c.idproof||''))+'</div></div>');
-          if(c.pan) f.push('<div><label>PAN</label><div>'+esc(c.pan)+'</div></div>');
+          // Show every ID the customer has, each labelled with its ACTUAL type
+          // (Aadhaar, PAN, Voter…) instead of a generic "ID".
+          var _idrows = (Array.isArray(c.ids)&&c.ids.length) ? c.ids.slice()
+                      : [].concat(c.idproof?[{t:(c.idtype||'ID Proof'),n:c.idproof}]:[], c.pan?[{t:'PAN',n:c.pan}]:[]);
+          _idrows.forEach(function(id){ if(id&&id.n) f.push('<div><label>'+esc(id.t||'ID')+'</label><div>'+esc(id.n)+'</div></div>'); });
           if(c.occupation) f.push('<div><label>Occupation</label><div>'+esc(c.occupation)+'</div></div>');
           if(c.age) f.push('<div><label>Age</label><div>'+esc(c.age)+'</div></div>');
           return f.length ? '<div class="cust-grid">'+f.join('')+'</div>' : '';

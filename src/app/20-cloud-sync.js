@@ -213,13 +213,20 @@
     }
     async function encryptLoan(obj) {
       var o = JSON.parse(JSON.stringify(obj || {}));
-      if (cryptoKey) for (var f = 0; f < ENC_FIELDS.length; f++) if (o[ENC_FIELDS[f]]) o[ENC_FIELDS[f]] = await encField(o[ENC_FIELDS[f]]);
+      if (cryptoKey) {
+        for (var f = 0; f < ENC_FIELDS.length; f++) if (o[ENC_FIELDS[f]]) o[ENC_FIELDS[f]] = await encField(o[ENC_FIELDS[f]]);
+        // the unlimited-ID list carries the same sensitive numbers — encrypt each one too
+        if (Array.isArray(o.ids)) for (var g = 0; g < o.ids.length; g++) if (o.ids[g] && o.ids[g].n) o.ids[g].n = await encField(o.ids[g].n);
+      }
       return o;
     }
     // synchronous-looking decrypt used by the pure merge (already-decrypted upstream)
     function decryptLoanSync(data) { return data; }
     async function decryptLoanFields(o) {
-      if (cryptoKey && o) for (var f = 0; f < ENC_FIELDS.length; f++) if (o[ENC_FIELDS[f]]) o[ENC_FIELDS[f]] = await decField(o[ENC_FIELDS[f]]);
+      if (cryptoKey && o) {
+        for (var f = 0; f < ENC_FIELDS.length; f++) if (o[ENC_FIELDS[f]]) o[ENC_FIELDS[f]] = await decField(o[ENC_FIELDS[f]]);
+        if (Array.isArray(o.ids)) for (var g = 0; g < o.ids.length; g++) if (o.ids[g] && o.ids[g].n) o.ids[g].n = await decField(o.ids[g].n);
+      }
       return o;
     }
 
@@ -519,7 +526,10 @@
         for(var i=0;i<(loans||[]).length;i++){ var l=loans[i]; if(!l) continue;
           for(var f=0;f<FIELDS.length;f++){ var v=l[FIELDS[f]];
             if(typeof v==='string' && v.indexOf('enc1:')===0){ total++; var pt=await decField(v);
-              if(typeof pt==='string' && pt.indexOf('enc1:')!==0){ l[FIELDS[f]]=pt; done++; } else { failed++; } } } }
+              if(typeof pt==='string' && pt.indexOf('enc1:')!==0){ l[FIELDS[f]]=pt; done++; } else { failed++; } } }
+          if(Array.isArray(l.ids)) for(var g=0;g<l.ids.length;g++){ var iv=l.ids[g]&&l.ids[g].n;
+            if(typeof iv==='string' && iv.indexOf('enc1:')===0){ total++; var pt2=await decField(iv);
+              if(typeof pt2==='string' && pt2.indexOf('enc1:')!==0){ l.ids[g].n=pt2; done++; } else { failed++; } } } }
         localStorage.setItem('shivam_idenc_on','0'); cryptoKey=null;   // stop encrypting future saves
         try{ if(typeof save==='function') save(); }catch(_){}
         try{ (loans||[]).forEach(function(l){ if(l&&l.id!=null) delete lastHash[l.id]; }); if(session) await pushChanged(loans); }catch(_){}

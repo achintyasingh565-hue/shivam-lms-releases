@@ -33,6 +33,7 @@
       if(!l || typeof l!=='object' || l.id==null){ dropped++; continue; }
       if(!Array.isArray(l.payments)) l.payments=[];
       if(!Array.isArray(l.charges)) l.charges=[];
+      if(l.ids!=null && !Array.isArray(l.ids)) l.ids=[];   // identity-document list must be an array
       ['principal','rate','tenure','tint','tpay','emi','outstanding','arrears','deductions'].forEach(function(k){ if(l[k]!=null && l[k]!=='' && isNaN(Number(l[k]))) l[k]=0; });
       out.push(l);
     }

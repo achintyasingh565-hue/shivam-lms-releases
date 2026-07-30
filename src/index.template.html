@@ -167,15 +167,17 @@
         </div>
         <div class="fg"><label>Phone No.</label><input id="m_phone" placeholder="10-digit mobile"></div>
         <div class="fg full"><label>Address</label><textarea id="m_addr"></textarea></div>
-        <div class="fg"><label>ID Proof (Aadhaar)</label><div class="id-field"><input id="m_idproof" class="id-masked" autocomplete="off"><button type="button" class="id-eye" title="Show / hide" onclick="toggleIdReveal(this)">👁</button></div></div>
-        <div class="fg"><label>PAN Number</label><div class="id-field"><input id="m_pan" class="id-masked" autocomplete="off" placeholder="ABCDE1234F"><button type="button" class="id-eye" title="Show / hide" onclick="toggleIdReveal(this)">👁</button></div></div>
+        <div class="fg full"><label>Identity Documents</label>
+          <div id="m_idlist"></div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addIdRow()" style="margin-top:4px;">＋ Add ID</button>
+          <div class="calc-note" style="margin-top:4px;">Add Aadhaar, PAN and any other IDs (Voter, Driving Licence, Passport…). Each number is checked for its own format. Tap 👁 to reveal a number.</div>
+        </div>
         <div class="fg"><label>Loan Type</label><select id="m_type"><option>Personal</option><option>Housing</option><option>Business</option><option>Mortgage</option></select></div>
         <div class="fg"><label>Age</label><input id="m_age" type="number" min="0"></div>
         <div class="fg"><label>Residence</label><select id="m_residence"><option value="">—</option><option>Own</option><option>Rental</option><option>Parent's / Spouse</option><option>Employee Leased</option></select></div>
         <div class="fg"><label>Occupation</label><input id="m_occupation"></div>
         <div class="fg"><label>Designation</label><input id="m_designation"></div>
         <div class="fg full"><label>Office Address / Place of Business</label><input id="m_officeaddr"></div>
-        <div class="fg"><label>ID Document</label><select id="m_idtype"><option value="">—</option><option>Aadhaar</option><option>PAN Card</option><option>Voter Card</option><option>Ration Card</option><option>Driving Licence</option><option>Electricity Bill</option><option>Telephone Bill</option></select></div>
         </div>
       </div>
 
