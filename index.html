@@ -98,7 +98,7 @@
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.4 2.4 4.6-5"/></svg> Audit Logging Enabled</span>
       </div>
       <div class="auth-meta"><span id="lastLogin"></span></div>
-      <div class="auth-meta auth-verline">Version 2.0.32 &nbsp;·&nbsp; © Shivam Enterprises</div>
+      <div class="auth-meta auth-verline">Version 2.0.33 &nbsp;·&nbsp; © Shivam Enterprises</div>
     </div>
   </div>
 </div>
@@ -672,9 +672,14 @@
 
         <div class="panel">
           <h3>Record a Charge <span style="font-weight:400;font-size:13px;color:var(--muted);">— late fee / cheque bounce</span></h3>
-          <p class="ph-sub">Record a late fee or cheque-bounce charge against a borrower. This is logged on the loan and in the audit trail for your records. It does <b>not</b> change the borrower's outstanding balance.</p>
+          <p class="ph-sub">Record a late fee or cheque-bounce charge against a borrower. Charges are <b>added to the borrower's outstanding balance</b> (and their overdue amount), stay owed until paid, and appear in the schedule, reminders and reports.</p>
+          <div class="latefee-assist" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 14px;padding:11px 14px;border:1px solid #e7c873;background:#fff7e2;border-radius:9px;">
+            <label style="font-size:12.5px;font-weight:600;color:#6b5413;">Late fee ₹/month <input id="lateFeeRate" type="number" min="0" placeholder="500" style="width:96px;margin-left:6px;border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-size:13px;background:var(--field);color:var(--text);" onchange="setLateFeeRate(this.value)"></label>
+            <button class="btn btn-sm btn-primary" onclick="applyLateFeesSelected()">⚡ Apply late fees for overdue months</button>
+            <span id="lateFeeHint" class="ph-sub" style="margin:0;font-size:12px;"></span>
+          </div>
           <div class="form-grid" style="grid-template-columns:1.4fr 0.9fr 0.8fr 0.9fr; max-width:900px;">
-            <div class="fg"><label>Borrower / Loan A/C</label><select id="chg_loan"><option value="">— Select a borrower —</option></select></div>
+            <div class="fg"><label>Borrower / Loan A/C</label><select id="chg_loan" onchange="chgLoanChange()"><option value="">— Select a borrower —</option></select></div>
             <div class="fg"><label>Charge type</label><select id="chg_type" onchange="chgTypeChange()"><option>Late fee</option><option>Cheque bounce</option><option>Other</option></select></div>
             <div class="fg"><label>Amount (₹)</label><input id="chg_amt" type="number" min="0" placeholder="0"></div>
             <div class="fg"><label>Date</label><input id="chg_date" type="date"></div>

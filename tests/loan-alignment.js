@@ -67,13 +67,13 @@ for (const dm of dueModes) {
   }
   // MANUAL due must be preserved exactly (never rewritten by recompute)
   if (l.dueManual) check(l.due === due, 'manual-due-rewritten', l);
-  // Cheque-bounce fees (only) must be added to what is owed, unless fully cleared.
-  // (Late fees are informational per the contract and intentionally not auto-added.)
-  if ((cm === 'bounce' || cm === 'both') && l.tpay > 0 && l.outstanding > 0) {
-    const feeSum = 500; // the single bounce charge
+  // ALL charges (late fees, cheque-bounce fees, etc.) must be added to what is owed,
+  // unless the loan is already fully cleared.
+  if (cm !== 'none' && l.tpay > 0 && l.outstanding > 0) {
+    const feeSum = buildCharges(cm).reduce((a, c) => a + c.amount, 0);
     const l2 = Object.assign({}, l, { charges: [], outstanding: undefined, status: undefined, due: dm === 'auto' ? '' : due, dueManual });
     S.recomputeLoan(l2);
-    check(l.outstanding === l2.outstanding + feeSum || l2.outstanding <= 0, 'bounce-fee-not-in-outstanding', l);
+    check(l.outstanding === l2.outstanding + feeSum || l2.outstanding <= 0, 'charges-not-in-outstanding', l);
   }
   // idempotency: recomputing again changes nothing
   const before = JSON.stringify({ o: l.outstanding, s: l.status, d: l.due });

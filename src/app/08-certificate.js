@@ -35,13 +35,13 @@
     const cleared=pays.filter(p=>p.status==='Cleared').reduce((a,p)=>a+(Number(p.amount)||0),0);
     l.paid=cleared;
     const tpay=Number(l.tpay)||0;
-    // Cheque-bounce fees the customer must repay are ADDED to what they owe, so the
-    // bounced EMI + the bank's return fee are recovered together. (Paid via a normal
-    // cleared payment, which brings the balance back down.)
-    const _bounceFees=(Array.isArray(l.charges)?l.charges:[]).filter(function(c){return c&&c.type==='Cheque bounce';}).reduce(function(a,c){return a+(Number(c.amount)||0);},0);
+    // Extra charges the customer must repay — late fees, cheque-bounce fees, etc. — are
+    // ADDED to what they owe. They are stored line-items (sticky: once charged they stay
+    // owed until a cleared payment brings the balance down), so there is no double-count.
+    const _fees=(Array.isArray(l.charges)?l.charges:[]).reduce(function(a,c){return a+(c?(Number(c.amount)||0):0);},0);
     // Processing / deductions are withheld at disbursement only — the customer is liable for the FULL amount,
     // so they do NOT reduce the outstanding.
-    l.outstanding=Math.max(0, tpay + _bounceFees - cleared);
+    l.outstanding=Math.max(0, tpay + _fees - cleared);
     const paidBase=Number(l.paidBase)||0;            // amount already paid as of the last restructure baseline
     const fwdCleared=Math.max(0, cleared-paidBase);  // payments counted against the current (forward) schedule
     const emi=Math.round(Number(l.emi)||0);
@@ -60,8 +60,13 @@
     var totalFwd=(l.baseOut!=null)?Math.max(0,Number(l.baseOut)):tpay;
     var expectedByToday=dueByToday*emi;
     if(n>0) expectedByToday=Math.min(expectedByToday, totalFwd);
-    var arr=Math.max(0, expectedByToday - fwdCleared);
+    // Overdue EMIs (principal+interest past due) ...
+    var emiArr=Math.max(0, expectedByToday - fwdCleared);
+    // ... plus any charges (late fees, bounce fees) are all due now. The demand/overdue
+    // "amount overdue" therefore includes the late fees the customer has been charged.
+    var arr=emiArr + _fees;
     if(arr>l.outstanding) arr=l.outstanding;
+    l.lateFees=(Array.isArray(l.charges)?l.charges:[]).filter(function(c){return c&&c.type==='Late fee';}).reduce(function(a,c){return a+(Number(c.amount)||0);},0);
     l.arrears=Math.round(arr);
     if(l.outstanding<=0 && tpay>0){
       l.status='Closed'; l.arrears=0;
@@ -72,7 +77,9 @@
         var nd=emiDueDate(l, nextIdx);
         if(nd) l.due=nd;
       }
-      l.status=(l.arrears>0)?'Overdue':'Active';
+      // Status is driven by overdue EMIs only, so an unpaid fee on an otherwise-current
+      // loan does not flip it to "Overdue" (but it still adds to the balance).
+      l.status=(emiArr>0)?'Overdue':'Active';
     }
   }
   // Balance a borrower still owed immediately AFTER a given payment (by index in the
@@ -84,8 +91,8 @@
     var pays=Array.isArray(l.payments)?l.payments:[];
     var clearedThrough=0;
     for(var i=0;i<=idx && i<pays.length;i++){ var p=pays[i]; if(p && p.status==='Cleared') clearedThrough+=Number(p.amount)||0; }
-    var bounce=(Array.isArray(l.charges)?l.charges:[]).filter(function(c){return c&&c.type==='Cheque bounce';}).reduce(function(a,c){return a+(Number(c.amount)||0);},0);
-    return Math.max(0, (Number(l.tpay)||0) + bounce - clearedThrough);
+    var fees=(Array.isArray(l.charges)?l.charges:[]).reduce(function(a,c){return a+(c?(Number(c.amount)||0):0);},0);
+    return Math.max(0, (Number(l.tpay)||0) + fees - clearedThrough);
   }
   window.balanceAtPayment=balanceAtPayment;
   function recomputeAll(){ if(typeof loans!=='undefined' && Array.isArray(loans)) loans.forEach(recomputeLoan); }
@@ -288,8 +295,45 @@
     try{ logAudit('Receipt Printed', (l.name||'')+' \u2014 '+inr(Number(l.payments[idx].amount)||0)); }catch(_){}
   }
   function renderPayTab(){ refreshPayLoanDropdown(); if($('payb_date')&&!$('payb_date').value)$('payb_date').value=todayISO(); refreshChargeUI(); payTabModeUI(); renderPayReg(); }
-  function refreshChargeUI(){ var sel=$('chg_loan'); if(sel){ var cur=sel.value; sel.innerHTML='<option value="">\u2014 Select a borrower \u2014</option>'+loans.map(function(l){return '<option value="'+l.id+'">'+esc(l.name)+' ('+esc(l.acno)+')</option>';}).join(''); sel.value=cur; } if($('chg_date')&&!$('chg_date').value)$('chg_date').value=todayISO(); renderChargeList(); }
-  function chgTypeChange(){ var t=($('chg_type')||{}).value; if($('chg_chequeWrap')) $('chg_chequeWrap').style.display=(t==='Cheque bounce')?'block':'none'; }
+  function refreshChargeUI(){ var sel=$('chg_loan'); if(sel){ var cur=sel.value; sel.innerHTML='<option value="">\u2014 Select a borrower \u2014</option>'+loans.map(function(l){return '<option value="'+l.id+'">'+esc(l.name)+' ('+esc(l.acno)+')</option>';}).join(''); sel.value=cur; } if($('chg_date')&&!$('chg_date').value)$('chg_date').value=todayISO(); if($('lateFeeRate')) $('lateFeeRate').value=getLateFeeRate(); renderChargeList(); try{ chgUpdateHint(); }catch(e){} }
+  /* ---- Late-fee rate (₹ per overdue month) — persistent, default ₹500 ---- */
+  function getLateFeeRate(){ try{ var v=Number(localStorage.getItem('shivam_latefee_v1')); return (!isNaN(v) && v>=0)?v:500; }catch(e){ return 500; } }
+  window.getLateFeeRate=getLateFeeRate;
+  window.setLateFeeRate=function(v){ try{ localStorage.setItem('shivam_latefee_v1', String(Math.max(0,Math.round(Number(v)||0)))); }catch(e){} try{ chgUpdateHint(); }catch(e){} };
+  /* EMIs whose due date has passed and are NOT yet fully covered by cleared payments. */
+  function overdueEmiIdxs(l){
+    if(!l) return [];
+    var n=Math.max(0,Math.round(Number(l.tenure)||0)), emi=Math.round(Number(l.emi)||0), t=todayISO();
+    var paidBase=Number(l.paidBase)||0;
+    var cleared=Math.max(0,(l.payments||[]).filter(function(p){return p.status==='Cleared';}).reduce(function(a,p){return a+(Number(p.amount)||0);},0)-paidBase);
+    var out=[]; for(var i=1;i<=n;i++){ var d=emiDueDate(l,i); if(d && d<t && cleared < emi*i) out.push({i:i,due:d}); } return out;
+  }
+  window.overdueEmiIdxs=overdueEmiIdxs;
+  function chgTypeChange(){ var t=($('chg_type')||{}).value; if($('chg_chequeWrap')) $('chg_chequeWrap').style.display=(t==='Cheque bounce')?'block':'none'; chgUpdateHint(); }
+  function chgUpdateHint(){
+    if($('lateFeeRate') && document.activeElement!==$('lateFeeRate')) $('lateFeeRate').value=getLateFeeRate();
+    var hint=$('lateFeeHint'); if(!hint) return;
+    var l=loans.find(function(x){return x.id===(($('chg_loan')||{}).value);});
+    if(!l){ hint.textContent=''; return; }
+    var idxs=overdueEmiIdxs(l), rate=getLateFeeRate();
+    var already=(l.charges||[]).filter(function(c){return c&&c.type==='Late fee'&&c.emiIdx;}).length;
+    var pending=Math.max(0, idxs.length-already);
+    hint.innerHTML = idxs.length ? (esc(l.name)+' is '+idxs.length+' month(s) overdue · '+(pending>0?('<b>'+pending+' late fee(s) pending = '+inr(rate*pending)+'</b>'):'late fees up to date')) : (esc(l.name)+' has no overdue EMIs.');
+    if(($('chg_type')||{}).value==='Late fee' && $('chg_amt') && !$('chg_amt').value && pending>0){ $('chg_amt').value = rate*pending; }
+  }
+  window.chgLoanChange=function(){ if($('chg_amt')) $('chg_amt').value=''; chgUpdateHint(); };
+  /* One-click: apply a ₹rate late fee for every overdue month not already charged
+     (keyed by EMI number so repeated clicks never double-charge). Sticky charges. */
+  window.applyLateFees=function(id){
+    var l=loans.find(function(x){return x.id===id;}); if(!l){ toast('Choose a borrower first'); return; }
+    var rate=getLateFeeRate(); if(rate<=0){ toast('Set a late-fee rate (₹/month) above zero first.'); return; }
+    if(!Array.isArray(l.charges)) l.charges=[];
+    var idxs=overdueEmiIdxs(l), added=0;
+    idxs.forEach(function(o){ var exists=l.charges.some(function(c){return c&&c.type==='Late fee'&&c.emiIdx===o.i;}); if(!exists){ l.charges.unshift({ id:'C'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), date:o.due, type:'Late fee', amount:rate, emiIdx:o.i, note:'Late fee — EMI #'+o.i+' overdue' }); added++; } });
+    if(added){ try{ recomputeLoan(l); }catch(e){} save(); try{ logAudit('Late Fees Applied', added+' month(s) × '+inr(rate)+' — '+(l.name||'')+' ('+(l.acno||'')+')'); }catch(e){} renderChargeList(); chgUpdateHint(); try{ if(typeof renderLoans==='function') renderLoans(); }catch(e){} toast(added+' late fee(s) applied — '+inr(rate*added)); }
+    else { toast('Late fees already up to date for '+(l.name||'this borrower')); }
+  };
+  window.applyLateFeesSelected=function(){ applyLateFees(($('chg_loan')||{}).value); };
   var _editCharge=null;
   function recordCharge(){
     var id=($('chg_loan')||{}).value; if(!id){ toast('Choose a borrower first'); return; }

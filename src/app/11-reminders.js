@@ -42,6 +42,7 @@
           reminder_hi:$('tpl_reminder_hi').value, overdue_hi:$('tpl_overdue_hi').value, greeting_hi:$('tpl_greeting_hi').value, holiday_hi:$('tpl_holiday_hi').value,
           thanks_hi:$('tpl_thanks_hi').value, welcome_hi:$('tpl_welcome_hi').value, finalnotice_hi:$('tpl_finalnotice_hi').value, demandnotice_hi:($('tpl_demandnotice_hi')?$('tpl_demandnotice_hi').value:DEFAULT_TPL.demandnotice_hi),
           fine:Number($('tpl_fine').value)||0 });
+    try{ if(typeof setLateFeeRate==='function') setLateFeeRate($('tpl_fine').value); }catch(e){}
     try{ localStorage.setItem(MSG_STORE, JSON.stringify(TPL)); }catch(e){}
     toast('Templates saved');
   }
@@ -51,9 +52,9 @@
     $('tpl_reminder_hi').value=TPL.reminder_hi; $('tpl_overdue_hi').value=TPL.overdue_hi; $('tpl_greeting_hi').value=TPL.greeting_hi; $('tpl_holiday_hi').value=TPL.holiday_hi;
     $('tpl_thanks').value=TPL.thanks; $('tpl_welcome').value=TPL.welcome; $('tpl_finalnotice').value=TPL.finalnotice; $('tpl_thanks_hi').value=TPL.thanks_hi; $('tpl_welcome_hi').value=TPL.welcome_hi; $('tpl_finalnotice_hi').value=TPL.finalnotice_hi;
     if($('tpl_demandnotice')){ $('tpl_demandnotice').value=TPL.demandnotice||DEFAULT_TPL.demandnotice; $('tpl_demandnotice_hi').value=TPL.demandnotice_hi||DEFAULT_TPL.demandnotice_hi; }
-    $('tpl_fine').value=TPL.fine;
+    $('tpl_fine').value=(typeof getLateFeeRate==='function')?getLateFeeRate():TPL.fine;
   }
-  function getLateFee(){ return TPL.fine||0; }
+  function getLateFee(){ try{ if(typeof getLateFeeRate==='function') return getLateFeeRate(); }catch(e){} return TPL.fine||500; }
   function applyVars(text, l, extra){
     extra=extra||{};
     const map={

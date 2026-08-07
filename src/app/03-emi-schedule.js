@@ -23,7 +23,10 @@
        would also count bounced/cancelled entries and disagree with the loan's own balance.) */
     var cleared=Math.max(0,(l.payments||[]).filter(p=>p.status==='Cleared').reduce((a,p)=>a+(Number(p.amount)||0),0)-paidBase);
     var t=todayISO();
-    var rows=[]; var paidCount=0;
+    // Applied late-fee charges, mapped to the EMI month they were charged for.
+    var lateByIdx={}, totalLate=0;
+    (l.charges||[]).forEach(function(c){ if(c && c.type==='Late fee'){ var amt=Number(c.amount)||0; totalLate+=amt; if(c.emiIdx) lateByIdx[c.emiIdx]=(lateByIdx[c.emiIdx]||0)+amt; } });
+    var rows=[]; var paidCount=0; var cumLate=0;
     for(var i=1;i<=n;i++){
       var dueD = emiDueDate(l,i);
       // last installment absorbs any rounding so the schedule sums exactly to the payable
@@ -32,16 +35,17 @@
       var cumThis = (i<n) ? emi*i : total;
       // portion of total cleared payments allocated to THIS installment
       var allocated=Math.max(0, Math.min(thisEmi, cleared-prevCum));
-      var bal=Math.max(0, total-Math.min(cleared, cumThis));
+      var lf=lateByIdx[i]||0; cumLate+=lf;                       // late fee charged for this month
+      var bal=Math.max(0, total-Math.min(cleared, cumThis)) + cumLate;  // balance carries accrued late fees
       var st;
       if(allocated>=thisEmi && thisEmi>0){ st='Paid'; paidCount++; }
       else if(allocated>0){ st='Partial'; }
       else if(dueD && dueD<t){ st='Overdue'; }
       else if(dueD && repDaysBetween(t,dueD)<=7){ st='Due soon'; }
       else { st='Upcoming'; }
-      rows.push({i:i,due:dueD,emi:thisEmi,paid:Math.round(allocated),bal:bal,st:st});
+      rows.push({i:i,due:dueD,emi:thisEmi,paid:Math.round(allocated),lateFee:lf,bal:bal,st:st});
     }
-    return {rows:rows,emi:emi,n:n,total:total,cleared:cleared,paidCount:paidCount};
+    return {rows:rows,emi:emi,n:n,total:total,cleared:cleared,paidCount:paidCount,totalLate:totalLate};
   }
   function repScheduleFill(){
     var l=repScheduleLoan(); var host=$('scBody'); if(!host) return;
@@ -52,11 +56,12 @@
     var tiles='<div class="pay-tiles" style="margin-bottom:14px;">'
       +repTile('EMI',inr(D.emi))+repTile('Tenure',D.n+' months')
       +repTile('Total of installments',inr(D.total))
+      +(D.totalLate>0?repTile('Late fees',inr(D.totalLate),'bad'):'')
       +repTile('Paid / scheduled',paidCount+' / '+D.n,'ok')+'</div>';
-    var body=D.rows.map(r=>'<tr><td>'+r.i+'</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">'+inr(r.emi)+'</td><td class="right">'+(r.paid>0?inr(r.paid):'&mdash;')+'</td><td class="right">'+inr(r.bal)+'</td><td style="color:'+repStColor(r.st)+';font-weight:600;">'+r.st+'</td></tr>').join('');
+    var body=D.rows.map(r=>'<tr><td>'+r.i+'</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">'+inr(r.emi)+'</td><td class="right">'+(r.paid>0?inr(r.paid):'&mdash;')+'</td><td class="right" style="color:'+(r.lateFee>0?'#b26a00':'inherit')+';">'+(r.lateFee>0?('+'+inr(r.lateFee)):'&mdash;')+'</td><td class="right">'+inr(r.bal)+'</td><td style="color:'+repStColor(r.st)+';font-weight:600;">'+r.st+'</td></tr>').join('');
     host.innerHTML = '<div style="font-weight:600; margin-bottom:8px;">'+esc(l.name)+' &mdash; A/C '+esc(l.acno||'')+'</div>'+tiles
       +'<div class="table-wrap"><table class="data"><thead><tr><th>#</th><th>Due Date</th>'
-      +'<th class="right">EMI</th><th class="right">Paid</th><th class="right">Balance After</th><th>Status</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+      +'<th class="right">EMI</th><th class="right">Paid</th><th class="right">Late Fee</th><th class="right">Balance After</th><th>Status</th></tr></thead><tbody>'+body+'</tbody></table></div>';
   }
   function repScheduleCSV(){
     var l=repScheduleLoan(); if(!l){ toast('Select a borrower first'); return; }
