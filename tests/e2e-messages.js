@@ -38,9 +38,10 @@ const path = require('path');
       charges: [{ id: 'bc1', type: 'Cheque bounce', amount: 500, cheque: '100300', date: today }] };
     loans.splice(0, loans.length, L_active, L_overdue, L_closed, L_bounce);
 
-    // NOTE: intentionally NOT calling go('messages') — that runs recomputeAll() which
-    // would override the hand-set arrears/outstanding. renderGreetings reads the form
-    // inputs directly, so we drive it without navigating.
+    // renderGreetings now recomputes on render (so a just-recorded payment always shows).
+    // Compute the demand-notice figures the same way it will, so the check stays correct.
+    const _o = JSON.parse(JSON.stringify(L_overdue)); recomputeLoan(_o);
+    const dnArr = inr(_o.arrears), dnOut = inr(_o.outstanding);
     const tpls = loadWaTpl();
     const gr = (type, opts) => {
       $('grType').value = type; $('grLang').value = 'en'; $('grWho').value = (opts && opts.who) || 'all';
@@ -56,12 +57,13 @@ const path = require('path');
       thanks:       { type: 'thanks',       acno: 'SE-A', must: ['₹75,000', '₹49,000'], mustNot: ['₹10,333'] },
       welcome:      { type: 'welcome',      acno: 'SE-A', must: ['₹1,00,000', '₹10,333'] },
       finalnotice:  { type: 'finalnotice',  acno: 'SE-A', must: ['₹49,000'] },
-      demandnotice: { type: 'demandnotice', acno: 'SE-O', must: ['₹20,000', '₹60,000'] },
+      demandnotice: { type: 'demandnotice', acno: 'SE-O', must: [dnArr, dnOut] },
       bounce:       { type: 'bounce',       acno: 'SE-B', must: ['100300', '500'] },
       closed:       { type: 'closed',       acno: 'SE-C', opts: { who: 'active' }, must: ['SE-C'] },
       cleared:      { type: 'cleared',      acno: 'SE-A', must: ['100200', '75,000'] },
       restructure:  { type: 'restructure',  acno: 'SE-A', must: ['12'] },
-      accwelcome:   { type: 'accwelcome',   acno: 'SE-A', must: ['SE-A'] }
+      accwelcome:   { type: 'accwelcome',   acno: 'SE-A', must: ['SE-A'] },
+      launch:       { type: 'launch',       acno: 'SE-A', must: ['now open', 'Shivam Enterprises'] }
     };
 
     Object.keys(CAT).forEach(k => {

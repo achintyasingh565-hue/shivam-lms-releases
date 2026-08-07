@@ -19,6 +19,7 @@
   let _repView='collection';
   function renderReports(){ setReportView(_repView); }
   function setReportView(v){
+    try{ if(typeof recomputeAll==='function') recomputeAll(); }catch(e){}   // reports always reflect the latest payments
     _repView=v;
     var seg=$('repseg'); if(seg){ [...seg.children].forEach(b=>b.classList.toggle('active', b.dataset.r===v)); }
     var fn={collection:repCollection, cashbook:repCashbook, cheque:repCheque, online:repOnline, status:repStatus, overdue:repOverdue, schedule:repSchedule, statement:repStatement, interest:repInterest, efficiency:repEfficiency, pnl:repPnl}[v];

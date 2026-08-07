@@ -29,6 +29,8 @@
     accwelcome_hi:"नमस्ते {name}, शिवम एंटरप्राइज़ेस में आपका स्वागत है! आपका खाता {acno} खोल दिया गया है। आपको हमारे साथ पाकर हमें प्रसन्नता है और किसी भी सहायता हेतु हम सदैव उपलब्ध हैं। - शिवम एंटरप्राइज़ेस",
     birthday:"Namaste {name}, wishing you a very happy birthday from all of us at Shivam Enterprises. May the year ahead bring you happiness and good fortune.",
     birthday_hi:"नमस्ते {name}, शिवम एंटरप्राइज़ेस की ओर से आपको जन्मदिन की हार्दिक शुभकामनाएँ। आने वाला वर्ष आपके लिए खुशियाँ और सौभाग्य लाए।",
+    launch:"Namaste, we are happy to share that Shivam Enterprises is now open and ready to serve you. Please feel free to contact us anytime. - Shivam Enterprises",
+    launch_hi:"नमस्ते, हमें यह बताते हुए खुशी है कि शिवम एंटरप्राइज़ेस अब आरंभ हो चुका है और आपकी सेवा हेतु तत्पर है। किसी भी जानकारी हेतु कृपया हमसे संपर्क करें। - शिवम एंटरप्राइज़ेस",
     fine:100 };
   let TPL={...DEFAULT_TPL};
   function loadTpl(){ TPL={...DEFAULT_TPL}; }
@@ -87,6 +89,9 @@
   if($('msgseg')) $('msgseg').addEventListener('click', e=>{ if(e.target.dataset.m) setMsgView(e.target.dataset.m); });
 
   function renderReminders(){
+    // Always work from up-to-date figures — recompute so a payment recorded moments ago
+    // is reflected here (arrears / outstanding), regardless of how this screen was opened.
+    try{ if(typeof recomputeAll==='function') recomputeAll(); }catch(e){}
     const f=$('remFilter').value; const lang=$('remLang')?$('remLang').value:'en'; const today=todayISO();
     const in7=new Date(); in7.setDate(in7.getDate()+7); const in7s=in7.toISOString().slice(0,10);
     let list=loans.map(l=>({...l,_st:autoStatus(l)})).filter(l=>l._st!=='Closed');
@@ -103,6 +108,7 @@
       }).join('')+`</tbody></table></div>`;
   }
   function renderGreetings(){
+    try{ if(typeof recomputeAll==='function') recomputeAll(); }catch(e){}   // fresh arrears/outstanding for demand-notice etc.
     const type=$('grType').value, lang=$('grLang')?$('grLang').value:'en', occ=$('grOccasion').value.trim(), dt=$('grDate').value.trim(), who=$('grWho').value;
     let list=loans.map(l=>({...l,_st:autoStatus(l)}));
     // Message types that target a specific status pick their OWN audience — the
@@ -115,7 +121,7 @@
     else if(who==='active'){ list=list.filter(l=>l._st!=='Closed'); }
     const tpl = lang==='hi' ? (TPL[type+'_hi']||TPL.greeting_hi) : (TPL[type]||TPL.greeting);
     if(!list.length){ window._grList=[]; $('grWrap').innerHTML=`<div class="empty">No customers to message.</div>`; return; }
-    const GR_CAT={greeting:'Greeting / Notice',birthday:'Birthday Greeting',holiday:'Office Closure',thanks:'Payment Confirmation',welcome:'Loan Approval',finalnotice:'Final Notice',demandnotice:'Default Notice',bounce:'Cheque Bounce',closed:'Loan Closed',cleared:'Cheque Cleared',restructure:'Loan Restructured',accwelcome:'Welcome / Account Opened'}; const gcat=GR_CAT[type]||'Greeting / Notice'; const grVars=(l)=>{ var _lp=(l.payments||[]).filter(function(p){return Number(p.amount)>0;}).slice(-1)[0]||null; var _cc=(l.payments||[]).filter(function(p){return p.mode==='Cheque'&&p.status==='Cleared';}).slice(-1)[0]||{}; var _bc=(l.charges||[]).filter(function(c){return c.type==='Cheque bounce';})[0]||{}; var _due=(fmtDate(l.due)||fmtDate(l.disb)||''); if(type==='holiday') return {name:l.name, occasion:occ||'', date:dt||''}; if(type==='thanks') return {name:l.name, amount:inrPlain(_lp?_lp.amount:l.emi), acno:l.acno||'', txn:((_lp&&(_lp.ref||_lp.cheque||fmtDate(_lp.date)))||_due||('A/C '+(l.acno||''))), outstanding:inrPlain(l.outstanding)}; if(type==='welcome') return {name:l.name, acno:l.acno||'', emi:inrPlain(l.emi), due_date:_due, amount:inrPlain(l.principal)}; if(type==='finalnotice') return {name:l.name, acno:l.acno||'', outstanding:inrPlain(l.outstanding), due_date:_due}; if(type==='demandnotice') return {name:l.name, acno:l.acno||'', arrears:inrPlain(l.arrears||0), due_date:_due, outstanding:inrPlain(l.outstanding)}; if(type==='bounce') return {name:l.name, acno:l.acno||'', amount:inrPlain(_bc.amount||0), txn:(_bc.cheque||''), cheque:(_bc.cheque||'')}; if(type==='closed') return {name:l.name, acno:l.acno||'', principal:inrPlain(l.principal||0)}; if(type==='cleared') return {name:l.name, acno:l.acno||'', amount:inrPlain(_cc.amount||0), txn:(_cc.cheque||''), cheque:(_cc.cheque||'')}; if(type==='restructure') return {name:l.name, acno:l.acno||'', emi:inrPlain(l.emi), tenure:String(l.tenure||'')}; if(type==='accwelcome') return {name:l.name, acno:l.acno||''}; if(type==='birthday') return {name:l.name}; return {name:l.name, occasion:occ||''}; };
+    const GR_CAT={greeting:'Greeting / Notice',birthday:'Birthday Greeting',holiday:'Office Closure',thanks:'Payment Confirmation',welcome:'Loan Approval',finalnotice:'Final Notice',demandnotice:'Default Notice',bounce:'Cheque Bounce',closed:'Loan Closed',cleared:'Cheque Cleared',restructure:'Loan Restructured',accwelcome:'Welcome / Account Opened',launch:'Business Launched'}; const gcat=GR_CAT[type]||'Greeting / Notice'; const grVars=(l)=>{ var _lp=(l.payments||[]).filter(function(p){return Number(p.amount)>0;}).slice(-1)[0]||null; var _cc=(l.payments||[]).filter(function(p){return p.mode==='Cheque'&&p.status==='Cleared';}).slice(-1)[0]||{}; var _bc=(l.charges||[]).filter(function(c){return c.type==='Cheque bounce';})[0]||{}; var _due=(fmtDate(l.due)||fmtDate(l.disb)||''); if(type==='holiday') return {name:l.name, occasion:occ||'', date:dt||''}; if(type==='thanks') return {name:l.name, amount:inrPlain(_lp?_lp.amount:l.emi), acno:l.acno||'', txn:((_lp&&(_lp.ref||_lp.cheque||fmtDate(_lp.date)))||_due||('A/C '+(l.acno||''))), outstanding:inrPlain(l.outstanding)}; if(type==='welcome') return {name:l.name, acno:l.acno||'', emi:inrPlain(l.emi), due_date:_due, amount:inrPlain(l.principal)}; if(type==='finalnotice') return {name:l.name, acno:l.acno||'', outstanding:inrPlain(l.outstanding), due_date:_due}; if(type==='demandnotice') return {name:l.name, acno:l.acno||'', arrears:inrPlain(l.arrears||0), due_date:_due, outstanding:inrPlain(l.outstanding)}; if(type==='bounce') return {name:l.name, acno:l.acno||'', amount:inrPlain(_bc.amount||0), txn:(_bc.cheque||''), cheque:(_bc.cheque||'')}; if(type==='closed') return {name:l.name, acno:l.acno||'', principal:inrPlain(l.principal||0)}; if(type==='cleared') return {name:l.name, acno:l.acno||'', amount:inrPlain(_cc.amount||0), txn:(_cc.cheque||''), cheque:(_cc.cheque||'')}; if(type==='restructure') return {name:l.name, acno:l.acno||'', emi:inrPlain(l.emi), tenure:String(l.tenure||'')}; if(type==='accwelcome') return {name:l.name, acno:l.acno||''}; if(type==='launch') return {name:l.name}; if(type==='birthday') return {name:l.name}; return {name:l.name, occasion:occ||''}; };
     // Rupee-formatted copy of the vars for the readable message TEXT (adds ₹ to money
     // fields). The Meta template variables keep the plain numbers from grVars, because
     // the approved template body supplies its own ₹/Rs. Bounce & Cheque-Cleared keep
