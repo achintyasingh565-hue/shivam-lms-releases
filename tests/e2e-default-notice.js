@@ -49,7 +49,11 @@ const path = require('path');
     const htmlCustom = $('defBody').innerHTML;
     const usesCustom = htmlCustom.indexOf('CUSTOM: Ramesh Kumar owes') >= 0;
 
-    return { typeBtns, formName, formArr, formAcno, expectedArr, arrearsIsLive, hasName, hasAcno, hasArrears, hasFinal, usesCustom };
+    // Printing the notice must not crash (it builds the full letterhead document).
+    let printOk = false;
+    try { window.print = () => {}; printDefaultDoc(); printOk = true; } catch (e) { printOk = 'ERR:' + e; }
+
+    return { typeBtns, formName, formArr, formAcno, expectedArr, arrearsIsLive, hasName, hasAcno, hasArrears, hasFinal, usesCustom, printOk };
   });
 
   const checks = {
@@ -59,6 +63,7 @@ const path = require('path');
     'notice reflects synced values':           out.hasName && out.hasAcno && out.hasArrears,
     'Final Demand renders its title':          out.hasFinal === true,
     'saved custom wording is used':            out.usesCustom === true,
+    'printing the notice does not crash':      out.printOk === true,
     'no page errors':                          errs.length === 0
   };
 

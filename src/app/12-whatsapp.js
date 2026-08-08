@@ -68,7 +68,10 @@
     if(!rows.length){ body.innerHTML='<div class="pay-empty">No messages match.</div>'; }
     else body.innerHTML='<div class="table-wrap"><table class="data"><thead><tr><th style="width:34px;"></th><th>Borrower</th><th>Phone</th><th>Loan</th><th>Category</th><th>Message</th><th></th></tr></thead><tbody>'+
       rows.map(it=>{ const ps=waPhoneState(it, allPhones); const badge=ps.cls==='ok'?'':('<span class="wa-badge '+ps.cls+'">'+ps.label+'</span>');
-        const hasAmt = it.amt!=null && /\{(emi|amount|outstanding)\}/.test(it.tpl||'');
+        // The single "amount" box only makes sense for one-amount messages (EMI reminder,
+        // overdue, payment). The demand notice carries TWO figures (arrears + outstanding)
+        // straight from the loan, so there is nothing to edit here — hide the box.
+        const hasAmt = it.amt!=null && /\{(emi|amount|outstanding)\}/.test(it.tpl||'') && !/\{arrears\}/.test(it.tpl||'');
         const hasDate = /\{due_date\}/.test(it.tpl||'');
         const _Ld = (typeof loans!=='undefined' && Array.isArray(loans)) ? loans.find(x=>x.id===it.loanId) : null;
         const dueISO = it.dueISO || (_Ld?(_Ld.due||''):'') || '';
@@ -98,7 +101,7 @@
     // is {outstanding} (overdue / final / demand). For a payment message that has BOTH a
     // payment {amount} and a {outstanding} balance, editing the amount must NOT overwrite
     // the balance.
-    if(it.amt!=null && /\{outstanding\}/.test(it.tpl||'') && !/\{(amount|emi)\}/.test(it.tpl||'')){ ex.outstanding=inr(it.amt); if(it.vars){ it.vars.outstanding=inrPlain(it.amt); } }
+    if(it.amt!=null && /\{outstanding\}/.test(it.tpl||'') && !/\{(amount|emi|arrears)\}/.test(it.tpl||'')){ ex.outstanding=inr(it.amt); if(it.vars){ it.vars.outstanding=inrPlain(it.amt); } }
     if(it.dueStr){ ex.due_date=it.dueStr; if(it.vars){ it.vars.due_date=it.dueStr; } }
     if(l && it.tpl){ it.msg=applyVars(it.tpl, l, ex); }
   }

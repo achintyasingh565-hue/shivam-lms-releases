@@ -256,7 +256,9 @@
   }
 
   function defaultDocHTML(d, bodyHTML){
-    var l=d.l;
+    // The form-driven notice data (window._defData) carries name/acno directly and has
+    // no nested `.l` loan object — fall back to `d` itself so printing never crashes.
+    var l=d.l||d;
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+_docFileName(l.name,l.acno,'Default_Notice')+'</title><style>'
       +'body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#141414;margin:32px;line-height:1.6;}'
       +'.name{font-size:24px;font-weight:bold;letter-spacing:1px;text-align:center;color:#0b1f4b;}'
