@@ -125,12 +125,12 @@
   function _dnDefaultTpl(type,lang){
     if(lang==='hi'){
       var conHi = type==='final'
-        ? 'कृपया इसे अंतिम सूचना समझें। यदि उपर्युक्त अवधि के भीतर बकाया राशि का भुगतान नहीं होता है, तो शिवम एंटरप्राइजेज को न्यायिक कार्यवाही आरंभ करने तथा विधि के अंतर्गत उपलब्ध अन्य उपायों का सहारा लेने के लिए विवश होना पड़ेगा, जिसकी समस्त लागत एवं परिणामों का उत्तरदायित्व आपका होगा।'
+        ? 'कृपया इसे अंतिम सूचना समझें। यदि उपर्युक्त अवधि के भीतर बकाया राशि का भुगतान नहीं होता है, तो हमें विधि अनुसार वसूली की कार्यवाही आरंभ करने के लिए विवश होना पड़ेगा।'
         : 'यदि उपर्युक्त अवधि के भीतर बकाया राशि का भुगतान नहीं किया जाता है, तो हमें विधि अनुसार देय राशि की वसूली हेतु न्यायिक कार्यवाही आरंभ करने के लिए विवश होना पड़ेगा।';
       return 'महोदय/महोदया {name},\n\nआपको औपचारिक रूप से सूचित किया जाता है कि शिवम एंटरप्राइजेज से लिया गया आपका ऋण खाता संख्या {acno} अतिदेय हो गया है। हमारे अभिलेखों के अनुसार, दिनांक {date} तक निम्नलिखित राशियाँ देय हैं:\n\n{amounts_table}\n\nआपसे अपेक्षा की जाती है कि इस सूचना की तिथि से {days} दिन के भीतर, अर्थात {deadline} तक, अतिदेय राशि {arrears} का भुगतान कर उक्त खाते को नियमित करें।\n\n'+conHi+'\n\nबकाया राशि के निपटान अथवा उपयुक्त पुनर्भुगतान व्यवस्था हेतु कृपया शीघ्र हमारे कार्यालय से संपर्क करें।';
     }
     var con = type==='final'
-      ? 'Please treat this as a FINAL notice. Should the outstanding dues remain unpaid within the period stated above, Shivam Enterprises shall be constrained to initiate judicial proceedings and pursue such other remedies as are available under law, entirely at your risk as to costs and consequences.'
+      ? 'Please treat this as a FINAL notice. Should the outstanding dues remain unpaid within the period stated above, we shall be constrained to initiate recovery proceedings as per applicable law.'
       : 'In the event the outstanding dues are not cleared within the period stated above, we shall be constrained to initiate judicial proceedings for recovery of the amount due, as per applicable law.';
     return 'Dear {name},\n\nThis is to formally notify you that loan account {acno}, availed by you from Shivam Enterprises, has fallen overdue. As per our records, the following amounts stand due against the said account as on {date}:\n\n{amounts_table}\n\nYou are hereby called upon to pay the overdue amount of {arrears} and to regularise the said account within {days} day(s) from the date of this notice, i.e. on or before {deadline}.\n\n'+con+'\n\nYou are advised to contact our office at the earliest to settle the dues or to discuss a suitable repayment arrangement.';
   }
@@ -183,11 +183,11 @@
   function _dnConsequence(type){
     if(window._dnLang==='hi'){
       if(type==='reminder') return 'आपसे अनुरोध है कि न्यायिक कार्यवाही से बचने हेतु अतिदेय राशि का शीघ्र भुगतान करें। यदि भुगतान पहले ही किया जा चुका है, तो कृपया इस स्मरण पत्र को निरस्त समझें।';
-      if(type==='final') return 'कृपया इसे अंतिम सूचना समझें। यदि उपर्युक्त अवधि के भीतर बकाया राशि का भुगतान नहीं होता है, तो शिवम एंटरप्राइजेज को न्यायिक कार्यवाही आरंभ करने तथा विधि के अंतर्गत उपलब्ध अन्य उपायों का सहारा लेने के लिए विवश होना पड़ेगा, जिसकी समस्त लागत एवं परिणामों का उत्तरदायित्व आपका होगा।';
+      if(type==='final') return 'कृपया इसे अंतिम सूचना समझें। यदि उपर्युक्त अवधि के भीतर बकाया राशि का भुगतान नहीं होता है, तो हमें विधि अनुसार वसूली की कार्यवाही आरंभ करने के लिए विवश होना पड़ेगा।';
       return 'यदि उपर्युक्त अवधि के भीतर बकाया राशि का भुगतान नहीं किया जाता है, तो हमें विधि अनुसार देय राशि की वसूली हेतु न्यायिक कार्यवाही आरंभ करने के लिए विवश होना पड़ेगा।';
     }
     if(type==='reminder') return 'We request you to kindly clear the overdue amount at the earliest to avoid judicial proceedings. If the payment has already been made, please treat this reminder as cancelled.';
-    if(type==='final') return 'Please treat this as a FINAL notice. Should the outstanding dues remain unpaid within the period stated above, Shivam Enterprises shall be constrained to initiate judicial proceedings and pursue such other remedies as are available under law, entirely at your risk as to costs and consequences.';
+    if(type==='final') return 'Please treat this as a FINAL notice. Should the outstanding dues remain unpaid within the period stated above, we shall be constrained to initiate recovery proceedings as per applicable law.';
     return 'In the event the outstanding dues are not cleared within the period stated above, we shall be constrained to initiate judicial proceedings for recovery of the amount due, as per applicable law.';
   }
 

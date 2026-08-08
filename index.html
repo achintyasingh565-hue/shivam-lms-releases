@@ -98,7 +98,7 @@
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.4 2.4 4.6-5"/></svg> Audit Logging Enabled</span>
       </div>
       <div class="auth-meta"><span id="lastLogin"></span></div>
-      <div class="auth-meta auth-verline">Version 2.0.33 &nbsp;·&nbsp; © Shivam Enterprises</div>
+      <div class="auth-meta auth-verline">Version 2.0.35 &nbsp;·&nbsp; © Shivam Enterprises</div>
     </div>
   </div>
 </div>
@@ -1206,9 +1206,10 @@
         <div><label>Date</label><input id="rs_date" type="date"></div>
       </div>
       <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:4px;">
-        <div><label>New interest rate (% p.m.)</label><input id="rs_rate" type="number" step="0.01" oninput="calcRestructure()"></div>
+        <div><label>New interest rate (% p.m.) <span class="ph-sub">— blank = none</span></label><input id="rs_rate" type="number" step="0.01" min="0" placeholder="leave blank" oninput="calcRestructure()"></div>
         <div><label>Reference / Cheque no. (optional)</label><input id="rs_ref" type="text" placeholder="Txn / cheque no."></div>
       </div>
+      <div class="ph-sub" style="margin:8px 0 0;">Leave the rate <b>blank</b> to just re-spread the balance — no new interest (it's already included). Enter a rate to charge <b>fresh</b> interest on the remaining balance over the new tenure.</div>
 
       <div style="margin:16px 0 6px;font-weight:600;font-size:13px;">After the payment, what should change?</div>
       <div style="display:flex;flex-wrap:wrap;gap:10px;">

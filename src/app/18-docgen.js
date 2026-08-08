@@ -8,7 +8,7 @@
     if(!lid){ toast('Open or save a loan first, then restructure it'); return; }
     L=loans.find(function(x){return x.id===lid;}); if(!L){ toast('Loan not found'); return; }
     $('rs_amt').value=''; $('rs_ref').value=''; $('rs_memi').value=''; $('rs_mmonths').value='';
-    $('rs_date').value=todayISO(); $('rs_rate').value=(L.rate!=null?L.rate:'');
+    $('rs_date').value=todayISO(); if($('rs_rate')) $('rs_rate').value=(L.rate!=null?L.rate:'');
     $('rs_mode').value='Cash';
     var r=document.querySelector('input[name="rsMode"][value="emi"]'); if(r) r.checked=true;
     $('rsManual').style.display='none';
@@ -47,29 +47,47 @@
       else if(mM>0){ newMonths=mM; newEmi=Math.ceil(newOut/mM); }
       else { newMonths=mLeft; newEmi=Math.ceil(newOut/mLeft); }
     }
-    var lastEmi = (newMonths>0) ? (newOut - newEmi*(newMonths-1)) : 0;
+    // Optional FRESH interest. The remaining balance already contains the original
+    // (flat) interest, so by default we add nothing — just re-spread the balance. But
+    // if a rate is entered, charge fresh flat interest on the balance over the new
+    // tenure (balance is treated as the new principal): interest = balance × rate × months.
+    var raw=($('rs_rate')?String($('rs_rate').value):'');
+    var freshRate=(raw==='')?0:Math.max(0, Number(raw)||0);
+    var interest=0, newTotal=newOut;
+    if(freshRate>0 && newMonths>0 && newOut>0){
+      interest=Math.round(newOut*(freshRate/100)*newMonths);
+      newTotal=newOut+interest;
+      newEmi=Math.ceil(newTotal/newMonths);   // spread principal + fresh interest over the tenure
+    }
+    var lastEmi = (newMonths>0) ? (newTotal - newEmi*(newMonths-1)) : 0;
     if(lastEmi<0) lastEmi=0;
-    var newRate=$('rs_rate').value!==''?Number($('rs_rate').value):L.rate;
-    if(newRate!=null && (!isFinite(Number(newRate)) || Number(newRate)<0)){ newRate=L.rate; } /* never accept a negative/garbage rate */
-    return { oldOut:oldOut, lump:lump, lumpEntered:lumpEntered, overpay:overpay, newOut:newOut, newEmi:newEmi, newMonths:newMonths, lastEmi:lastEmi, newRate:newRate, mode:mode };
+    var newRate=(raw==='')?L.rate:freshRate;   // blank keeps the old rate label; a value sets it
+    return { oldOut:oldOut, lump:lump, lumpEntered:lumpEntered, overpay:overpay, newOut:newOut, interest:interest, newTotal:newTotal, newEmi:newEmi, newMonths:newMonths, lastEmi:lastEmi, newRate:newRate, freshRate:freshRate, mode:mode };
   }
   window.calcRestructure=function(){
     var c=compute(); if(!c) return;
     var overLine = c.overpay>0 ? '<div style="color:#b00020;font-weight:700;margin-top:4px;">⚠ Amount entered exceeds the outstanding by '+inr(c.overpay)+'. Only '+inr(c.lump)+' will be applied — the excess must be returned to the customer (or recorded separately).</div>' : '';
-    var rateLine = (c.newRate!=L.rate) ? '<div class="rs-row"><span>Interest rate</span><span class="rs-new">'+(c.newRate!=null?c.newRate+'% p.m.':'—')+'</span></div>' : '';
     var lastLine = (c.newMonths>1 && c.lastEmi!==c.newEmi && c.lastEmi>0) ? '<div class="rs-row"><span>Final (last) EMI</span><span>'+inr(c.lastEmi)+'</span></div>' : '';
     var closed = c.newOut<=0 ? '<div style="color:#0b7a4b;font-weight:700;margin-top:4px;">This payment clears the loan — it will be marked closed.</div>' : '';
+    // Plain-language breakdown so it's clear the EMIs paid so far AND this lump-sum are
+    // already accounted for (outstanding = original total payable − everything paid).
+    var interestLines = (c.interest>0)
+      ? '<div class="rs-row"><span>Add: fresh interest @ '+c.freshRate+'% p.m. × '+c.newMonths+' months</span><span>+ '+inr(c.interest)+'</span></div>'
+        +'<div class="rs-row"><span><b>New total payable</b></span><span class="rs-new">'+inr(c.newTotal)+'</span></div>'
+      : '';
     $('rsAfter').innerHTML='<b>After restructuring</b>'+
-      (c.lump>0?'<div class="rs-row"><span>Payment received</span><span>'+inr(c.lump)+' ('+($('rs_mode').value)+')</span></div>':'')+
-      '<div class="rs-row"><span>New outstanding</span><span class="rs-new">'+inr(c.newOut)+'</span></div>'+
-      '<div class="rs-row"><span>New EMI</span><span class="rs-new">'+inr(c.newEmi)+'</span></div>'+
+      '<div class="rs-row"><span>Current outstanding (interest already included)</span><span>'+inr(c.oldOut)+'</span></div>'+
+      (c.lump>0?'<div class="rs-row"><span>Less: lump-sum paid now ('+($('rs_mode').value)+')</span><span>− '+inr(c.lump)+'</span></div>':'')+
+      '<div class="rs-row"><span><b>Balance to re-plan</b></span><span class="rs-new">'+inr(c.newOut)+'</span></div>'+
+      interestLines +
+      '<div class="rs-row"><span>New EMI'+(c.interest>0?'':' (no fresh interest added)')+'</span><span class="rs-new">'+inr(c.newEmi)+'</span></div>'+
       '<div class="rs-row"><span>Months remaining</span><span class="rs-new">'+c.newMonths+'</span></div>'+
-      lastLine + rateLine + overLine + closed;
+      lastLine + overLine + closed;
   };
   window.applyRestructure=function(){
     if(typeof can==='function' && !can('edit')){ toast('⚠ You do not have permission to restructure loans. Ask an administrator.'); return; }
     var c=compute(); if(!c||!L) return;
-    if(c.lump<=0 && c.newEmi===(Number(L.emi)||0) && c.newRate===L.rate){ toast('Nothing to change — enter a payment, new EMI, tenure or rate'); return; }
+    if(c.lump<=0 && c.newEmi===(Number(L.emi)||0)){ toast('Nothing to change — enter a lump-sum payment, or set a new EMI / tenure'); return; }
     if(c.overpay>0 && !confirm('The amount entered is '+inr(c.overpay)+' MORE than the outstanding balance.\n\nOnly '+inr(c.lump)+' will be recorded against this loan and it will be closed. The excess '+inr(c.overpay)+' is NOT recorded here — return it to the customer or record it separately.\n\nContinue?')) return;
     var rsDate=$('rs_date').value||todayISO();
     snapBefore('Before restructure: '+(L.acno||''));
@@ -93,12 +111,12 @@
     // Rebase the going-forward schedule from today so the new (lower) EMI is spread over the remaining
     // months on the new outstanding — old payments no longer mark future installments as "Paid".
     L.baseDate=rsDate;
-    L.baseOut=c.newOut;
+    L.baseOut=Math.max(0,c.newTotal);
     L.paidBase=Number(L.paid)||0;
-    L.tpay=(Number(L.paid)||0)+Math.max(0,c.newOut);
+    L.tpay=(Number(L.paid)||0)+Math.max(0,c.newTotal);   // total payable = paid so far + re-planned balance (+ any fresh interest)
     L.dueManual=false;
     L.deductions=Number(L.deductions)||0;
-    L.outstanding=Math.max(0, c.newOut);
+    L.outstanding=Math.max(0, c.newTotal);
     if(L.outstanding<=0) L.status='Closed';
     L.restructuredAt=rsDate;
     recomputeLoan(L);
