@@ -22,7 +22,11 @@ html:not(.dark) body{ background:#F6F8FB !important; }
 html.dark body{ background:#0A0F1C !important; }
 
 /* ---- content rhythm: more breathing room ---- */
-.content{ padding:34px 40px 72px !important; }
+/* Large / wide screens (27"+): use much more of the width and CENTRE the content so it
+   never squishes to the left. Capped generously and centred so ultrawide (21:9/32:9)
+   monitors stay balanced and readable instead of stretching edge-to-edge. */
+.content{ padding:34px clamp(28px,3.2vw,64px) 80px !important; max-width:1860px !important; margin-left:auto !important; margin-right:auto !important; width:100% !important; }
+@media (min-width:2200px){ .content{ max-width:2040px !important; } }   /* very large / ultrawide */
 .panel{ border-radius:18px !important; padding:26px !important; margin-bottom:22px !important; }
 .an-row{ gap:22px !important; }
 .kpi-row{ gap:18px !important; }
