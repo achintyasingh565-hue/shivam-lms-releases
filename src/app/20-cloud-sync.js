@@ -364,7 +364,17 @@
       var _pend = pendingEditLoad();
       (loans || []).forEach(function (l) { if (l && l.id != null && lastHash[l.id] == null && _pend.indexOf(l.id) < 0) lastHash[l.id] = JSON.stringify(l); });
       setStatus('synced');
-      try { if (typeof pullUserRoster === 'function') await pullUserRoster(); } catch (_) {}   // adopt central user list
+      // Central user list: adopt it if the cloud has one; otherwise, if this is an
+      // admin's device, seed the cloud from here so new devices can adopt roles
+      // (stops a fresh install from defaulting to admin when a roster exists).
+      try {
+        if (typeof cloudGetSetting === 'function') {
+          var _rr = await cloudGetSetting('users');
+          var _cloudUsers = (_rr && _rr.data && Array.isArray(_rr.data.users)) ? _rr.data.users : null;
+          if (_cloudUsers && _cloudUsers.length) { if (typeof applyUserRoster === 'function') applyUserRoster(_cloudUsers); }
+          else if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin' && typeof autoPublishRoster === 'function') { await autoPublishRoster(); }
+        } else if (typeof pullUserRoster === 'function') { await pullUserRoster(); }
+      } catch (_) {}
       try { await maybeDailySnapshot(); } catch (_) {}   // central daily backup
       if (pollTimer) clearInterval(pollTimer);
       pollTimer = setInterval(poll, Math.max(3000, C.pollMs || 7000));
@@ -430,6 +440,22 @@
       if (!session) return null;
       try { var r = await api('/app_settings?select=data,updated_at,updated_by&key=eq.' + encodeURIComponent(key) + '&limit=1', { method: 'GET' });
         if (!r.ok) return null; var rows = await r.json(); return (rows && rows[0]) ? rows[0] : null; } catch (e) { return null; }
+    };
+    // Used by the lock screen on a device with NO local users: if this device
+    // already has a saved cloud session, load it and return the shared roster so
+    // the app can offer "Sign in" (adopt existing accounts) instead of "Set up"
+    // (which would wrongly create a new admin). Returns null if there's no saved
+    // session or no roster — in which case the normal setup flow proceeds.
+    window.cloudPeekRoster = async function () {
+      try {
+        if (!session) {
+          session = await loadSession();
+          if (session && session.refresh_token) { try { await saveSession(await authRefresh()); } catch (e) { clearSession(); } }
+        }
+        if (!session || !session.access_token) return null;
+        var row = await window.cloudGetSetting('users');
+        return (row && row.data && Array.isArray(row.data.users) && row.data.users.length) ? row.data.users : null;
+      } catch (e) { return null; }
     };
     window.cloudSetSetting = async function (key, data) {
       if (!session) return { ok: false, error: 'not signed in' };

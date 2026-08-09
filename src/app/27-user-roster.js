@@ -35,6 +35,20 @@
     }
     return changed;
   }
+  /* Silent auto-publish: keeps the cloud roster current whenever an admin adds a
+     user, changes a role, renames, or sets a password — so a brand-new device
+     always finds an up-to-date roster to adopt (fixes it defaulting to admin).
+     No toast, no audit spam; guarded by admin + an active cloud session. */
+  async function autoPublishRoster(){
+    try{
+      if(!currentUser || currentUser.role!=='admin') return false;
+      if(typeof cloudSetSetting!=='function') return false;
+      var roster=(typeof loadUsers==='function')?loadUsers():[];
+      if(!roster.length) return false;
+      var r=await cloudSetSetting('users', {users:roster, at:Date.now(), by:(currentUser.user||'')});
+      return !!(r && r.ok);
+    }catch(e){ return false; }
+  }
   async function pullUserRoster(){
     if(typeof cloudGetSetting!=='function') return false;
     try{ var row=await cloudGetSetting('users'); if(row && row.data && Array.isArray(row.data.users)){ return applyUserRoster(row.data.users); } }catch(e){}
@@ -45,4 +59,4 @@
     var isAdmin = currentUser ? currentUser.role==='admin' : true;
     el.textContent = isAdmin ? 'You are an administrator — you can publish the master user list.' : 'Roles are managed centrally by the administrator.';
   }
-  window.publishUserRoster=publishUserRoster; window.applyUserRoster=applyUserRoster; window.pullUserRoster=pullUserRoster; window.renderUserRosterPanel=renderUserRosterPanel;
+  window.publishUserRoster=publishUserRoster; window.applyUserRoster=applyUserRoster; window.pullUserRoster=pullUserRoster; window.autoPublishRoster=autoPublishRoster; window.renderUserRosterPanel=renderUserRosterPanel;

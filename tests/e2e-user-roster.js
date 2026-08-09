@@ -28,19 +28,42 @@ const path = require('path');
       { user: 'Sanidhya', name: 'Sanidhya', role: 'manager', hash: 'HASH_S2' }
     ];
     const changed = applyUserRoster(ownerRoster);
+    const liveRoleAfterAdopt = currentUser.role;   // capture BEFORE we reassign below
 
     const users = loadUsers();
     const find = u => users.find(x => x.user.toLowerCase() === u);
     const san = find('sanidhya');
-    return {
-      changed,
-      sanRole: san && san.role,
-      sanHashKept: san && san.hash === 'HASH_S',          // password NOT overwritten
-      currentRole: currentUser.role,                       // live session demoted
-      adminAdded: !!find('admin'),
-      localKept: !!find('localguy'),                       // local-only account not deleted
-      count: users.length
-    };
+
+    // ---- Auto-publish: an admin change must silently push the roster to the cloud
+    // so a fresh device has something to adopt (this is the fix for the Windows bug).
+    let published = null;
+    window.cloudSetSetting = async function (key, data) { published = { key, data }; return { ok: true }; };
+    currentUser = { user: 'admin', name: 'Achintya', role: 'admin' };  // an admin is signed in
+    const okReturn = typeof autoPublishRoster === 'function';
+    return (async () => {
+      let autoPubOk = false, autoPubKey = null, autoPubHasUsers = false, staffGuard = null;
+      if (okReturn) {
+        await autoPublishRoster();
+        autoPubOk = !!published;
+        autoPubKey = published && published.key;
+        autoPubHasUsers = !!(published && published.data && Array.isArray(published.data.users) && published.data.users.length);
+        // A non-admin must NOT be able to publish
+        published = null;
+        currentUser = { user: 'localguy', role: 'staff' };
+        await autoPublishRoster();
+        staffGuard = published === null;   // stayed null -> staff was blocked
+      }
+      return {
+        changed,
+        sanRole: san && san.role,
+        sanHashKept: san && san.hash === 'HASH_S',          // password NOT overwritten
+        currentRole: liveRoleAfterAdopt,                     // live session demoted on adopt
+        adminAdded: !!find('admin'),
+        localKept: !!find('localguy'),                       // local-only account not deleted
+        count: users.length,
+        autoPubExists: okReturn, autoPubOk, autoPubKey, autoPubHasUsers, staffGuard
+      };
+    })();
   });
 
   const checks = {
@@ -49,7 +72,10 @@ const path = require('path');
     'sanidhya password NOT changed':             out.sanHashKept === true,
     'signed-in session role updated live':       out.currentRole === 'manager',
     "owner's admin account added":               out.adminAdded === true,
-    'local-only account kept (no lockout)':      out.localKept === true
+    'local-only account kept (no lockout)':      out.localKept === true,
+    'auto-publish helper exists':                out.autoPubExists === true,
+    'admin change auto-publishes roster':        out.autoPubOk === true && out.autoPubKey === 'users' && out.autoPubHasUsers === true,
+    'non-admin cannot auto-publish':             out.staffGuard === true
   };
 
   console.log('\n===== CENTRAL USER LIST MERGE =====');

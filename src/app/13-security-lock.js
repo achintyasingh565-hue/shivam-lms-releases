@@ -220,6 +220,7 @@
     if(users.some(x=>x.user.toLowerCase()===user.toLowerCase())){ toast('That username already exists'); return; }
     users.push({user, name, role, hash:await makeHash(pass)});
     saveUsers(users); logAudit('User Added', user+' ('+role+')'); $('nuUser').value='';$('nuName').value='';$('nuPass').value=''; renderSecPanel(); toast('Team member added');
+    try{ if(typeof autoPublishRoster==='function') autoPublishRoster(); }catch(e){}
   }
   function removeUser(uname){
     if(!currentUser || currentUser.role!=='admin') return;
@@ -228,6 +229,7 @@
     if(target && target.role==='admin' && users.filter(x=>x.role==='admin').length<=1){ toast('Cannot remove the only admin'); return; }
     if(currentUser && uname===currentUser.user){ toast('You cannot remove your own account while signed in'); return; }
     users=users.filter(x=>x.user!==uname); saveUsers(users); logAudit('User Removed', uname); renderSecPanel(); toast('Team member removed');
+    try{ if(typeof autoPublishRoster==='function') autoPublishRoster(); }catch(e){}
   }
   window.editUserPass=function(user){
     if(!currentUser || currentUser.role!=='admin'){ toast('Only an Administrator can do this'); return; }
@@ -270,6 +272,7 @@
     u.name=nm; saveUsers(users);
     if(currentUser && currentUser.user===user) currentUser.name=nm;
     try{ logAudit('User Renamed', oldName+' \u2192 '+nm); }catch(e){}
+    try{ if(typeof autoPublishRoster==='function') autoPublishRoster(); }catch(e){}
     renderSecPanel(); updateProfileUI();
     toast('Name updated');
   };
@@ -529,5 +532,25 @@
        Nothing is decrypted into the renderer any more. */
     return;
   }
-  function initLock(){ ensureMigrated(); renderSecPanel(); const users=loadUsers(); const mode=(users&&users.length)?'login':'setup'; showLock(); setAuthMode(mode); initSecureToken(); }
+  function initLock(){
+    ensureMigrated(); renderSecPanel();
+    const users=loadUsers();
+    showLock(); initSecureToken();
+    if(users && users.length){ setAuthMode('login'); return; }
+    // No local users. Default to setup, but if THIS device already has a saved cloud
+    // session, adopt the shared roster and switch to "Sign in" instead of creating a
+    // new admin. (A brand-new install with no saved session just does normal setup.)
+    setAuthMode('setup');
+    (async function(){
+      try{
+        if(typeof cloudPeekRoster==='function'){
+          const roster=await cloudPeekRoster();
+          if(roster && roster.length && typeof applyUserRoster==='function'){
+            applyUserRoster(roster);
+            if(loadUsers().length && authMode==='setup'){ setAuthMode('login'); try{ renderSecPanel(); }catch(e){} }
+          }
+        }
+      }catch(e){}
+    })();
+  }
 
