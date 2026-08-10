@@ -53,8 +53,15 @@ const path = require('path');
     renderGreetings();
     const gl = (window._grList || [])[0] || {};
     const closedMsg = gl.msg || '';
+    // Meta template variable list for Loan Closed must be 3 params (name, acno,
+    // disbursed) so the Cloud API send matches a 3-placeholder approved template.
+    const waClosed = (typeof loadWaTpl === 'function') ? (loadWaTpl()['Loan Closed'] || {}) : {};
+    const waClosedVars = waClosed.vars || '';
+    // the 3rd variable resolves to a real value (the loan amount)
+    const closedVarVals = (gl.vars || {});
 
     return {
+      waClosedVars, closedDisbursedVal: closedVarVals.disbursed || '',
       formAmount, formSecured, certAmount, certSecured, rcptAmount, rcptSecured,
       certNoteShown, rcptNoteShown, certNoteText, certSecuredHi, noteHiOk,
       noteHiddenWhenUnsecured, unsecuredLabel, closedMsg
@@ -71,6 +78,8 @@ const path = require('path');
     'unsecured hides the handover note':          out.noteHiddenWhenUnsecured === true && /Unsecured/.test(out.unsecuredLabel),
     'closing msg shows full amount 30,000 + A/C': /30,000/.test(out.closedMsg) && !/28,800/.test(out.closedMsg) && /SE-9001/.test(out.closedMsg),
     'closing msg has no leftover placeholder':    out.closedMsg.indexOf('{disbursed}') < 0,
+    'Meta Loan Closed sends 3 vars (name,acno,disbursed)': out.waClosedVars === 'name,acno,disbursed',
+    'the disbursed Meta var carries the amount':   /30,000/.test(out.closedDisbursedVal),
     'no page errors':                             errs.length === 0
   };
 
