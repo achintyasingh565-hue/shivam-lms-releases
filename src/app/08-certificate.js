@@ -428,7 +428,10 @@
     const l=loans.find(x=>x.id===id); if(!l) return;
     $('f_name').value=l.name||''; $('f_reltype').value=l.reltype||'son of'; $('f_relname').value=l.relname||'';
     $('f_addr').value=l.addr||''; $('f_loan').value=(l.type||'Personal').toLowerCase()+' loan';
-    $('f_ref').value=l.acno||''; updateCert();
+    $('f_ref').value=l.acno||'';
+    if($('f_amount')) $('f_amount').value=(Number(l.principal)||0)||'';
+    if($('f_secured')) $('f_secured').value=l.secured?'yes':'no';
+    updateCert();
     toast('Details loaded from '+l.name);
   }
   function certFromLoan(id){ go('cert'); refreshLoanDropdown(); $('loadLoan').value=id; loadFromLoan(); }
@@ -451,6 +454,17 @@
     $('r_addr').textContent=addr||dash; $('r_loan').textContent=loan;
     $('r_t_name').textContent=name||"—"; $('r_t_addr').textContent=addr||"—"; $('r_t_loan').textContent=hi?loan:loanCap(loan);
     $('r_t_ref').textContent=ref||"—"; $('r_t_mode').textContent=mode; $('r_t_date').textContent=date||"—";
+    // Loan amount + security (shown on both the certificate and the receipt)
+    var amt=Number(($('f_amount')||{}).value)||0;
+    var amtTxt=amt>0?('Rs. '+amt.toLocaleString('en-IN')):dash;
+    var secured=(($('f_secured')||{}).value==='yes');
+    var secTxt=hi?(secured?'सुरक्षित / बंधक ऋण':'असुरक्षित ऋण'):(secured?'Secured / Mortgaged':'Unsecured');
+    if($('c_t_amount')) $('c_t_amount').textContent=amtTxt;
+    if($('c_t_secured')) $('c_t_secured').textContent=secTxt;
+    if($('r_t_amount')) $('r_t_amount').textContent=amtTxt;
+    if($('r_t_secured')) $('r_t_secured').textContent=secTxt;
+    if($('c_secnote')) $('c_secnote').style.display=secured?'':'none';
+    if($('r_secnote')) $('r_secnote').style.display=secured?'':'none';
   }
   window._certLang='en';
   function applyFirmToDocs(){
@@ -478,7 +492,12 @@
       : 'The full and final payment of the loan has been received and the loan account stands closed. The borrower has no outstanding dues against the said loan, and any charge or mortgage held by us as security stands released.';
     pc.querySelector('.sec-h').textContent = hi?'पक्षकार विवरण':'PARTY DETAILS';
     var ck=pc.querySelectorAll('table.details td.k');
-    ck[0].textContent=hi?'उधारकर्ता का नाम':'Name of Borrower'; ck[1].textContent=hi?'पता':'Address'; ck[2].textContent=hi?'भुगतान का माध्यम':'Mode of Payment';
+    ck[0].textContent=hi?'उधारकर्ता का नाम':'Name of Borrower'; ck[1].textContent=hi?'पता':'Address';
+    if(ck[2])ck[2].textContent=hi?'ऋण राशि':'Loan Amount'; if(ck[3])ck[3].textContent=hi?'प्रतिभूति':'Security';
+    if(ck[4])ck[4].textContent=hi?'भुगतान का माध्यम':'Mode of Payment';
+    var csn=document.getElementById('c_secnote'); if(csn) csn.textContent=hi
+      ? 'यह ऋण एक सुरक्षित / बंधक ऋण था। प्रतिभूति स्वरूप रखे गए मूल संपत्ति / बंधक कागजात एवं स्वामित्व दस्तावेज़ मुक्त कर उधारकर्ता को पूर्णतः लौटा दिए गए हैं।'
+      : 'This loan was a secured / mortgaged loan. The original property / mortgage papers and title documents held as security have been released and handed back to the borrower in full.';
     var csig=pc.querySelectorAll('.sigblock .sigcol');
     csig[0].querySelector('.ln').textContent=hi?'ग्राहक की पावती':'Customer Acknowledgement';
     csig[1].querySelector('.regards').innerHTML=hi?'सादर,<br><b>शिवम एंटरप्राइजेज की ओर से</b>':'With Regards,<br><b>For Shivam Enterprises</b>';
@@ -502,9 +521,12 @@
       : 'I confirm that the full and final payment has been made and no dues are outstanding against my account. I have no further claims against Shivam Enterprises in this regard.';
     pr.querySelector('.sec-h').textContent = hi?'ऋण विवरण':'LOAN DETAILS';
     var rk=pr.querySelectorAll('table.details td.k');
-    var rl=hi?['उधारकर्ता का नाम','पता','ऋण का प्रकार','रसीद संख्या','भुगतान का माध्यम','प्रमाण पत्र दिनांक']
-             :['Name of Borrower','Address','Loan Type','Receipt No.','Mode of Payment','No Dues Cert. Date'];
+    var rl=hi?['उधारकर्ता का नाम','पता','ऋण का प्रकार','ऋण राशि','प्रतिभूति','रसीद संख्या','भुगतान का माध्यम','प्रमाण पत्र दिनांक']
+             :['Name of Borrower','Address','Loan Type','Loan Amount','Security','Receipt No.','Mode of Payment','No Dues Cert. Date'];
     rk.forEach(function(td,i){ if(rl[i]) td.textContent=rl[i]; });
+    var rsn=document.getElementById('r_secnote'); if(rsn) rsn.textContent=hi
+      ? 'मैं यह भी स्वीकार करता/करती हूँ कि यह एक सुरक्षित / बंधक ऋण था, तथा प्रतिभूति स्वरूप रखे गए मूल संपत्ति / बंधक कागजात एवं स्वामित्व दस्तावेज़ मुझे पूर्णतः लौटा दिए गए हैं।'
+      : 'I further acknowledge that this was a secured / mortgaged loan, and that the original property / mortgage papers and title documents held as security have been returned and handed back to me in full.';
     var rsig=pr.querySelectorAll('.sigblock .sigcol');
     rsig[0].querySelector('.ln').textContent=hi?'उधारकर्ता के हस्ताक्षर':'Signature of Borrower';
     var s2=rsig[0].querySelector('.sub2'); if(s2) s2.textContent=hi?'(ग्राहक)':'(Customer)';

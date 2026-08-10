@@ -72,7 +72,7 @@
     $('m_name').value=f.name||''; $('m_acno').value=f.acno||(id?'':'SE-'+(loans.length+1).toString().padStart(4,'0'));
     $('m_reltype').value=f.reltype||'son of'; $('m_relname').value=f.relname||'';
     $('m_phone').value=f.phone||''; $('m_addr').value=f.addr||'';
-    $('m_type').value=f.type||'Personal'; $('m_principal').value=f.principal||''; $('m_rate').value=f.rate||'';
+    $('m_type').value=f.type||'Personal'; if($('m_secured'))$('m_secured').value=f.secured?'yes':'no'; $('m_principal').value=f.principal||''; $('m_rate').value=f.rate||'';
     $('m_disb').value=f.disb||''; $('m_tenure').value=f.tenure||''; $('m_tint').value=f.tint||''; $('m_tpay').value=f.tpay||'';
     $('m_emi').value=f.emi||''; $('m_due').value=f.due||'';
     // Only treat the Next Due Date as a manual override if this record was explicitly
@@ -250,7 +250,7 @@
       id: editId||('L'+Date.now()),
       name, acno, reltype:$('m_reltype').value, relname:$('m_relname').value.trim(),
       phone:normPhone($('m_phone').value), addr:$('m_addr').value.trim(), ids:_idList, idproof:_idMir.idproof, pan:_idMir.pan,
-      type:$('m_type').value, principal:Number($('m_principal').value)||0, rate:Number($('m_rate').value)||0,
+      type:$('m_type').value, secured:(($('m_secured')||{}).value==='yes'), principal:Number($('m_principal').value)||0, rate:Number($('m_rate').value)||0,
       disb:$('m_disb').value, tenure:Number($('m_tenure').value)||0, tint:Number($('m_tint').value)||0,
       tpay:_safeTotals().tpay, emi:_safeTotals().emi, due:$('m_due').value,
       paid:Number($('m_paid').value)||0, outstanding:out, status:$('m_status').value, payments:(modalPayments||[]).map(p=>({...p})),

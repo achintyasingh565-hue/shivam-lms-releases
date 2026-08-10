@@ -23,7 +23,7 @@
   }
   function closeInstall(){ const m=$('installOverlay'); if(m) m.classList.remove('show'); }
 
-  function resetCert(){ ['f_name','f_relname','f_addr','f_ref'].forEach(id=>$(id).value=""); $('f_loan').value="personal loan"; $('f_mode').value="Cash"; $('f_reltype').value="son of"; $('f_date').value=todayISO(); $('loadLoan').value=""; updateCert(); }
+  function resetCert(){ ['f_name','f_relname','f_addr','f_ref','f_amount'].forEach(id=>{ if($(id)) $(id).value=""; }); $('f_loan').value="personal loan"; $('f_mode').value="Cash"; $('f_reltype').value="son of"; if($('f_secured'))$('f_secured').value="no"; $('f_date').value=todayISO(); $('loadLoan').value=""; updateCert(); }
 
   /* ---------- backup ---------- */
   function download(filename, text, type){
