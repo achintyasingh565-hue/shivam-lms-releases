@@ -69,7 +69,7 @@ const path = require('path');
     'handover note mentions property papers':     /property\s*\/\s*mortgage papers/i.test(out.certNoteText),
     'Hindi translates status + note':             /सुरक्षित|बंधक/.test(out.certSecuredHi) && out.noteHiOk === true,
     'unsecured hides the handover note':          out.noteHiddenWhenUnsecured === true && /Unsecured/.test(out.unsecuredLabel),
-    'closing msg shows disbursed 28,800 + A/C':   /28,800/.test(out.closedMsg) && /SE-9001/.test(out.closedMsg),
+    'closing msg shows full amount 30,000 + A/C': /30,000/.test(out.closedMsg) && !/28,800/.test(out.closedMsg) && /SE-9001/.test(out.closedMsg),
     'closing msg has no leftover placeholder':    out.closedMsg.indexOf('{disbursed}') < 0,
     'no page errors':                             errs.length === 0
   };
