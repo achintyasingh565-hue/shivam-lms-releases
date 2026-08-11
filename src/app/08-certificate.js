@@ -447,6 +447,7 @@
     const hi=(window._certLang==='hi');
     $('c_ref').textContent=ref||"______"; $('c_ref2').textContent=ref||"______"; $('c_date').textContent=date||"______";
     $('c_name').textContent=name||dash; $('c_addr').textContent=addr||dash; $('c_loan').textContent=loan; $('c_mode').textContent=mode;
+    if($('c_rel')) $('c_rel').textContent=relname?(", "+_clRel(relt)+" "+relname):"";
     $('c_t_name').textContent=name||"—"; $('c_t_addr').textContent=addr||"—"; $('c_t_mode').textContent=mode;
     $('r_ref').textContent=ref||"______"; $('r_date').textContent=date||"______";
     $('r_name').textContent=name||dash;
@@ -485,8 +486,8 @@
       : '<div>Ref. No.: <span class="v" id="c_ref">______</span></div><div>Date: <span class="v" id="c_date">______</span></div>';
     pc.querySelector('.doc-title').textContent = hi?'अदेयता प्रमाण पत्र':'NO DUES CERTIFICATE';
     pc.querySelector('.body-txt.cert').innerHTML = hi
-      ? 'प्रमाणित किया जाता है कि श्री / श्रीमती / कुमारी <span class="fillv" id="c_name"></span>, निवासी <span class="fillv" id="c_addr"></span>, ने शिवम एंटरप्राइजेज से ऋण खाता संख्या <span class="fillv" id="c_ref2"></span> के अंतर्गत <span class="fillv" id="c_loan"></span> प्राप्त किया था, जिसका पूर्ण भुगतान <span class="fillv" id="c_mode"></span> द्वारा कर दिया गया है।'
-      : 'This is to certify that Shri / Smt. / Km. <span class="fillv" id="c_name"></span>, resident of <span class="fillv" id="c_addr"></span>, had availed a <span class="fillv" id="c_loan"></span> from Shivam Enterprises vide Loan A/C No. <span class="fillv" id="c_ref2"></span>, and the same has been fully repaid by <span class="fillv" id="c_mode"></span>.';
+      ? 'प्रमाणित किया जाता है कि श्री / श्रीमती / कुमारी <span class="fillv" id="c_name"></span><span class="relinline" id="c_rel"></span>, निवासी <span class="fillv" id="c_addr"></span>, ने शिवम एंटरप्राइजेज से ऋण खाता संख्या <span class="fillv" id="c_ref2"></span> के अंतर्गत <span class="fillv" id="c_loan"></span> प्राप्त किया था, जिसका पूर्ण भुगतान <span class="fillv" id="c_mode"></span> द्वारा कर दिया गया है।'
+      : 'This is to certify that Shri / Smt. / Km. <span class="fillv" id="c_name"></span><span class="relinline" id="c_rel"></span>, resident of <span class="fillv" id="c_addr"></span>, had availed a <span class="fillv" id="c_loan"></span> from Shivam Enterprises vide Loan A/C No. <span class="fillv" id="c_ref2"></span>, and the same has been fully repaid by <span class="fillv" id="c_mode"></span>.';
     pc.querySelectorAll('.body-txt')[1].textContent = hi
       ? 'ऋण का पूर्ण एवं अंतिम भुगतान प्राप्त हो चुका है तथा ऋण खाता बंद कर दिया गया है। उक्त ऋण के संबंध में उधारकर्ता पर कोई बकाया शेष नहीं है, और प्रतिभूति स्वरूप हमारे पास रखा कोई भी प्रभार अथवा बंधक मुक्त कर दिया गया है।'
       : 'The full and final payment of the loan has been received and the loan account stands closed. The borrower has no outstanding dues against the said loan, and any charge or mortgage held by us as security stands released.';

@@ -16,7 +16,8 @@ const path = require('path');
     const $ = id => document.getElementById(id);
 
     // A secured loan of Rs 30,000 with Rs 1,200 deductions -> Rs 28,800 disbursed.
-    const secured = { id: 'S1', name: 'Ramesh Kumar', acno: 'SE-9001', phone: '9838100001',
+    const secured = { id: 'S1', name: 'Savitri Devi', acno: 'SE-9001', phone: '9838100001',
+      reltype: 'wife of', relname: 'Virendra Kumar Singh',
       type: 'Mortgage', secured: true, principal: 30000, deductions: 1200, rate: 2, tenure: 12,
       tint: 7200, tpay: 37200, emi: 3100, disb: '2026-01-05', paid: 0, payments: [] };
     loans.splice(0, loans.length, secured);
@@ -34,6 +35,8 @@ const path = require('path');
     const certNoteShown = $('c_secnote').style.display !== 'none';
     const rcptNoteShown = $('r_secnote').style.display !== 'none';
     const certNoteText = $('c_secnote').textContent;
+    const certRel = $('c_rel').textContent;               // relation now shown on the certificate
+    const rcptRel = $('r_rel').textContent;               // and on the receipt
 
     // ---- Hindi: labels + note translate ----
     setCertLang('hi');
@@ -61,6 +64,7 @@ const path = require('path');
     const closedVarVals = (gl.vars || {});
 
     return {
+      certRel, rcptRel,
       waClosedVars, closedDisbursedVal: closedVarVals.disbursed || '',
       formAmount, formSecured, certAmount, certSecured, rcptAmount, rcptSecured,
       certNoteShown, rcptNoteShown, certNoteText, certSecuredHi, noteHiOk,
@@ -70,6 +74,8 @@ const path = require('path');
 
   const checks = {
     'cert form auto-fills amount + secured':      out.formAmount === '30000' && out.formSecured === 'yes',
+    'certificate shows the relation (wife of X)': /wife of Virendra Kumar Singh/.test(out.certRel),
+    'receipt shows the relation (wife of X)':     /wife of Virendra Kumar Singh/.test(out.rcptRel),
     'certificate shows Rs 30,000 + Secured':      /30,000/.test(out.certAmount) && /Secured/.test(out.certSecured),
     'receipt shows Rs 30,000 + Secured':          /30,000/.test(out.rcptAmount) && /Secured/.test(out.rcptSecured),
     'secured handover note shown on both':        out.certNoteShown === true && out.rcptNoteShown === true,
