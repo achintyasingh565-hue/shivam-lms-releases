@@ -106,6 +106,17 @@
     $('m_caseno').value=f.caseno||''; $('m_refno').value=f.refno||''; $('m_product').value=f.product||''; $('m_dealer').value=f.dealer||''; $('m_downpay').value=f.downpay||''; $('m_officer').value=f.officer||'';
     $('m_deductions').value=f.deductions!=null?f.deductions:0; $('m_remaining').value=Math.max(0,(Number(f.principal)||0)-(Number(f.deductions)||0));
     $('m_propdesc').value=f.propdesc||''; $('m_propaddr').value=f.propaddr||''; $('m_proparea').value=f.proparea||''; $('m_propvalue').value=f.propvalue||''; $('m_bN').value=f.bN||''; $('m_bS').value=f.bS||''; $('m_bE').value=f.bE||''; $('m_bW').value=f.bW||''; $('m_title').value=f.title||'';
+    // Manual-override tracking for Total Payable / EMI: if a saved loan's figures don't
+    // match the flat-interest formula (hand-entered, or an unknown tenure), keep them as
+    // they are instead of letting recalc overwrite them. New loans start fully automatic.
+    window._tpayManual=false; window._emiManual=false;
+    try{
+      if(id){
+        var _ct=calcLoanTotals(Number(f.principal)||0, Number(f.rate)||0, Number(f.tenure)||0);
+        if(Number(f.tpay)>0 && Number(f.tpay)!==_ct.tpay) window._tpayManual=true;
+        if(Number(f.emi)>0  && Number(f.emi)!==_ct.emi)  window._emiManual=true;
+      }
+    }catch(e){}
     modalPayments = Array.isArray(f.payments)? f.payments.map(p=>({...p})) : [];
     if(!modalPayments.length && Number(f.paid)>0){ modalPayments=[{date:f.disb||todayISO(), mode:'Cash', amount:Number(f.paid), cheque:'', bank:'', status:'Cleared'}]; }
     if($('pay_date')) $('pay_date').value=todayISO();
@@ -158,13 +169,29 @@
     if($('dot-terms')) $('dot-terms').classList.toggle('show', !!tMiss);
   }catch(e){} }
   window._loanRefresh=function(){ updateLoanSummary(); updateLoanTabDots(); };
+  /* Manual control over Total Payable / Monthly EMI. Typing a value "pins" it so the
+     auto-calculator won't overwrite it (useful when the tenure/rate aren't known, or
+     the EMI was agreed by hand). Clearing the field hands control back to the formula. */
+  window.loanFigEdited=function(which){
+    var el=$(which==='emi'?'m_emi':'m_tpay');
+    var manual=!!(el && String(el.value).trim()!=='');
+    if(which==='emi') window._emiManual=manual; else window._tpayManual=manual;
+    if(!manual){ try{ recalc(); }catch(e){} } else { try{ updateLoanSummary(); }catch(e){} }
+  };
   function recalc(){
     const p=Number($('m_principal').value)||0, r=Number($('m_rate').value)||0, n=Number($('m_tenure').value)||0;
     if(p>0 && r>=0 && n>0){
-      const _t=calcLoanTotals(p,r,n); $('m_tint').value=_t.tint; $('m_tpay').value=_t.tpay; $('m_emi').value=_t.emi;
+      const _t=calcLoanTotals(p,r,n);
+      $('m_tint').value=_t.tint;
+      if(!window._tpayManual) $('m_tpay').value=_t.tpay;   // keep a hand-entered Total Payable
+      if(!window._emiManual)  $('m_emi').value=_t.emi;      // keep a hand-entered Monthly EMI
     }
     const ded=Number($('m_deductions').value)||0;
-    $('m_remaining').value=Math.max(0,p-ded);
+    const dp=Number($('m_downpay').value)||0;
+    // Net cash handed to the customer = principal minus processing/deductions minus any
+    // down payment. The customer still owes the FULL loan amount (this only reduces the
+    // cash paid out, exactly like the processing fee).
+    $('m_remaining').value=Math.max(0,p-ded-dp);
     // Build a temp record and run the REAL recomputeLoan so the preview — Next Due Date,
     // status, and outstanding (incl. cheque-bounce fees) — matches exactly what saving
     // will produce. This is what keeps the due date in sync with the disbursement date,
@@ -257,14 +284,16 @@
     if(badNum){ toast('\u26a0 '+badNum+' is not a valid number. Please enter digits only.'); return; }
     if(principal<=0){ toast('\u26a0 Please enter the loan amount (principal) \u2014 it must be greater than zero.'); focusLoanField('m_principal'); return; }
     var _tenureV=Number($('m_tenure').value)||0;
-    if(_tenureV<=0 || Math.round(_tenureV)!==_tenureV){ toast('\u26a0 Tenure must be a whole number of months greater than zero.'); focusLoanField('m_tenure'); return; }
+    // Tenure may be left blank (0) when it isn't known yet \u2014 the loan still saves; you
+    // fill the tenure/EMI later. Only a negative or fractional month count is rejected.
+    if(_tenureV<0 || (_tenureV>0 && Math.round(_tenureV)!==_tenureV)){ toast('\u26a0 Tenure must be a whole number of months (or leave it blank if it isn\u2019t decided yet).'); focusLoanField('m_tenure'); return; }
     if((Number($('m_rate').value)||0)<0){ toast('\u26a0 Interest rate cannot be negative.'); focusLoanField('m_rate'); return; }
     if((Number($('m_emi').value)||0)<0 || (Number($('m_tpay').value)||0)<0 || (Number($('m_paid').value)||0)<0 || (Number($('m_deductions').value)||0)<0){ toast('\u26a0 Amounts cannot be negative. Please check EMI, total payable, paid and deductions.'); return; }
     /* sensible upper bounds \u2014 catch typos (extra zeros) before they reach the ledger */
     if(principal>1000000000){ toast('\u26a0 The loan amount looks too large \u2014 please check (limit \u20b9100 crore).'); focusLoanField('m_principal'); return; }
     if((Number($('m_rate').value)||0)>100){ toast('\u26a0 The interest rate looks too high \u2014 please check (over 100%).'); focusLoanField('m_rate'); return; }
     if(_tenureV>600){ toast('\u26a0 The tenure looks too long \u2014 please check (over 600 months / 50 years).'); focusLoanField('m_tenure'); return; }
-    const out=Math.max(0,(Number($('m_tpay').value)||0)-(Number($('m_paid').value)||0));
+    const out=Math.max(0,(_safeTotals().tpay)-(Number($('m_paid').value)||0));
     // Merge onto the existing record so fields the modal doesn't edit — charges
     // (bounce/late fees), restructure baseline, date of birth, etc. — are NOT lost
     // on edit. The explicit fields below still overwrite whatever the form changed.
