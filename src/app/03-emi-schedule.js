@@ -26,24 +26,27 @@
     // Applied late-fee charges, mapped to the EMI month they were charged for.
     var lateByIdx={}, totalLate=0;
     (l.charges||[]).forEach(function(c){ if(c && c.type==='Late fee'){ var amt=Number(c.amount)||0; totalLate+=amt; if(c.emiIdx) lateByIdx[c.emiIdx]=(lateByIdx[c.emiIdx]||0)+amt; } });
-    var rows=[]; var paidCount=0; var cumLate=0;
+    // Each cleared payment is credited to the MONTH it was actually received (see
+    // emiPaidByIndex) — so a skipped month stays unpaid instead of being back-filled from
+    // the running total, and the schedule matches the payment register.
+    var alloc=(typeof emiPaidByIndex==='function')?emiPaidByIndex(l):null;
+    var rows=[]; var paidCount=0; var cumLate=0; var cumAlloc=0;
     for(var i=1;i<=n;i++){
       var dueD = emiDueDate(l,i);
       // last installment absorbs any rounding so the schedule sums exactly to the payable
       var thisEmi = (i<n) ? emi : Math.max(0, total-emi*(n-1));
-      var prevCum = emi*(i-1);
-      var cumThis = (i<n) ? emi*i : total;
-      // portion of total cleared payments allocated to THIS installment
-      var allocated=Math.max(0, Math.min(thisEmi, cleared-prevCum));
+      // amount credited to THIS installment (date-matched), with a safe waterfall fallback
+      var allocated = alloc ? Math.round(alloc[i]||0) : Math.max(0, Math.min(thisEmi, cleared-emi*(i-1)));
+      cumAlloc += allocated;
       var lf=lateByIdx[i]||0; cumLate+=lf;                       // late fee charged for this month
-      var bal=Math.max(0, total-Math.min(cleared, cumThis)) + cumLate;  // balance carries accrued late fees
+      var bal=Math.max(0, total-cumAlloc) + cumLate;            // balance reflects date-matched payments + accrued late fees
       var st;
       if(allocated>=thisEmi && thisEmi>0){ st='Paid'; paidCount++; }
       else if(allocated>0){ st='Partial'; }
       else if(dueD && dueD<t){ st='Overdue'; }
       else if(dueD && repDaysBetween(t,dueD)<=7){ st='Due soon'; }
       else { st='Upcoming'; }
-      rows.push({i:i,due:dueD,emi:thisEmi,paid:Math.round(allocated),lateFee:lf,bal:bal,st:st});
+      rows.push({i:i,due:dueD,emi:thisEmi,paid:allocated,lateFee:lf,bal:bal,st:st});
     }
     return {rows:rows,emi:emi,n:n,total:total,cleared:cleared,paidCount:paidCount,totalLate:totalLate};
   }

@@ -87,12 +87,23 @@
      What was expected in the period (EMIs that fell due) versus what actually came in. */
   function repEfficiencyData(){
     var f=($('effFrom')&&$('effFrom').value)||'', t=($('effTo')&&$('effTo').value)||'';
+    var today=todayISO();
+    // "Expected" counts EVERY EMI actually scheduled due inside the period — but never
+    // beyond today, so EMIs that aren't due yet don't drag the efficiency down.
+    var hi = t ? (t<today?t:today) : today;
     var expected=0, collected=0, rows=[];
     loans.forEach(function(l){
-      var emi=Number(l.emi)||0;
-      var due=l.due||'';
-      var inRange = due && (!f || due>=f) && (!t || due<=t);
-      var exp = inRange ? emi : 0;
+      var emi=Math.round(Number(l.emi)||0);
+      var n=Math.max(0,Math.round(Number(l.tenure)||0));
+      var total=(l.baseOut!=null)?Math.max(0,Number(l.baseOut)):((Number(l.tpay)>0)?Number(l.tpay):emi*n);
+      var emiOf=function(i){ return (i<n)?emi:Math.max(0,total-emi*(n-1)); };
+      var exp=0, dueCount=0, lastDue='';
+      for(var i=1;i<=n;i++){
+        var d=(typeof emiDueDate==='function')?emiDueDate(l,i):null; if(!d) continue;
+        if(f && d<f) continue;
+        if(d>hi) continue;                       // only EMIs already due within the window
+        exp+=emiOf(i); dueCount++; lastDue=d;
+      }
       var got=0;
       (l.payments||[]).forEach(function(p){
         if(p.status!=='Cleared') return;
@@ -103,7 +114,7 @@
       });
       if(exp>0 || got>0){
         expected+=exp; collected+=got;
-        rows.push({name:l.name, acno:l.acno, due:due, expected:exp, collected:got,
+        rows.push({name:l.name, acno:l.acno, due:lastDue, dueCount:dueCount, expected:exp, collected:got,
                    pct: exp>0 ? Math.round(got/exp*100) : null,
                    arrears:Number(l.arrears)||0, status:autoStatus(l)});
       }
@@ -132,10 +143,10 @@
       +'<div class="bk-card" style="flex:1;min-width:160px;"><div class="ph-sub">Collected</div><div style="font-size:20px;font-weight:700;">'+inr(D.collected)+'</div></div>'
       +'<div class="bk-card" style="flex:1;min-width:160px;"><div class="ph-sub">Efficiency</div><div style="font-size:20px;font-weight:700;color:'+col+';">'+(D.pct===null?'\u2014':(D.pct+'%'))+'</div></div>'
       +'</div>';
-    var t='<div class="table-wrap"><table class="data"><thead><tr><th>Borrower</th><th>A/C No.</th><th>Due date</th><th class="right">Expected</th><th class="right">Collected</th><th class="right">%</th><th>Status</th></tr></thead><tbody>'
+    var t='<div class="table-wrap"><table class="data"><thead><tr><th>Borrower</th><th>A/C No.</th><th class="right">EMIs due</th><th class="right">Expected</th><th class="right">Collected</th><th class="right">%</th><th>Status</th></tr></thead><tbody>'
       + (D.rows.length? D.rows.map(function(r){
           var c = r.pct===null?'':(r.pct>=100?'color:#16a34a;':(r.pct>0?'color:#c8a02a;':'color:#dc2626;'));
-          return '<tr><td class="name">'+esc(r.name)+'</td><td>'+esc(r.acno)+'</td><td>'+(r.due?fmtDate(r.due):'\u2014')+'</td>'
+          return '<tr><td class="name">'+esc(r.name)+'</td><td>'+esc(r.acno)+'</td><td class="right">'+(r.dueCount||0)+'</td>'
             +'<td class="right num">'+(r.expected?inr(r.expected):'\u2014')+'</td><td class="right num">'+inr(r.collected)+'</td>'
             +'<td class="right num" style="'+c+'font-weight:600;">'+(r.pct===null?'\u2014':(r.pct+'%'))+'</td>'
             +'<td><span class="badge '+r.status.toLowerCase()+'">'+r.status+'</span></td></tr>';
@@ -147,13 +158,13 @@
   function repEfficiencyCSV(){
     var D=repEfficiencyData();
     repCSV('Collection_Efficiency_'+todayISO()+'.csv',
-      ['Borrower','A/C No','Due date','Expected','Collected','Efficiency %','Status'],
-      D.rows.map(function(r){ return [r.name,r.acno,r.due,r.expected,r.collected,(r.pct===null?'':r.pct),r.status]; }));
+      ['Borrower','A/C No','EMIs due','Expected','Collected','Efficiency %','Status'],
+      D.rows.map(function(r){ return [r.name,r.acno,(r.dueCount||0),r.expected,r.collected,(r.pct===null?'':r.pct),r.status]; }));
   }
   function repEfficiencyPrint(){
     var D=repEfficiencyData();
-    var t='<table><thead><tr><th>Borrower</th><th>A/C No.</th><th>Due date</th><th class="r">Expected</th><th class="r">Collected</th><th class="r">%</th></tr></thead><tbody>'
-      + D.rows.map(function(r){ return '<tr><td>'+esc(r.name)+'</td><td>'+esc(r.acno)+'</td><td>'+(r.due?fmtDate(r.due):'\u2014')+'</td><td class="r">'+(r.expected?inr(r.expected):'\u2014')+'</td><td class="r">'+inr(r.collected)+'</td><td class="r">'+(r.pct===null?'\u2014':(r.pct+'%'))+'</td></tr>'; }).join('')
+    var t='<table><thead><tr><th>Borrower</th><th>A/C No.</th><th class="r">EMIs due</th><th class="r">Expected</th><th class="r">Collected</th><th class="r">%</th></tr></thead><tbody>'
+      + D.rows.map(function(r){ return '<tr><td>'+esc(r.name)+'</td><td>'+esc(r.acno)+'</td><td class="r">'+(r.dueCount||0)+'</td><td class="r">'+(r.expected?inr(r.expected):'\u2014')+'</td><td class="r">'+inr(r.collected)+'</td><td class="r">'+(r.pct===null?'\u2014':(r.pct+'%'))+'</td></tr>'; }).join('')
       + '<tr class="tot"><td colspan="3">Total</td><td class="r">'+inr(D.expected)+'</td><td class="r">'+inr(D.collected)+'</td><td class="r">'+(D.pct===null?'\u2014':(D.pct+'%'))+'</td></tr>'
       + '</tbody></table>';
     printReport('Collection Efficiency Report',

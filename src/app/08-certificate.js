@@ -219,6 +219,7 @@
     const cnt=rows.length;
     if(q) rows=rows.filter(r=>(r.name+' '+r.acno+' '+r.cheque+' '+r.bank).toLowerCase().includes(q));
     if(f==='Cash') rows=rows.filter(r=>r.mode==='Cash');
+    else if(f==='Online') rows=rows.filter(r=>r.mode==='Online');
     else if(f==='Cheque') rows=rows.filter(r=>r.mode==='Cheque');
     else if(f==='Pending') rows=rows.filter(r=>r.status==='Pending');
     else if(f==='Cleared') rows=rows.filter(r=>r.status==='Cleared');
@@ -301,12 +302,43 @@
   window.getLateFeeRate=getLateFeeRate;
   window.setLateFeeRate=function(v){ try{ localStorage.setItem('shivam_latefee_v1', String(Math.max(0,Math.round(Number(v)||0)))); }catch(e){} try{ chgUpdateHint(); }catch(e){} };
   /* EMIs whose due date has passed and are NOT yet fully covered by cleared payments. */
+  /* Which EMI each CLEARED payment actually pays — matched by the MONTH the money was
+     received, not just the running total. So a month the customer genuinely skipped stays
+     unpaid even if later months were paid; a "catch-up" payment (more than one EMI in a
+     month) overflows to the oldest still-unpaid EMI. Restructured loans keep the simple
+     oldest-first waterfall (their pre-restructure payments are baselined out).
+     Returns an array where index i (1..n) holds the amount allocated to EMI i. */
+  function _ymKey(iso){ var m=String(iso||'').match(/^(\d{4})-(\d{2})/); return m?(m[1]+'-'+m[2]):null; }
+  function emiPaidByIndex(l){
+    var n=Math.max(0,Math.round(Number(l&&l.tenure)||0));
+    var emi=Math.round(Number(l&&l.emi)||0);
+    var total=(l&&l.baseOut!=null)?Math.max(0,Number(l.baseOut)):((Number(l&&l.tpay)>0)?Number(l.tpay):emi*n);
+    var alloc=[]; for(var k=0;k<=n;k++) alloc[k]=0;
+    if(!l || n<=0) return alloc;
+    var emiOf=function(i){ return (i<n)?emi:Math.max(0,total-emi*(n-1)); };
+    var paidBase=Number(l.paidBase)||0;
+    var clearedTot=Math.max(0,(l.payments||[]).filter(function(p){return p.status==='Cleared';}).reduce(function(a,p){return a+(Number(p.amount)||0);},0)-paidBase);
+    if(paidBase>0){ for(var w=1;w<=n;w++) alloc[w]=Math.max(0,Math.min(emiOf(w), clearedTot-emi*(w-1))); return alloc; }
+    var keyToIdx={}; for(var i2=1;i2<=n;i2++){ var dk=_ymKey(emiDueDate(l,i2)); if(dk && keyToIdx[dk]==null) keyToIdx[dk]=i2; }
+    var earliestUnfull=function(){ for(var j=1;j<=n;j++){ if(alloc[j] < emiOf(j)-0.001) return j; } return 0; };
+    var pays=(l.payments||[]).filter(function(p){return p.status==='Cleared' && (Number(p.amount)||0)>0;})
+      .map(function(p){return {date:p.date||'', amt:Number(p.amount)||0};})
+      .sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
+    pays.forEach(function(p){
+      var remaining=p.amt, pk=_ymKey(p.date), target=(pk!=null)?keyToIdx[pk]:null;
+      if(target!=null && alloc[target] < emiOf(target)-0.001){ var room=emiOf(target)-alloc[target], put=Math.min(room,remaining); alloc[target]+=put; remaining-=put; }
+      while(remaining>0.001){ var e=earliestUnfull(); if(!e) break; var room2=emiOf(e)-alloc[e], put2=Math.min(room2,remaining); alloc[e]+=put2; remaining-=put2; }
+    });
+    return alloc;
+  }
+  window.emiPaidByIndex=emiPaidByIndex;
   function overdueEmiIdxs(l){
     if(!l) return [];
     var n=Math.max(0,Math.round(Number(l.tenure)||0)), emi=Math.round(Number(l.emi)||0), t=todayISO();
-    var paidBase=Number(l.paidBase)||0;
-    var cleared=Math.max(0,(l.payments||[]).filter(function(p){return p.status==='Cleared';}).reduce(function(a,p){return a+(Number(p.amount)||0);},0)-paidBase);
-    var out=[]; for(var i=1;i<=n;i++){ var d=emiDueDate(l,i); if(d && d<t && cleared < emi*i) out.push({i:i,due:d}); } return out;
+    var total=(l.baseOut!=null)?Math.max(0,Number(l.baseOut)):((Number(l.tpay)>0)?Number(l.tpay):emi*n);
+    var emiOf=function(i){ return (i<n)?emi:Math.max(0,total-emi*(n-1)); };
+    var alloc=emiPaidByIndex(l);
+    var out=[]; for(var i=1;i<=n;i++){ var d=emiDueDate(l,i); if(d && d<t && alloc[i] < emiOf(i)-0.001) out.push({i:i,due:d}); } return out;
   }
   window.overdueEmiIdxs=overdueEmiIdxs;
   function chgTypeChange(){ var t=($('chg_type')||{}).value; if($('chg_chequeWrap')) $('chg_chequeWrap').style.display=(t==='Cheque bounce')?'block':'none'; chgUpdateHint(); }

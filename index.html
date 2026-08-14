@@ -98,7 +98,7 @@
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.4 2.4 4.6-5"/></svg> Audit Logging Enabled</span>
       </div>
       <div class="auth-meta"><span id="lastLogin"></span></div>
-      <div class="auth-meta auth-verline">Version 2.0.50 &nbsp;·&nbsp; © Shivam Enterprises</div>
+      <div class="auth-meta auth-verline">Version 2.0.53 &nbsp;·&nbsp; © Shivam Enterprises</div>
     </div>
   </div>
 </div>
@@ -701,13 +701,14 @@
 
         <div class="panel">
           <h3>Payments Register</h3>
-          <p class="ph-sub">Every cash &amp; cheque entry across all borrowers.</p>
+          <p class="ph-sub">Every cash, online &amp; cheque entry across all borrowers.</p>
           <div class="pay-tiles" id="payTiles"></div>
           <div class="toolbar" style="margin:14px 0;">
             <div class="search"><span class="si">&#9013;</span><input id="payRegSearch" placeholder="Search by borrower or cheque no&hellip;" oninput="renderPayReg()"></div>
             <select class="filter" id="payRegFilter" onchange="renderPayReg()">
               <option value="all">All payments</option>
               <option value="Cash">Cash only</option>
+              <option value="Online">Online only</option>
               <option value="Cheque">Cheque only</option>
               <option value="Pending">Pending cheques</option>
               <option value="Cleared">Cleared only</option>
