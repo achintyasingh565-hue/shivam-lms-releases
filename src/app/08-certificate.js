@@ -334,6 +334,22 @@
     else { toast('Late fees already up to date for '+(l.name||'this borrower')); }
   };
   window.applyLateFeesSelected=function(){ applyLateFees(($('chg_loan')||{}).value); };
+  /* One-click undo: remove ALL late-fee charges for the selected borrower (individual
+     charges can still be deleted from the list below). Recomputes so the outstanding,
+     schedule, reminders and reports drop the fees immediately. */
+  window.waiveLateFees=function(id){
+    var l=loans.find(function(x){return x.id===id;}); if(!l){ toast('Choose a borrower first'); return; }
+    var late=(l.charges||[]).filter(function(c){return c&&c.type==='Late fee';});
+    if(!late.length){ toast('No late fees to remove for '+(l.name||'this borrower')+'.'); return; }
+    var tot=late.reduce(function(a,c){return a+(Number(c.amount)||0);},0);
+    if(!confirm('Remove all '+late.length+' late fee(s) ('+inr(tot)+') for '+(l.name||'')+'?\n\nThis clears them from the outstanding, schedule, reminders and reports.')) return;
+    l.charges=(l.charges||[]).filter(function(c){return !(c&&c.type==='Late fee');});
+    try{ recomputeLoan(l); }catch(e){} save();
+    try{ logAudit('Late Fees Removed', late.length+' late fee(s) ('+inr(tot)+') — '+(l.name||'')+' ('+(l.acno||'')+')'); }catch(e){}
+    renderChargeList(); chgUpdateHint(); try{ if(typeof renderLoans==='function') renderLoans(); }catch(e){}
+    toast(late.length+' late fee(s) removed');
+  };
+  window.waiveLateFeesSelected=function(){ waiveLateFees(($('chg_loan')||{}).value); };
   var _editCharge=null;
   function recordCharge(){
     var id=($('chg_loan')||{}).value; if(!id){ toast('Choose a borrower first'); return; }

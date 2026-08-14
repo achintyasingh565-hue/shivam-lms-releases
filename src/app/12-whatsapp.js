@@ -155,7 +155,7 @@
     return res;
   }
   async function approveAndSend(){
-    if(currentUser && currentUser.role==='staff'){ toast('You do not have permission to approve & send'); return; }
+    /* Any signed-in user (admin, manager or staff) may approve & send. */
     const sel=_review.items.filter(it=>it.sel && intlPhone(it.phone));
     if(!sel.length){ toast('No valid recipients'); return; }
     const by=(currentUser&&(currentUser.name||currentUser.user))||'\u2014'; const cfg=loadWaCfg(); const tpls=loadWaTpl();
@@ -256,11 +256,57 @@
       }
       if($('wa_apiver')){ var _av=($('wa_apiver').value||'').trim(); c.apiVersion = /^v\d+\.\d+$/.test(_av) ? _av : ''; }
       saveWaCfg(c); logAudit('WhatsApp Settings Saved',''); renderWaSettings(); toast('WhatsApp settings saved'+((tIn&&c.tokenEnc)?' (token encrypted)':''));
+      // Share the connection with the rest of the team's devices (if signed in to the cloud).
+      try{ if(typeof publishWaConnection==='function'){ var _p=await publishWaConnection(tIn); if(_p) toast('Connection shared — your team’s devices will pick it up on sync', 5000); } }catch(e){}
     })();
   }
   const WATPL_STORE="shivam_watpl_v1";
   function loadWaTpl(){ const defs={'EMI Reminder':{name:'emi_due_reminder',lang:'en',vars:'name,acno,emi,due_date'},'Overdue Reminder':{name:'overdue_reminder',lang:'en',vars:'name,acno,due_date,outstanding,fine'},'Greeting / Notice':{name:'festival_greeting',lang:'en',vars:'name,occasion'},'Office Closure':{name:'office_closure',lang:'en',vars:'name,occasion,date'},'Payment Confirmation':{name:'payment_received',lang:'en',vars:'name,amount,acno,outstanding'},'Loan Approval':{name:'loan_sanctioned',lang:'en',vars:'name,amount,acno,emi'},'Final Notice':{name:'final_notice',lang:'en',vars:'name,outstanding,acno'},'Default Notice':{name:'default_notice',lang:'en',vars:'name,acno,arrears,outstanding'},'Birthday Greeting':{name:'birthday_greeting',lang:'en',vars:'name'},'Cheque Bounce':{name:'cheque_bounce_notice',lang:'en',vars:'name,cheque,acno,amount'},'Loan Closed':{name:'loan_closed_notice',lang:'en',vars:'name,acno,disbursed'},'Cheque Cleared':{name:'cheque_cleared_notice',lang:'en',vars:'name,cheque,amount,acno'},'Loan Restructured':{name:'loan_restructured',lang:'en',vars:'name,acno,emi,tenure'},'Welcome / Account Opened':{name:'welcome_message',lang:'en',vars:'name,acno'},'Business Launched':{name:'business_launched',lang:'en',vars:''}}; let saved={}; try{ saved=JSON.parse(localStorage.getItem(WATPL_STORE)||'{}')||{}; }catch(e){} const out={}; for(const k in defs){ out[k]=Object.assign({}, defs[k], saved[k]||{}); if(!out[k].name && defs[k].name) out[k].name=defs[k].name; if(!out[k].vars && defs[k].vars) out[k].vars=defs[k].vars; } return out; }
   function saveWaTpl(t){ try{ localStorage.setItem(WATPL_STORE, JSON.stringify(t)); }catch(e){} }
+
+  /* ---------- Shared WhatsApp connection (synced across devices) ----------
+     So the whole team can send via the API — not just the device that set it up — the
+     admin PUBLISHES the connection (phone-number id, business number, api version,
+     approved-template mapping AND the access token) to the shared cloud settings, and
+     every other device ADOPTS it on sync. Note: this stores the access token in your
+     own private cloud (behind your login) — chosen deliberately for convenience. */
+  async function publishWaConnection(tokenPlain){
+    if(typeof cloudSetSetting!=='function') return false;
+    try{
+      var c=loadWaCfg();
+      var payload={ pnid:c.pnid||'', bnumber:c.bnumber||'', baid:c.baid||'', apiVersion:c.apiVersion||'',
+        templates:(typeof loadWaTpl==='function'?loadWaTpl():{}), at:Date.now(), by:((currentUser&&(currentUser.user||''))||'') };
+      if(tokenPlain){ payload.token=tokenPlain; }
+      else { try{ var row=await cloudGetSetting('wa_connection'); if(row&&row.data&&row.data.token) payload.token=row.data.token; }catch(e){} }
+      var r=await cloudSetSetting('wa_connection', payload);
+      return !!(r&&r.ok);
+    }catch(e){ return false; }
+  }
+  async function applyWaConnection(d){
+    if(!d) return false;
+    try{
+      var c=loadWaCfg();
+      if(d.pnid!=null) c.pnid=d.pnid; if(d.bnumber!=null) c.bnumber=d.bnumber;
+      if(d.baid!=null) c.baid=d.baid; if(d.apiVersion!=null) c.apiVersion=d.apiVersion;
+      if(d.token){
+        if(window.electronAPI && window.electronAPI.waTokenSave){
+          try{ var r=await window.electronAPI.waTokenSave(d.token); if(r&&r.ok){ c.tokenInKeychain=true; delete c.token; delete c.tokenEnc; } else { c.token=d.token; } }catch(e){ c.token=d.token; }
+        } else if(window.electronAPI && window.electronAPI.secureEncrypt){
+          try{ var enc=await window.electronAPI.secureEncrypt(d.token); if(enc){ c.tokenEnc=enc; delete c.token; } else { c.token=d.token; } }catch(e){ c.token=d.token; }
+        } else { c.token=d.token; }
+      }
+      saveWaCfg(c);
+      if(d.templates && typeof d.templates==='object' && typeof saveWaTpl==='function'){ try{ saveWaTpl(d.templates); }catch(e){} }
+      try{ if(typeof renderWaSettings==='function' && document.getElementById('wa_pnid')) renderWaSettings(); }catch(e){}
+      return true;
+    }catch(e){ return false; }
+  }
+  async function pullWaConnection(){
+    if(typeof cloudGetSetting!=='function') return false;
+    try{ var row=await cloudGetSetting('wa_connection'); if(row && row.data){ return await applyWaConnection(row.data); } }catch(e){}
+    return false;
+  }
+  window.publishWaConnection=publishWaConnection; window.applyWaConnection=applyWaConnection; window.pullWaConnection=pullWaConnection;
   const WA_TPL_CATS=['EMI Reminder','Overdue Reminder','Greeting / Notice','Office Closure','Payment Confirmation','Loan Approval','Final Notice','Default Notice','Birthday Greeting','Cheque Bounce','Loan Closed','Cheque Cleared','Loan Restructured','Welcome / Account Opened','Business Launched'];
   function renderWaTemplates(){
     const wrap=$('waTplWrap'); if(!wrap) return; const t=loadWaTpl();
@@ -274,6 +320,8 @@
     if(currentUser && currentUser.role!=='admin'){ toast('Only an admin can change templates'); return; }
     const t={}; WA_TPL_CATS.forEach((c,i)=>{ t[c]={name:($('tpln'+i).value||'').trim(), lang:($('tpll'+i).value||'en').trim(), vars:($('tplv'+i).value||'').trim()}; });
     saveWaTpl(t); logAudit('WhatsApp Templates Saved',''); toast('Template mapping saved');
+    // keep the shared connection's template mapping in step across devices (token preserved)
+    try{ if(typeof publishWaConnection==='function') publishWaConnection(''); }catch(e){}
   }
   async function waTestConnection(){
     const c=loadWaCfg();

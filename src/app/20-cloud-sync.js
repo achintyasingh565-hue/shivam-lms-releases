@@ -375,6 +375,8 @@
           else if (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin' && typeof autoPublishRoster === 'function') { await autoPublishRoster(); }
         } else if (typeof pullUserRoster === 'function') { await pullUserRoster(); }
       } catch (_) {}
+      // adopt the shared WhatsApp connection so every device can send via the API
+      try { if (typeof pullWaConnection === 'function') await pullWaConnection(); } catch (_) {}
       try { await maybeDailySnapshot(); } catch (_) {}   // central daily backup
       if (pollTimer) clearInterval(pollTimer);
       pollTimer = setInterval(poll, Math.max(3000, C.pollMs || 7000));

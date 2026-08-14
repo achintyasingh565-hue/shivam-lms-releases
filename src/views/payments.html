@@ -27,6 +27,7 @@
           <div class="latefee-assist" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 14px;padding:11px 14px;border:1px solid #e7c873;background:#fff7e2;border-radius:9px;">
             <label style="font-size:12.5px;font-weight:600;color:#6b5413;">Late fee ₹/month <input id="lateFeeRate" type="number" min="0" placeholder="500" style="width:96px;margin-left:6px;border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-size:13px;background:var(--field);color:var(--text);" onchange="setLateFeeRate(this.value)"></label>
             <button class="btn btn-sm btn-primary" onclick="applyLateFeesSelected()">⚡ Apply late fees for overdue months</button>
+            <button class="btn btn-sm btn-ghost" onclick="waiveLateFeesSelected()">Remove late fees</button>
             <span id="lateFeeHint" class="ph-sub" style="margin:0;font-size:12px;"></span>
           </div>
           <div class="form-grid" style="grid-template-columns:1.4fr 0.9fr 0.8fr 0.9fr; max-width:900px;">
