@@ -331,8 +331,15 @@
     const isAdmin = currentUser ? currentUser.role==='admin' : true;
     const ua=$('usersAdmin'); if(ua) ua.style.display=isAdmin?'block':'none';
     const dz=$('dangerPanel'); if(dz) dz.style.display=isAdmin?'block':'none';
-    const bnav=document.querySelector('#nav a[data-sec="backup"]'); if(bnav) bnav.style.display=isAdmin?'':'none'; var _rb=document.getElementById('recycleBtn'); if(_rb) _rb.style.display=isAdmin?'':'none';
-    if(!isAdmin){ const cur=document.querySelector('.section.active'); if(cur&&cur.id==='sec-backup'){ go('dash'); } }
+    // Administration is reachable by everyone so any team member can connect WhatsApp on
+    // their OWN device — but non-admins get ONLY the WhatsApp tab; every other admin tab
+    // (Backup, Security & Team, Firm, Notices, Maintenance) is hidden and guarded by
+    // admTab. The Recycle Bin stays admin-only.
+    const bnav=document.querySelector('#nav a[data-sec="backup"]'); if(bnav) bnav.style.display='';
+    var _rb=document.getElementById('recycleBtn'); if(_rb) _rb.style.display=isAdmin?'':'none';
+    var _seg=document.getElementById('admSeg');
+    if(_seg){ _seg.querySelectorAll('button[data-adm]').forEach(function(b){ var t=b.getAttribute('data-adm'); b.style.display=(isAdmin||t==='whatsapp')?'':'none'; }); }
+    if(!isAdmin){ try{ if(typeof admTab==='function') admTab('whatsapp'); }catch(e){} }
   }
   function toggleTouch(){ const c=lockCfg(); if(!c) return; c.touch=$('secTouch').checked; saveLockCfg(c); toast(c.touch?'Touch ID enabled':'Touch ID disabled'); }
   function maybeTouch(){

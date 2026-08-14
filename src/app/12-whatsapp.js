@@ -237,7 +237,8 @@
     const ok=!!(waHasToken(c) && c.pnid); const ind=$('waStatus'); if(ind){ ind.textContent=ok?'Configured':'Not configured'; ind.className='wa-stat '+(ok?'on':'off'); }
   }
   function saveWaSettings(){
-    if(currentUser && currentUser.role!=='admin'){ toast('Only an admin can change WhatsApp settings'); return; }
+    /* Any signed-in user may connect WhatsApp on THEIR OWN device. Only an admin's save
+       is shared to the whole team (published to the cloud); others just save locally. */
     const c=loadWaCfg(); delete c.token; c.bnumber=($('wa_bnumber').value||'').trim(); c.pnid=($('wa_pnid').value||'').trim(); c.baid=($('wa_baid').value||'').trim();
     const tIn=($('wa_token').value||'').trim();
     (async function(){
@@ -256,8 +257,8 @@
       }
       if($('wa_apiver')){ var _av=($('wa_apiver').value||'').trim(); c.apiVersion = /^v\d+\.\d+$/.test(_av) ? _av : ''; }
       saveWaCfg(c); logAudit('WhatsApp Settings Saved',''); renderWaSettings(); toast('WhatsApp settings saved'+((tIn&&c.tokenEnc)?' (token encrypted)':''));
-      // Share the connection with the rest of the team's devices (if signed in to the cloud).
-      try{ if(typeof publishWaConnection==='function'){ var _p=await publishWaConnection(tIn); if(_p) toast('Connection shared — your team’s devices will pick it up on sync', 5000); } }catch(e){}
+      // Only an admin's save is shared to the whole team (published to the cloud).
+      try{ if((!currentUser || currentUser.role==='admin') && typeof publishWaConnection==='function'){ var _p=await publishWaConnection(tIn); if(_p) toast('Connection shared — your team’s devices will pick it up on sync', 5000); } }catch(e){}
     })();
   }
   const WATPL_STORE="shivam_watpl_v1";
@@ -317,11 +318,10 @@
         '<td><input id="tplv'+i+'" value="'+esc(cfg.vars||'')+'" style="width:250px;border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-size:12.5px;background:var(--field);color:var(--text);font-family:inherit;"></td></tr>'; }).join('')+'</tbody></table></div>';
   }
   function saveWaTemplates(){
-    if(currentUser && currentUser.role!=='admin'){ toast('Only an admin can change templates'); return; }
     const t={}; WA_TPL_CATS.forEach((c,i)=>{ t[c]={name:($('tpln'+i).value||'').trim(), lang:($('tpll'+i).value||'en').trim(), vars:($('tplv'+i).value||'').trim()}; });
     saveWaTpl(t); logAudit('WhatsApp Templates Saved',''); toast('Template mapping saved');
-    // keep the shared connection's template mapping in step across devices (token preserved)
-    try{ if(typeof publishWaConnection==='function') publishWaConnection(''); }catch(e){}
+    // only an admin's change is shared to the team (token preserved)
+    try{ if((!currentUser || currentUser.role==='admin') && typeof publishWaConnection==='function') publishWaConnection(''); }catch(e){}
   }
   async function waTestConnection(){
     const c=loadWaCfg();

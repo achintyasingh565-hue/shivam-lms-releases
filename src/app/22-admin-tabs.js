@@ -5,6 +5,9 @@
 (function () {
   window.admTab = function (name) {
     try {
+      // Non-admins may only use the WhatsApp tab; any other tab is redirected there.
+      var isAdmin = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.role === 'admin') : true;
+      if (!isAdmin && name !== 'whatsapp') name = 'whatsapp';
       document.querySelectorAll('#sec-backup .adm-tab').forEach(function (t) {
         t.classList.toggle('active', t.getAttribute('data-adm') === name);
       });

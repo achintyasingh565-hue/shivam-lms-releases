@@ -53,7 +53,18 @@ const path = require('path');
     const lateGone = !(l.charges || []).some(c => c.type === 'Late fee');
     const bounceKept = (l.charges || []).some(c => c.type === 'Cheque bounce');
 
-    return { pubOk, pubShape, pub2, tokenPreserved, pullOk, gotPnid, gotToken, gotTpl, lateGone, bounceKept };
+    // ---- A non-admin can reach ONLY the WhatsApp admin tab ----
+    currentUser = { user: 'mgr', name: 'Manager', role: 'manager' };
+    if (typeof applyRole === 'function') applyRole();
+    admTab('data');                     // try to open Backup & Data as a manager
+    const activeEl = document.querySelector('#sec-backup .adm-tab.active');
+    const mgrLockedToWa = !!activeEl && activeEl.getAttribute('data-adm') === 'whatsapp';
+    const backupBtn = document.querySelector('#admSeg button[data-adm="data"]');
+    const waBtn = document.querySelector('#admSeg button[data-adm="whatsapp"]');
+    const backupHidden = backupBtn ? backupBtn.style.display === 'none' : false;
+    const waVisible = waBtn ? waBtn.style.display !== 'none' : false;
+
+    return { pubOk, pubShape, pub2, tokenPreserved, pullOk, gotPnid, gotToken, gotTpl, lateGone, bounceKept, mgrLockedToWa, backupHidden, waVisible };
   });
 
   const checks = {
@@ -64,6 +75,8 @@ const path = require('path');
     'template mapping syncs too':               out.gotTpl === true,
     'late fees removed in one click':           out.lateGone === true,
     'other charges (bounce) are kept':          out.bounceKept === true,
+    'manager can open the WhatsApp tab':        out.waVisible === true,
+    'manager is blocked from other admin tabs': out.mgrLockedToWa === true && out.backupHidden === true,
     'no page errors':                           errs.length === 0
   };
 
