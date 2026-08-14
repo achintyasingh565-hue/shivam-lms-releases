@@ -58,6 +58,29 @@
     return { idproof: primary?primary.n:'', idtype: primary?primary.t:'', pan: pan?pan.n:'' };
   }
 
+  /* Next loan account number — assigned to every NEW loan so it can be written on
+     the physical file and the disbursement voucher. It continues AFTER the highest
+     existing number (across the whole book), so it can never clash with an old one,
+     even if records were deleted. Format: SE-#### (kept at least 4 digits). The
+     value is only a default — the user can still edit it before saving. */
+  function nextLoanAcno(){
+    var max=0;
+    (loans||[]).forEach(function(l){
+      var m=String((l&&l.acno)||'').match(/(\d+)\s*$/);   // trailing number, e.g. SE-16258 -> 16258
+      if(m){ var n=parseInt(m[1],10); if(!isNaN(n) && n>max) max=n; }
+    });
+    var next=max+1;
+    var used=function(a){ return (loans||[]).some(function(l){ return String((l&&l.acno)||'').toLowerCase()===a.toLowerCase(); }); };
+    var acno;
+    do{
+      var pad=Math.max(4, String(next).length);
+      acno='SE-'+String(next).padStart(pad,'0');
+      next++;
+    } while(used(acno));
+    return acno;
+  }
+  window.nextLoanAcno=nextLoanAcno;
+
   /* ---------- modal CRUD ---------- */
   function openLoan(id){
     editId = id||null;
@@ -69,7 +92,7 @@
     // migrate a legacy record (idtype/idproof + pan) into the list on the fly.
     modalIds = _idsFromRecord(f);
     renderIdRows();
-    $('m_name').value=f.name||''; $('m_acno').value=f.acno||(id?'':'SE-'+(loans.length+1).toString().padStart(4,'0'));
+    $('m_name').value=f.name||''; $('m_acno').value=f.acno||(id?'':nextLoanAcno());
     $('m_reltype').value=f.reltype||'son of'; $('m_relname').value=f.relname||'';
     $('m_phone').value=f.phone||''; $('m_addr').value=f.addr||'';
     $('m_type').value=f.type||'Personal'; if($('m_secured'))$('m_secured').value=f.secured?'yes':'no'; $('m_principal').value=f.principal||''; $('m_rate').value=f.rate||'';
