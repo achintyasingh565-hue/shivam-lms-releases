@@ -126,9 +126,10 @@
     // option is discoverable, but it only works on a SAVED loan — so on a brand-new
     // record the button is disabled with a hint telling the user to save first.
     try{
-      var _isEdit=!!editId, _b=$('rsInFormBtn'), _h=$('rsInFormHint');
+      var _isEdit=!!editId, _b=$('rsInFormBtn'), _h=$('rsInFormHint'), _fc=$('fcInFormBtn');
       if(_b){ _b.disabled=!_isEdit; _b.style.background=_isEdit?'#0b7a4b':'#9aa3b2'; _b.style.opacity=_isEdit?'1':'.7'; _b.style.cursor=_isEdit?'pointer':'not-allowed'; }
-      if(_h){ _h.textContent=_isEdit ? "Record a lump-sum payment and re-plan this loan's EMI or tenure." : "Save this loan first, then reopen it to record a prepayment or restructure."; }
+      if(_fc){ _fc.disabled=!_isEdit; _fc.style.background=_isEdit?'#7c3aed':'#9aa3b2'; _fc.style.opacity=_isEdit?'1':'.7'; _fc.style.cursor=_isEdit?'pointer':'not-allowed'; }
+      if(_h){ _h.textContent=_isEdit ? "Record a lump-sum payment and re-plan this loan's EMI or tenure, or foreclose to settle early (interest on the unpaid months is waived, after 6 EMIs / 6 months)." : "Save this loan first, then reopen it to record a prepayment, restructure or foreclosure."; }
     }catch(e){}
     // Always open on the first tab; refresh the pinned summary + required-field dots.
     try{ loanTab('borrower'); }catch(e){}
@@ -137,6 +138,13 @@
     $('loanOverlay').classList.add('show');
   }
   function closeLoan(){ $('loanOverlay').classList.remove('show'); }
+  /* Foreclose the loan currently open in the modal (must be saved first). */
+  window.forecloseCurrentLoan=function(){
+    if(!editId){ toast('Save the loan first, then reopen it to foreclose.'); return; }
+    if(typeof forecloseLoan!=='function'){ return; }
+    var done=forecloseLoan(editId);
+    if(done){ closeLoan(); }
+  };
   /* Aadhaar/PAN privacy: the input holds the REAL value but is visually masked
      (like a password); the eye button toggles reveal. Saving always uses the
      real value, so masking never affects the stored data. */

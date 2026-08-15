@@ -354,6 +354,66 @@
     if(($('chg_type')||{}).value==='Late fee' && $('chg_amt') && !$('chg_amt').value && pending>0){ $('chg_amt').value = rate*pending; }
   }
   window.chgLoanChange=function(){ if($('chg_amt')) $('chg_amt').value=''; chgUpdateHint(); };
+
+  /* ---------- Foreclosure (early settlement) ----------
+     The borrower clears the loan early: the interest on the UNPAID months is waived, so
+     they pay only the remaining PRINCIPAL (plus any unpaid charges and an optional manual
+     foreclosure charge). Allowed only once at least 6 EMIs are paid, or 6 months have
+     elapsed. Implemented by lowering the loan's total-payable to (paid + remaining
+     principal) — which removes the future interest — then recording the settlement
+     payment so the loan closes with a zero balance. */
+  function _foreclosePreview(l){
+    var tpay0=Number(l.tpay)||0, principal=Number(l.principal)||0, emi=Math.round(Number(l.emi)||0);
+    var cleared0=(Array.isArray(l.payments)?l.payments:[]).filter(function(p){return p.status==='Cleared';}).reduce(function(a,p){return a+(Number(p.amount)||0);},0);
+    var remainingAll=Math.max(0, tpay0-cleared0);
+    var remainingPrincipal=Math.round(principal*(tpay0>0?(tpay0-cleared0)/tpay0:0));
+    if(remainingPrincipal>remainingAll) remainingPrincipal=remainingAll;
+    var interestWaived=Math.max(0, remainingAll-remainingPrincipal);
+    var feesNow=(Array.isArray(l.charges)?l.charges:[]).reduce(function(a,c){return a+(c?(Number(c.amount)||0):0);},0);
+    var emisPaid=emi>0?Math.floor((cleared0+1)/emi):0;
+    var monthsElapsed=0; try{ var disb=l.disb||l.baseDate; if(disb){ var d0=new Date(disb+'T00:00:00'), dn=new Date(todayISO()+'T00:00:00'); monthsElapsed=(dn.getFullYear()-d0.getFullYear())*12+(dn.getMonth()-d0.getMonth()); } }catch(e){}
+    return { tpay0:tpay0, cleared0:cleared0, remainingAll:remainingAll, remainingPrincipal:remainingPrincipal,
+             interestWaived:interestWaived, feesNow:feesNow, emisPaid:emisPaid, monthsElapsed:monthsElapsed };
+  }
+  window.forecloseLoan=function(id){
+    var l=loans.find(function(x){return x.id===id;}); if(!l){ toast('Loan not found'); return false; }
+    if((Number(l.tpay)||0)<=0){ toast('This loan has no payable amount to foreclose.'); return false; }
+    if(!Array.isArray(l.payments)) l.payments=[];
+    var pv=_foreclosePreview(l);
+    if(pv.remainingAll<=0){ toast('This loan is already fully paid / closed.'); return false; }
+    if(!(pv.emisPaid>=6 || pv.monthsElapsed>=6)){
+      toast('⚠ Foreclosure needs at least 6 EMIs paid or 6 months elapsed — this loan has '+pv.emisPaid+' EMI(s) paid ('+Math.max(0,pv.monthsElapsed)+' month(s)).', 7000); return false;
+    }
+    var chargeStr=prompt('FORECLOSURE — '+(l.name||'')+' (A/C '+(l.acno||'')+')\n\n'
+      +'Remaining principal (payable now): Rs '+pv.remainingPrincipal.toLocaleString('en-IN')+'\n'
+      +'Interest waived: Rs '+pv.interestWaived.toLocaleString('en-IN')+'\n'
+      +(pv.feesNow>0?('Unpaid charges carried over: Rs '+pv.feesNow.toLocaleString('en-IN')+'\n'):'')
+      +'\nEnter a foreclosure charge (Rs), or 0 for none:', '0');
+    if(chargeStr===null) return false;
+    var charge=Math.max(0, Math.round(Number(chargeStr)||0));
+    var settlement=pv.remainingPrincipal+pv.feesNow+charge;
+    if(!confirm('Collect Rs '+settlement.toLocaleString('en-IN')+' now to foreclose this loan?\n\n'
+      +'  Remaining principal: Rs '+pv.remainingPrincipal.toLocaleString('en-IN')+'\n'
+      +(pv.feesNow>0?('  Unpaid charges: Rs '+pv.feesNow.toLocaleString('en-IN')+'\n'):'')
+      +'  Foreclosure charge: Rs '+charge.toLocaleString('en-IN')+'\n'
+      +'  Interest waived: Rs '+pv.interestWaived.toLocaleString('en-IN')+'\n\n'
+      +'The loan will be marked CLOSED.')) return false;
+    var today=todayISO();
+    l.tpay=pv.cleared0+pv.remainingPrincipal;   // lowering total-payable waives the future interest
+    l.baseOut=null; l.paidBase=0;               // drop any restructure baseline so the new balance applies cleanly
+    if(charge>0){ if(!Array.isArray(l.charges)) l.charges=[]; l.charges.unshift({ id:'C'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), date:today, type:'Foreclosure charge', amount:charge, note:'Foreclosure charge' }); }
+    l.payments.push({ date:today, mode:'Cash', amount:settlement, status:'Cleared', cheque:'', bank:'', ref:'', note:'Foreclosure settlement', foreclosure:true });
+    l.foreclosed=true; l.foreclosedAt=today; l.interestWaived=(Number(l.interestWaived)||0)+pv.interestWaived;
+    try{ recomputeLoan(l); }catch(e){}
+    save();
+    try{ logAudit('Loan Foreclosed', (l.name||'')+' ('+(l.acno||'')+') — settled Rs '+settlement.toLocaleString('en-IN')+', interest waived Rs '+pv.interestWaived.toLocaleString('en-IN')+(charge>0?(', charge Rs '+charge.toLocaleString('en-IN')):'')); }catch(e){}
+    try{ if(typeof renderLoans==='function') renderLoans(); }catch(e){}
+    try{ if(typeof renderPayReg==='function') renderPayReg(); }catch(e){}
+    try{ if(typeof renderChargeList==='function') renderChargeList(); }catch(e){}
+    try{ if(typeof renderDash==='function') renderDash(); }catch(e){}
+    toast('✓ Loan foreclosed — settled Rs '+settlement.toLocaleString('en-IN')+', Rs '+pv.interestWaived.toLocaleString('en-IN')+' interest waived', 6000);
+    return true;
+  };
   /* One-click: apply a ₹rate late fee for every overdue month not already charged
      (keyed by EMI number so repeated clicks never double-charge). Sticky charges. */
   window.applyLateFees=function(id){
