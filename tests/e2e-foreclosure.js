@@ -21,9 +21,13 @@ const path = require('path');
       tint: 24000, tpay: 124000, emi: 10333, disb: '2025-01-01', paid: 61998, payments: pays6, charges: []
     });
 
-    window.prompt = () => '500';       // foreclosure charge
-    window.confirm = () => true;
-    const ok = forecloseLoan('FC');
+    // Open the in-app foreclosure dialog, set the charge, then confirm (no prompt()).
+    const opened = forecloseLoan('FC');
+    document.getElementById('fcCharge').value = '500';
+    document.getElementById('fcMode').value = 'Cash';
+    if (typeof fcUpdateTotal === 'function') fcUpdateTotal();
+    confirmForeclose();
+    const ok = opened;
     const l = loans.find(x => x.id === 'FC');
     const foreclosurePay = (l.payments || []).find(p => p.foreclosure);
     const fcCharge = (l.charges || []).find(c => c.type === 'Foreclosure charge');

@@ -126,9 +126,19 @@ function setupAutoUpdates() {
     if (r.response === 0) { setImmediate(() => autoUpdater.quitAndInstall()); }
   });
 
-  // Check now, and again every 6 hours while the app stays open.
+  // Check now, again every 2 hours, and whenever the window regains focus (throttled to
+  // once / 10 min) — so a just-published update is noticed promptly instead of only after
+  // the next restart.
   autoUpdater.checkForUpdates().catch(() => {});
-  setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 6 * 60 * 60 * 1000);
+  setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 2 * 60 * 60 * 1000);
+  try {
+    let _lastUpdCheck = Date.now();
+    if (mainWindow && typeof mainWindow.on === 'function') {
+      mainWindow.on('focus', () => {
+        if (Date.now() - _lastUpdCheck > 10 * 60 * 1000) { _lastUpdCheck = Date.now(); autoUpdater.checkForUpdates().catch(() => {}); }
+      });
+    }
+  } catch (_) {}
 }
 
 app.whenReady().then(() => {

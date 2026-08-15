@@ -576,6 +576,7 @@
   html.dark table.data th{background:#16223b; color:var(--muted);}
   html.dark table.data td{border-bottom-color:var(--line);}
   html.dark .search input, html.dark select.filter, html.dark .gsearch input, html.dark .hp-pick select, html.dark .pay-row1>*, html.dark .pay-row2>*, html.dark .vault-up select, html.dark .vault-up input[type=file], html.dark .loadbox select{background:var(--field); color:var(--text); border-color:var(--line);}
+  html.dark .fg label{ color:#cbd5e1; }   /* readable form labels in dark mode (were dark-on-dark) */
   html.dark .fg input, html.dark .fg select, html.dark .fg textarea{background:var(--field); color:var(--text); border-color:var(--line);}
   html.dark .fg input:focus, html.dark .fg select:focus, html.dark .fg textarea:focus{background:var(--field);}
   /* ---- Dark-mode corrections ---- */

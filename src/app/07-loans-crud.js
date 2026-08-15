@@ -141,9 +141,7 @@
   /* Foreclose the loan currently open in the modal (must be saved first). */
   window.forecloseCurrentLoan=function(){
     if(!editId){ toast('Save the loan first, then reopen it to foreclose.'); return; }
-    if(typeof forecloseLoan!=='function'){ return; }
-    var done=forecloseLoan(editId);
-    if(done){ closeLoan(); }
+    if(typeof forecloseLoan==='function') forecloseLoan(editId);   // opens the foreclosure dialog
   };
   /* Aadhaar/PAN privacy: the input holds the REAL value but is visually masked
      (like a password); the eye button toggles reveal. Saving always uses the

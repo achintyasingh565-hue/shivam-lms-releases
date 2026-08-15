@@ -160,8 +160,12 @@ html.dark .hpdoc{
   box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 10px 24px rgba(79,70,229,.42) !important; }
 .auth-btn:hover{ background:linear-gradient(135deg,#4338CA,#3730A3) !important; }
 /* Sign-in card scales up on large monitors so it isn't a tiny island on a 27" display */
-@media (min-width:1500px){ .auth-wrap{ max-width:1120px !important; min-height:600px !important; } }
-@media (min-width:2000px){ .auth-wrap{ max-width:1300px !important; min-height:660px !important; } }
+/* Scale the ENTIRE sign-in card (text, inputs, logo and all) up on large monitors via
+   zoom, which re-lays-out crisply in Electron/Chromium — so it doesn't look tiny on a
+   27" 2560px screen. It stays centred because zoom changes the element's layout size. */
+@media (min-width:1500px){ .auth-wrap{ zoom:1.2; } }
+@media (min-width:1900px){ .auth-wrap{ zoom:1.4; } }
+@media (min-width:2400px){ .auth-wrap{ zoom:1.6; } }
 
 /* ===================================================================
    LOAN FORM — tabbed layout (Borrower / Loan Terms / Property /

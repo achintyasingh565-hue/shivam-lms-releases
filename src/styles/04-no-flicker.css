@@ -34,3 +34,16 @@ html.dark table.data th{ background:#16223b !important; }
    (.cv-line/.cv-box keep their own navy color #0c2d63) */
 .cover-page{ color:#141414 !important; }
 html.dark .cover-page{ color:#141414 !important; }
+
+/* ===== Performance =====
+   Cut per-frame paint cost during the (animated) window resize into/out of fullscreen, and
+   when a modal/prompt composites over the page — the cause of the jitter & frame drops. */
+/* Lighter modal shadow = far less to paint when a prompt/modal pops up. */
+.modal{ box-shadow:0 18px 44px rgba(8,18,40,.30) !important; }
+/* While the window is actively resizing, drop transitions, animations and the big soft
+   shadows (they snap back the instant resizing stops) so the fullscreen animation stays
+   smooth instead of repainting every shadow on every frame. Toggled by JS (see below). */
+html.is-resizing *, html.is-resizing *::before, html.is-resizing *::after{ transition:none !important; animation:none !important; }
+html.is-resizing .panel, html.is-resizing .modal, html.is-resizing .stat, html.is-resizing .kpi,
+html.is-resizing .ptile, html.is-resizing .table-wrap, html.is-resizing .bk-card, html.is-resizing .cert-form,
+html.is-resizing .vault-card, html.is-resizing .topbar, html.is-resizing .sidebar{ box-shadow:none !important; }
