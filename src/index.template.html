@@ -191,7 +191,7 @@
         <div class="fg"><label>Down Payment ₹</label><input id="m_downpay" type="number" min="0" oninput="recalc()"><div class="calc-note" style="margin-top:4px;">Paid upfront by the customer — subtracted from the net amount disbursed. The customer is still liable for the <b>full</b> loan amount.</div></div>
         <div class="fg" style="display:none;"><label>Account Officer</label><input id="m_officer"></div>
         <div class="fg"><label>Loan Amount (Principal) ₹ *</label><input id="m_principal" type="number" min="0" oninput="recalc()"></div>
-        <div class="fg"><label>Processing / Deductions ₹</label><input id="m_deductions" type="number" min="0" value="0" oninput="recalc()"><div class="calc-note" style="margin-top:4px;">Fee withheld at disbursement. The customer is still liable for the <b>full</b> loan amount — this does not reduce the outstanding.</div></div>
+        <div class="fg"><label>Processing / Deductions ₹</label><input id="m_deductions" type="number" min="0" placeholder="0" oninput="recalc()"><div class="calc-note" style="margin-top:4px;">Fee withheld at disbursement. The customer is still liable for the <b>full</b> loan amount — this does not reduce the outstanding.</div></div>
         <div class="fg"><label>Net Disbursed to Customer ₹</label><input id="m_remaining" class="calc" type="number" readonly></div>
         <div class="fg"><label>Interest Rate (% per month) *</label><input id="m_rate" type="number" min="0" step="0.1" oninput="recalc()"></div>
         <div class="fg"><label>Disbursement Date</label><input id="m_disb" type="date" oninput="recalc()"></div>

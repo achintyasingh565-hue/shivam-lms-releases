@@ -36,9 +36,10 @@
   function buildCustomers(){
     const map={};
     loans.forEach(l=>{ const k=custKeyOf(l);
-      if(!map[k]) map[k]={key:k, name:l.name||'', phone:l.phone||'', addr:l.addr||'', reltype:l.reltype||'', relname:l.relname||'', idtype:l.idtype||'', idproof:l.idproof||'', pan:l.pan||'', ids:(Array.isArray(l.ids)&&l.ids.length?l.ids:null), age:l.age||'', occupation:l.occupation||'', loans:[]};
+      if(!map[k]) map[k]={key:k, name:l.name||'', phone:l.phone||'', addr:l.addr||'', reltype:l.reltype||'', relname:l.relname||'', coname:l.coname||'', idtype:l.idtype||'', idproof:l.idproof||'', pan:l.pan||'', ids:(Array.isArray(l.ids)&&l.ids.length?l.ids:null), age:l.age||'', occupation:l.occupation||'', loans:[]};
       const c=map[k];
       if(!c.phone&&l.phone)c.phone=l.phone; if(!c.addr&&l.addr)c.addr=l.addr;
+      if(!c.coname&&l.coname) c.coname=l.coname;
       if(!c.idproof&&l.idproof){ c.idproof=l.idproof; c.idtype=l.idtype||c.idtype; }
       if(!c.pan&&l.pan) c.pan=l.pan;
       if((!c.ids||!c.ids.length)&&Array.isArray(l.ids)&&l.ids.length) c.ids=l.ids;
@@ -89,7 +90,7 @@
     const lrows=ls=>ls.length?ls.map(l=>`<tr><td>${esc(l.acno)}</td><td>${esc(l.type)}</td><td class="right num">${inr(l.principal)}</td><td class="right num">${inr(l.outstanding)}</td><td>${fmtDate(l.due)||'\u2014'}</td><td><span class="badge ${autoStatus(l).toLowerCase()}">${autoStatus(l)}</span></td><td><div class="rowact"><button class="iconbtn cert" title="Generate Certificate" onclick="certFromLoan('${l.id}')">${SVG.fileDoc}</button><button class="iconbtn" title="Repayment Schedule" onclick="openSchedule('${l.id}')">${SVG.cal}</button><button class="iconbtn" title="Restructure / Record payment" onclick="openRestructure('${l.id}')" style="font-weight:800;font-size:15px;">₹</button><button class="iconbtn" title="Edit" onclick="openLoan('${l.id}')">${SVG.edit}</button><button class="iconbtn del" title="Delete" onclick="delLoan('${l.id}')">${SVG.trash}</button></div></td></tr>`).join(''):'<tr><td colspan="7" class="muted" style="padding:10px;">None</td></tr>';
     const html=`
       <div class="panel">
-        <div class="cust-head"><div class="cust-av">${esc((c.name||'?').slice(0,1).toUpperCase())}</div><div><h3 style="margin:0;">${esc(c.name)}</h3><div class="muted">${c.relname?esc((c.reltype||'')+' '+c.relname)+' \u00b7 ':''}${esc(c.phone||'No phone on file')}</div></div></div>
+        <div class="cust-head"><div class="cust-av">${esc((c.name||'?').slice(0,1).toUpperCase())}</div><div><h3 style="margin:0;">${esc(c.name)}</h3><div class="muted">${c.relname?esc((c.reltype||'')+' '+c.relname)+' \u00b7 ':''}${c.coname?('Co-applicant: '+esc(c.coname)+' \u00b7 '):''}${esc(c.phone||'No phone on file')}</div></div></div>
         ${(function(){ var f=[];
           if(c.addr) f.push('<div><label>Address</label><div>'+esc(c.addr)+'</div></div>');
           // Show every ID the customer has, each labelled with its ACTUAL type
