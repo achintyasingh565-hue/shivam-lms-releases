@@ -46,6 +46,17 @@ const path = require('path');
     recalc();
     const emiBackToAuto = Number($('m_emi').value) > 0 && Number($('m_emi').value) !== 9999;
 
+    // ---- 2b) A hand-set EMI (no interest rate) drives Total Payable & Outstanding ----
+    openLoan();
+    $('m_name').value = 'Manual EMI Cust'; $('m_phone').value = '9838100002';
+    $('m_principal').value = '800000'; $('m_rate').value = ''; $('m_tenure').value = '60';
+    $('m_emi').value = '19500'; loanFigEdited('emi');           // hand-set EMI, no rate
+    const tpayFromEmi = Number($('m_tpay').value);              // 19500 * 60 = 1,170,000
+    const acno2 = $('m_acno').value;
+    await saveLoan();
+    const savedEmi = loans.find(l => l.acno === acno2);
+    const outFromEmi = savedEmi ? Number(savedEmi.outstanding) : -1;   // = total payable, nothing paid
+
     // ---- 3) Down payment is subtracted from the net amount disbursed ----
     openLoan();
     $('m_principal').value = '1000000'; $('m_deductions').value = '40000'; $('m_downpay').value = '317000';
@@ -55,7 +66,7 @@ const path = require('path');
     $('m_rate').value = '2'; $('m_tenure').value = '10'; recalc();
     const owesFull = Number($('m_tpay').value) === 1200000;     // 1000000 + (1000000*2%*10)
 
-    return { savedOk, tenureBlankSaved, emiKeptOnSave, outstandingNotZero, autoEmi, emiStayedManual, emiBackToAuto, netDisbursed, owesFull };
+    return { savedOk, tenureBlankSaved, emiKeptOnSave, outstandingNotZero, autoEmi, emiStayedManual, emiBackToAuto, netDisbursed, owesFull, tpayFromEmi, outFromEmi };
   });
 
   const checks = {
@@ -64,6 +75,8 @@ const path = require('path');
     'outstanding is not zeroed (=principal)':  out.outstandingNotZero === true,
     'formula EMI computed when automatic':     out.autoEmi > 0,
     'manual EMI survives a recalc':            out.emiStayedManual === true,
+    'hand-set EMI drives Total Payable':       out.tpayFromEmi === 1170000,
+    'hand-set EMI drives Outstanding':         out.outFromEmi === 1170000,
     'clearing EMI returns to auto-calc':       out.emiBackToAuto === true,
     'down payment cuts net disbursed (643000)': out.netDisbursed === 643000,
     'but customer still owes full amount':     out.owesFull === true,

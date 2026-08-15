@@ -176,7 +176,9 @@
     var el=$(which==='emi'?'m_emi':'m_tpay');
     var manual=!!(el && String(el.value).trim()!=='');
     if(which==='emi') window._emiManual=manual; else window._tpayManual=manual;
-    if(!manual){ try{ recalc(); }catch(e){} } else { try{ updateLoanSummary(); }catch(e){} }
+    // Recompute either way: recalc respects the manual flags (it won't overwrite the
+    // field being typed) but DOES flow a hand-set EMI into Total Payable & Outstanding.
+    try{ recalc(); }catch(e){}
   };
   function recalc(){
     const p=Number($('m_principal').value)||0, r=Number($('m_rate').value)||0, n=Number($('m_tenure').value)||0;
@@ -185,6 +187,13 @@
       $('m_tint').value=_t.tint;
       if(!window._tpayManual) $('m_tpay').value=_t.tpay;   // keep a hand-entered Total Payable
       if(!window._emiManual)  $('m_emi').value=_t.emi;      // keep a hand-entered Monthly EMI
+    }
+    // A hand-set EMI drives the Total Payable (= EMI × tenure) unless Total Payable was
+    // itself overridden — so the Outstanding reflects the EMI you typed, even with no
+    // interest rate entered.
+    if(window._emiManual && !window._tpayManual && n>0){
+      var emiV=Number($('m_emi').value)||0;
+      if(emiV>0){ var tp=Math.round(emiV*n); $('m_tpay').value=tp; $('m_tint').value=Math.max(0, tp-p); }
     }
     const ded=Number($('m_deductions').value)||0;
     const dp=Number($('m_downpay').value)||0;
