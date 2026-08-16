@@ -117,13 +117,3 @@
     });
   })();
   window.addEventListener('afterprint',()=>{ if(window._docTitleBak!=null){ document.title=window._docTitleBak; window._docTitleBak=null; } document.body.classList.remove('printing-cert','printing-proposal','printing-hp','printing-hp-all','printing-fullfile','printing-report'); const ff=$('fullFilePrint'); if(ff) ff.innerHTML=''; const rp=$('reportPrint'); if(rp) rp.innerHTML=''; });
-  /* Smooth window resize / fullscreen transitions: while the window is actively resizing,
-     tag <html> so CSS can drop transitions, animations and heavy shadows (see 04-no-flicker),
-     then clear it a moment after resizing stops so the effects return. */
-  (function(){
-    var _rt=null, root=document.documentElement;
-    window.addEventListener('resize', function(){
-      if(!root.classList.contains('is-resizing')) root.classList.add('is-resizing');
-      clearTimeout(_rt); _rt=setTimeout(function(){ root.classList.remove('is-resizing'); }, 200);
-    }, {passive:true});
-  })();

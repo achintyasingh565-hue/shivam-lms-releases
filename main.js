@@ -49,20 +49,6 @@ function createWindow() {
   mainWindow.webContents.on('will-navigate', (e, url) => {
     if (url !== mainWindow.webContents.getURL()) e.preventDefault();
   });
-
-  // Smooth fullscreen: tag the page while the OS runs its enter/leave-fullscreen animation
-  // so the renderer drops transitions, animations and heavy shadows (see 04-no-flicker.css),
-  // which otherwise cause the jittery, laggy repaint during the resize. Uses executeJavaScript
-  // (no new IPC channel) and clears the tag once the animation has finished.
-  const _fsTag = (on) => {
-    try {
-      mainWindow.webContents.executeJavaScript(
-        "document.documentElement.classList." + (on ? "add" : "remove") + "('is-resizing')"
-      ).catch(() => {});
-    } catch (_) {}
-  };
-  mainWindow.on('enter-full-screen', () => { _fsTag(true); setTimeout(() => _fsTag(false), 700); });
-  mainWindow.on('leave-full-screen', () => { _fsTag(true); setTimeout(() => _fsTag(false), 700); });
 }
 
 // When the user saves a Backup/CSV, show a normal "Save As" dialog

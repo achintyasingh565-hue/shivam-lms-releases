@@ -129,7 +129,7 @@
       var _isEdit=!!editId, _b=$('rsInFormBtn'), _h=$('rsInFormHint'), _fc=$('fcInFormBtn');
       if(_b){ _b.disabled=!_isEdit; _b.style.background=_isEdit?'#0b7a4b':'#9aa3b2'; _b.style.opacity=_isEdit?'1':'.7'; _b.style.cursor=_isEdit?'pointer':'not-allowed'; }
       if(_fc){ _fc.disabled=!_isEdit; _fc.style.background=_isEdit?'#7c3aed':'#9aa3b2'; _fc.style.opacity=_isEdit?'1':'.7'; _fc.style.cursor=_isEdit?'pointer':'not-allowed'; }
-      if(_h){ _h.textContent=_isEdit ? "Record a lump-sum payment and re-plan this loan's EMI or tenure, or foreclose to settle early (interest on the unpaid months is waived, after 6 EMIs / 6 months)." : "Save this loan first, then reopen it to record a prepayment, restructure or foreclosure."; }
+      if(_h){ _h.textContent=_isEdit ? "Record a lump-sum payment and re-plan this loan's EMI or tenure, or foreclose to settle early (interest on the unpaid months is waived, after 6 EMIs are paid)." : "Save this loan first, then reopen it to record a prepayment, restructure or foreclosure."; }
     }catch(e){}
     // Always open on the first tab; refresh the pinned summary + required-field dots.
     try{ loanTab('borrower'); }catch(e){}

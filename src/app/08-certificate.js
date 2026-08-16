@@ -358,8 +358,8 @@
   /* ---------- Foreclosure (early settlement) ----------
      The borrower clears the loan early: the interest on the UNPAID months is waived, so
      they pay only the remaining PRINCIPAL (plus any unpaid charges and an optional manual
-     foreclosure charge). Allowed only once at least 6 EMIs are paid, or 6 months have
-     elapsed. Implemented by lowering the loan's total-payable to (paid + remaining
+     foreclosure charge). Allowed only once at least 6 EMIs have actually been paid.
+     Implemented by lowering the loan's total-payable to (paid + remaining
      principal) — which removes the future interest — then recording the settlement
      payment so the loan closes with a zero balance. */
   function _foreclosePreview(l){
@@ -383,8 +383,8 @@
     if(!Array.isArray(l.payments)) l.payments=[];
     var pv=_foreclosePreview(l);
     if(pv.remainingAll<=0){ toast('This loan is already fully paid / closed.'); return false; }
-    if(!(pv.emisPaid>=6 || pv.monthsElapsed>=6)){
-      toast('⚠ Foreclosure needs at least 6 EMIs paid or 6 months elapsed — this loan has '+pv.emisPaid+' EMI(s) paid ('+Math.max(0,pv.monthsElapsed)+' month(s)).', 7000); return false;
+    if(pv.emisPaid<6){
+      toast('⚠ Foreclosure is allowed only after at least 6 EMIs have been paid — this loan has '+pv.emisPaid+' EMI(s) paid.', 7000); return false;
     }
     window._fcPreview={ id:id, cleared0:pv.cleared0, remainingPrincipal:pv.remainingPrincipal, feesNow:pv.feesNow, interestWaived:pv.interestWaived };
     if($('fcWho')) $('fcWho').textContent=(l.name||'')+' — A/C '+(l.acno||'');
