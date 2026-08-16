@@ -20,6 +20,10 @@ html.dark{
 /* ---- page background: calm, no glow ---- */
 html:not(.dark) body{ background:#F6F8FB !important; }
 html.dark body{ background:#0A0F1C !important; }
+/* While LOCKED (sign-in screen), keep the body the same dark as the native window
+   backgroundColor (#0b1220) — otherwise the light body flashes at the window edges during
+   a fullscreen/resize while the fixed lock-screen catches up. Wins over the rules above. */
+html:not(.unlocked) body{ background:#0b1220 !important; }
 
 /* ---- content rhythm: more breathing room ---- */
 /* Large / wide screens (27"+): use much more of the width and CENTRE the content so it

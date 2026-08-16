@@ -46,4 +46,5 @@ html.dark .cover-page{ color:#141414 !important; }
 html.is-resizing *, html.is-resizing *::before, html.is-resizing *::after{ transition:none !important; animation:none !important; }
 html.is-resizing .panel, html.is-resizing .modal, html.is-resizing .stat, html.is-resizing .kpi,
 html.is-resizing .ptile, html.is-resizing .table-wrap, html.is-resizing .bk-card, html.is-resizing .cert-form,
-html.is-resizing .vault-card, html.is-resizing .topbar, html.is-resizing .sidebar{ box-shadow:none !important; }
+html.is-resizing .vault-card, html.is-resizing .topbar, html.is-resizing .sidebar,
+html.is-resizing .auth-wrap, html.is-resizing .auth-card, html.is-resizing .auth-mark, html.is-resizing .auth-btn{ box-shadow:none !important; }
