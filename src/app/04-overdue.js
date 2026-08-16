@@ -205,6 +205,17 @@
     var inRange=function(d){ if(!d) return false; if(f && d<f) return false; if(t && d>t) return false; return true; };
     var interest=0, principal=0, charges=0;
     loans.forEach(function(l){
+      // Interest-only (byaj): every regular payment is pure INTEREST income; only a
+      // principal-return payment is principal (not income).
+      if(l.interestOnly){
+        (l.payments||[]).forEach(function(p){
+          if(p.status!=='Cleared' || !inRange(p.date)) return;
+          var amt=Number(p.amount)||0;
+          if(p.kind==='principal') principal += amt; else interest += amt;
+        });
+        (l.charges||[]).forEach(function(c){ if(inRange(c.date)) charges += Number(c.amount)||0; });
+        return;
+      }
       var tpay=Number(l.tpay)||0, tint=Number(l.tint)||0; if(tpay<=0) return;
       var share=tint/tpay;
       (l.payments||[]).forEach(function(p){

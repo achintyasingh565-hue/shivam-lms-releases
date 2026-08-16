@@ -30,7 +30,42 @@
     if(n>600)               return {ok:false, error:'Tenure looks wrong ('+n+' months = '+(n/12).toFixed(0)+' years). Please check.'};
     return {ok:true};
   }
+  /* ---------- Interest-only ("byaj") loans ----------
+     No fixed tenure. The customer pays only the MONTHLY INTEREST (principal × rate); the
+     principal stays fully outstanding and is returned later in a lump sum. So interest
+     payments are income and do NOT reduce the balance — only a payment tagged kind:'principal'
+     (recorded via "Principal Returned") reduces it and, once it covers the principal, closes
+     the loan. Arrears = interest that has fallen due but not been paid. */
+  function _recomputeInterestOnly(l){
+    var pays=Array.isArray(l.payments)?l.payments:[];
+    var P=Math.max(0, Number(l.principal)||0);
+    var rate=Math.max(0, Number(l.rate)||0);
+    var monthlyInt=Math.round(P*rate/100);
+    l.emi=monthlyInt;                 // the "EMI" is the monthly interest
+    l.tpay=P;                         // what's ultimately owed = the principal
+    l.tint=0;
+    var clearedAll=pays.filter(function(p){return p.status==='Cleared';}).reduce(function(a,p){return a+(Number(p.amount)||0);},0);
+    var principalPaid=pays.filter(function(p){return p.status==='Cleared' && p.kind==='principal';}).reduce(function(a,p){return a+(Number(p.amount)||0);},0);
+    var interestPaid=pays.filter(function(p){return p.status==='Cleared' && p.kind!=='principal';}).reduce(function(a,p){return a+(Number(p.amount)||0);},0);
+    var fees=(Array.isArray(l.charges)?l.charges:[]).reduce(function(a,c){return a+(c?(Number(c.amount)||0):0);},0);
+    l.paid=clearedAll;
+    l.outstanding=Math.max(0, P - principalPaid + fees);
+    l.lateFees=(Array.isArray(l.charges)?l.charges:[]).filter(function(c){return c&&c.type==='Late fee';}).reduce(function(a,c){return a+(Number(c.amount)||0);},0);
+    var t=todayISO(), monthsElapsed=0;
+    try{ var anchor=l.baseDate||l.disb; if(anchor){ var d0=new Date(anchor+'T00:00:00'), dn=new Date(t+'T00:00:00'); monthsElapsed=(dn.getFullYear()-d0.getFullYear())*12+(dn.getMonth()-d0.getMonth()); if(dn.getDate()<d0.getDate()) monthsElapsed--; monthsElapsed=Math.max(0,monthsElapsed); } }catch(e){}
+    var intArr=Math.max(0, monthlyInt*monthsElapsed - interestPaid);   // interest due but unpaid
+    if(P>0 && principalPaid>=P){ l.status='Closed'; l.arrears=0; }
+    else {
+      l.arrears=Math.round(intArr + fees);
+      if(!l.dueManual && (l.baseDate||l.disb) && monthlyInt>0){
+        var nextIdx=Math.min(600, Math.floor(interestPaid/monthlyInt)+1);
+        var nd=emiDueDate(l, nextIdx); if(nd) l.due=nd;
+      }
+      l.status=(intArr>0)?'Overdue':'Active';
+    }
+  }
   function recomputeLoan(l){
+    if(l && l.interestOnly){ return _recomputeInterestOnly(l); }
     const pays=Array.isArray(l.payments)?l.payments:[];
     const cleared=pays.filter(p=>p.status==='Cleared').reduce((a,p)=>a+(Number(p.amount)||0),0);
     l.paid=cleared;
@@ -354,6 +389,29 @@
     if(($('chg_type')||{}).value==='Late fee' && $('chg_amt') && !$('chg_amt').value && pending>0){ $('chg_amt').value = rate*pending; }
   }
   window.chgLoanChange=function(){ if($('chg_amt')) $('chg_amt').value=''; chgUpdateHint(); };
+
+  /* Interest-only loans: record the principal being returned (in full, or the remaining
+     part) as a kind:'principal' payment — this reduces the balance and, once the whole
+     principal is back, closes the loan. Regular interest payments stay untouched. */
+  window.settlePrincipal=function(id){
+    var l=loans.find(function(x){return x.id===id;}); if(!l){ toast('Loan not found'); return false; }
+    if(!l.interestOnly){ toast('This is not an interest-only loan.'); return false; }
+    if(!Array.isArray(l.payments)) l.payments=[];
+    var P=Math.max(0, Number(l.principal)||0);
+    var principalPaid=l.payments.filter(function(p){return p.status==='Cleared' && p.kind==='principal';}).reduce(function(a,p){return a+(Number(p.amount)||0);},0);
+    var remaining=Math.max(0, P-principalPaid);
+    if(remaining<=0){ toast('The principal has already been returned — this loan is closed.'); return false; }
+    if(!confirm('Record the principal returned for '+(l.name||'')+' (A/C '+(l.acno||'')+')?\n\nPrincipal being returned: Rs '+remaining.toLocaleString('en-IN')+'\n\nThe loan will be marked CLOSED.')) return false;
+    l.payments.push({ date:todayISO(), mode:'Cash', amount:remaining, status:'Cleared', cheque:'', bank:'', ref:'', kind:'principal', note:'Principal returned' });
+    try{ recomputeLoan(l); }catch(e){}
+    save();
+    try{ logAudit('Principal Returned', (l.name||'')+' ('+(l.acno||'')+') — Rs '+remaining.toLocaleString('en-IN')); }catch(e){}
+    try{ if(typeof renderLoans==='function') renderLoans(); }catch(e){}
+    try{ if(typeof renderPayReg==='function') renderPayReg(); }catch(e){}
+    try{ if(typeof renderDash==='function') renderDash(); }catch(e){}
+    toast('✓ Principal returned (Rs '+remaining.toLocaleString('en-IN')+') — loan closed', 6000);
+    return true;
+  };
 
   /* ---------- Foreclosure (early settlement) ----------
      The borrower clears the loan early: the interest on the UNPAID months is waived, so

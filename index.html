@@ -98,7 +98,7 @@
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.4 2.4 4.6-5"/></svg> Audit Logging Enabled</span>
       </div>
       <div class="auth-meta"><span id="lastLogin"></span></div>
-      <div class="auth-meta auth-verline">Version 2.0.62 &nbsp;·&nbsp; © Shivam Enterprises</div>
+      <div class="auth-meta auth-verline">Version 2.0.63 &nbsp;·&nbsp; © Shivam Enterprises</div>
     </div>
   </div>
 </div>
@@ -1057,6 +1057,7 @@
         <div class="fg"><label>Interest Rate (% per month) *</label><input id="m_rate" type="number" min="0" step="0.1" oninput="recalc()"></div>
         <div class="fg"><label>Disbursement Date</label><input id="m_disb" type="date" oninput="recalc()"></div>
         <div class="fg"><label>Tenure (months) *</label><input id="m_tenure" type="number" min="1" oninput="recalc()"></div>
+        <div class="fg full"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;"><input type="checkbox" id="m_intonly" style="width:auto;flex:none;" onchange="intOnlyToggle()"> Interest-only loan (byaj) — customer pays only monthly interest; principal returned later</label><div class="calc-note" style="margin-top:4px;">EMI becomes the monthly interest (principal × rate). The principal stays fully outstanding until returned — interest payments are income and don't reduce it. Tenure not required.</div></div>
         <div class="calc-note">Calculated on <b>flat monthly interest</b>: Total Interest = Principal × Rate × Months (rate is charged every month on the full principal). EMI = Total Payable ÷ Months. You can adjust the figures below if needed.</div>
         <div class="fg"><label>Total Interest ₹</label><input id="m_tint" class="calc" type="number"></div>
         <div class="fg"><label>Total Payable ₹</label><input id="m_tpay" class="calc" type="number" oninput="loanFigEdited('tpay')"></div>
@@ -1100,6 +1101,7 @@
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button type="button" id="rsInFormBtn" class="btn btn-sm" style="background:#0b7a4b;color:#fff;" onclick="openRestructure()">Restructure / Prepay</button>
             <button type="button" id="fcInFormBtn" class="btn btn-sm" style="background:#7c3aed;color:#fff;" onclick="forecloseCurrentLoan()">Foreclose Loan</button>
+            <button type="button" id="settlePrincBtn" class="btn btn-sm" style="background:#0b7a4b;color:#fff;display:none;" onclick="settlePrincipalCurrent()">Principal Returned (Close)</button>
           </div>
         </div>
         <div class="pay-add">

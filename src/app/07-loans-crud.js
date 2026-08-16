@@ -95,7 +95,7 @@
     $('m_name').value=f.name||''; $('m_acno').value=f.acno||(id?'':nextLoanAcno());
     $('m_reltype').value=f.reltype||'son of'; $('m_relname').value=f.relname||'';
     $('m_phone').value=f.phone||''; $('m_addr').value=f.addr||'';
-    $('m_type').value=f.type||'Personal'; if($('m_secured'))$('m_secured').value=f.secured?'yes':'no'; $('m_principal').value=f.principal||''; $('m_rate').value=f.rate||'';
+    $('m_type').value=f.type||'Personal'; if($('m_secured'))$('m_secured').value=f.secured?'yes':'no'; if($('m_intonly'))$('m_intonly').checked=!!f.interestOnly; $('m_principal').value=f.principal||''; $('m_rate').value=f.rate||'';
     $('m_disb').value=f.disb||''; $('m_tenure').value=f.tenure||''; $('m_tint').value=f.tint||''; $('m_tpay').value=f.tpay||'';
     $('m_emi').value=f.emi||''; $('m_due').value=f.due||'';
     // Only treat the Next Due Date as a manual override if this record was explicitly
@@ -126,9 +126,12 @@
     // option is discoverable, but it only works on a SAVED loan — so on a brand-new
     // record the button is disabled with a hint telling the user to save first.
     try{
-      var _isEdit=!!editId, _b=$('rsInFormBtn'), _h=$('rsInFormHint'), _fc=$('fcInFormBtn');
-      if(_b){ _b.disabled=!_isEdit; _b.style.background=_isEdit?'#0b7a4b':'#9aa3b2'; _b.style.opacity=_isEdit?'1':'.7'; _b.style.cursor=_isEdit?'pointer':'not-allowed'; }
-      if(_fc){ _fc.disabled=!_isEdit; _fc.style.background=_isEdit?'#7c3aed':'#9aa3b2'; _fc.style.opacity=_isEdit?'1':'.7'; _fc.style.cursor=_isEdit?'pointer':'not-allowed'; }
+      var _isEdit=!!editId, _b=$('rsInFormBtn'), _h=$('rsInFormHint'), _fc=$('fcInFormBtn'), _sp=$('settlePrincBtn');
+      var _isIO=!!(f && f.interestOnly);
+      if(_b){ _b.disabled=!_isEdit; _b.style.background=_isEdit?'#0b7a4b':'#9aa3b2'; _b.style.opacity=_isEdit?'1':'.7'; _b.style.cursor=_isEdit?'pointer':'not-allowed'; _b.style.display=_isIO?'none':'inline-flex'; }
+      // Interest-only loans use "Principal Returned" instead of Restructure/Foreclose.
+      if(_fc){ _fc.disabled=!_isEdit; _fc.style.background=_isEdit?'#7c3aed':'#9aa3b2'; _fc.style.opacity=_isEdit?'1':'.7'; _fc.style.cursor=_isEdit?'pointer':'not-allowed'; _fc.style.display=_isIO?'none':'inline-flex'; }
+      if(_sp){ _sp.style.display=(_isEdit && _isIO)?'inline-flex':'none'; }
       if(_h){ _h.textContent=_isEdit ? "Record a lump-sum payment and re-plan this loan's EMI or tenure, or foreclose to settle early (interest on the unpaid months is waived, after 6 EMIs are paid)." : "Save this loan first, then reopen it to record a prepayment, restructure or foreclosure."; }
     }catch(e){}
     // Always open on the first tab; refresh the pinned summary + required-field dots.
@@ -142,6 +145,13 @@
   window.forecloseCurrentLoan=function(){
     if(!editId){ toast('Save the loan first, then reopen it to foreclose.'); return; }
     if(typeof forecloseLoan==='function') forecloseLoan(editId);   // opens the foreclosure dialog
+  };
+  /* Interest-only toggle: recompute the EMI/Total Payable/Outstanding preview live. */
+  window.intOnlyToggle=function(){ try{ recalc(); }catch(e){} };
+  /* Record the principal returned for the interest-only loan open in the modal. */
+  window.settlePrincipalCurrent=function(){
+    if(!editId){ toast('Save the loan first, then reopen it to record the principal return.'); return; }
+    if(typeof settlePrincipal==='function'){ var d=settlePrincipal(editId); if(d) closeLoan(); }
   };
   /* Aadhaar/PAN privacy: the input holds the REAL value but is visually masked
      (like a password); the eye button toggles reveal. Saving always uses the
@@ -188,7 +198,15 @@
   };
   function recalc(){
     const p=Number($('m_principal').value)||0, r=Number($('m_rate').value)||0, n=Number($('m_tenure').value)||0;
-    if(p>0 && r>=0 && n>0){
+    var _io = !!(($('m_intonly')||{}).checked);
+    if(_io){
+      // Interest-only: EMI = monthly interest (principal × rate); Total Payable = principal
+      // (the amount to be returned); no fixed total interest.
+      var _mi=Math.round(p*(r>=0?r:0)/100);
+      $('m_tint').value=0;
+      if(!window._tpayManual) $('m_tpay').value=p;
+      if(!window._emiManual)  $('m_emi').value=_mi;
+    } else if(p>0 && r>=0 && n>0){
       const _t=calcLoanTotals(p,r,n);
       $('m_tint').value=_t.tint;
       if(!window._tpayManual) $('m_tpay').value=_t.tpay;   // keep a hand-entered Total Payable
@@ -196,8 +214,8 @@
     }
     // A hand-set EMI drives the Total Payable (= EMI × tenure) unless Total Payable was
     // itself overridden — so the Outstanding reflects the EMI you typed, even with no
-    // interest rate entered.
-    if(window._emiManual && !window._tpayManual && n>0){
+    // interest rate entered. (Not for interest-only loans.)
+    if(!_io && window._emiManual && !window._tpayManual && n>0){
       var emiV=Number($('m_emi').value)||0;
       if(emiV>0){ var tp=Math.round(emiV*n); $('m_tpay').value=tp; $('m_tint').value=Math.max(0, tp-p); }
     }
@@ -214,6 +232,7 @@
     var _ed = editId ? loans.find(function(l){return l.id===editId;}) : null;
     var temp = Object.assign({}, _ed||{}, {
       tpay:Number($('m_tpay').value)||0, emi:Number($('m_emi').value)||0, tenure:n,
+      interestOnly:_io, principal:p, rate:r,
       disb:$('m_disb').value, payments:(modalPayments||[]).map(function(x){return Object.assign({},x);}),
       dueManual: !!window._dueUserEdited,
       due: window._dueUserEdited ? $('m_due').value : (_ed?_ed.due:$('m_due').value)
@@ -317,7 +336,7 @@
       id: editId||('L'+Date.now()),
       name, acno, reltype:$('m_reltype').value, relname:$('m_relname').value.trim(),
       phone:normPhone($('m_phone').value), addr:$('m_addr').value.trim(), ids:_idList, idproof:_idMir.idproof, pan:_idMir.pan,
-      type:$('m_type').value, secured:(($('m_secured')||{}).value==='yes'), principal:Number($('m_principal').value)||0, rate:Number($('m_rate').value)||0,
+      type:$('m_type').value, secured:(($('m_secured')||{}).value==='yes'), interestOnly:!!(($('m_intonly')||{}).checked), principal:Number($('m_principal').value)||0, rate:Number($('m_rate').value)||0,
       disb:$('m_disb').value, tenure:Number($('m_tenure').value)||0, tint:Number($('m_tint').value)||0,
       tpay:_safeTotals().tpay, emi:_safeTotals().emi, due:$('m_due').value,
       paid:Number($('m_paid').value)||0, outstanding:out, status:$('m_status').value, payments:(modalPayments||[]).map(p=>({...p})),
@@ -327,6 +346,9 @@
       propdesc:$('m_propdesc').value.trim(), propaddr:$('m_propaddr').value.trim(), proparea:$('m_proparea').value.trim(), propvalue:Number($('m_propvalue').value)||0, bN:$('m_bN').value.trim(), bS:$('m_bS').value.trim(), bE:$('m_bE').value.trim(), bW:$('m_bW').value.trim(), title:$('m_title').value.trim(),
       createdAt: editId ? (loans.find(l=>l.id===editId)||{}).createdAt||todayISO() : todayISO()
     });
+    // Interest-only loans compute the balance differently (interest payments don't reduce
+    // the principal) — recompute the record so the stored outstanding/status are correct.
+    if(rec.interestOnly){ try{ recomputeLoan(rec); }catch(e){} }
     /* two-device safety: if this loan was changed on another device since we opened it,
        warn before overwriting instead of silently winning (last-write-wins). */
     if(editId && typeof window.cloudGuardSave==='function'){
