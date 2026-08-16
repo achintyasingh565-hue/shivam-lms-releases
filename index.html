@@ -98,7 +98,7 @@
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.4 2.4 4.6-5"/></svg> Audit Logging Enabled</span>
       </div>
       <div class="auth-meta"><span id="lastLogin"></span></div>
-      <div class="auth-meta auth-verline">Version 2.0.63 &nbsp;·&nbsp; © Shivam Enterprises</div>
+      <div class="auth-meta auth-verline">Version 2.0.65 &nbsp;·&nbsp; © Shivam Enterprises</div>
     </div>
   </div>
 </div>
@@ -1031,10 +1031,9 @@
         <div class="fg full"><label>Identity Documents</label>
           <div id="m_idlist"></div>
           <button type="button" class="btn btn-ghost btn-sm" onclick="addIdRow()" style="margin-top:4px;">＋ Add ID</button>
-          <div class="calc-note" style="margin-top:4px;">Add Aadhaar, PAN and any other IDs (Voter, Driving Licence, Passport…). Each number is checked for its own format. Tap 👁 to reveal a number.</div>
         </div>
         <div class="fg"><label>Loan Type</label><select id="m_type"><option>Personal</option><option>Housing</option><option>Business</option><option>Mortgage</option></select></div>
-        <div class="fg"><label>Loan Security</label><select id="m_secured"><option value="no">Unsecured</option><option value="yes">Secured / Mortgaged</option></select><div class="calc-note" style="margin-top:4px;">Choose "Secured" if you hold property or mortgage papers against this loan. It is shown on the No Dues certificate &amp; receipt.</div></div>
+        <div class="fg"><label>Loan Security</label><select id="m_secured"><option value="no">Unsecured</option><option value="yes">Secured / Mortgaged</option></select></div>
         <div class="fg"><label>Age</label><input id="m_age" type="number" min="0"></div>
         <div class="fg"><label>Residence</label><select id="m_residence"><option value="">—</option><option>Own</option><option>Rental</option><option>Parent's / Spouse</option><option>Employee Leased</option></select></div>
         <div class="fg"><label>Occupation</label><input id="m_occupation"></div>
@@ -1049,20 +1048,19 @@
         <div class="fg" style="display:none;"><label>Reference</label><input id="m_refno"></div>
         <div class="fg"><label>Loan Purpose</label><input id="m_product" placeholder=""></div>
         <div class="fg"><label>Referred By / Source</label><input id="m_dealer"></div>
-        <div class="fg"><label>Down Payment ₹</label><input id="m_downpay" type="number" min="0" oninput="recalc()"><div class="calc-note" style="margin-top:4px;">Paid upfront by the customer — subtracted from the net amount disbursed. The customer is still liable for the <b>full</b> loan amount.</div></div>
+        <div class="fg"><label>Down Payment ₹</label><input id="m_downpay" type="number" min="0" oninput="recalc()"></div>
         <div class="fg" style="display:none;"><label>Account Officer</label><input id="m_officer"></div>
         <div class="fg"><label>Loan Amount (Principal) ₹ *</label><input id="m_principal" type="number" min="0" oninput="recalc()"></div>
-        <div class="fg"><label>Processing / Deductions ₹</label><input id="m_deductions" type="number" min="0" placeholder="0" oninput="recalc()"><div class="calc-note" style="margin-top:4px;">Fee withheld at disbursement. The customer is still liable for the <b>full</b> loan amount — this does not reduce the outstanding.</div></div>
+        <div class="fg"><label>Processing / Deductions ₹</label><input id="m_deductions" type="number" min="0" placeholder="0" oninput="recalc()"></div>
         <div class="fg"><label>Net Disbursed to Customer ₹</label><input id="m_remaining" class="calc" type="number" readonly></div>
         <div class="fg"><label>Interest Rate (% per month) *</label><input id="m_rate" type="number" min="0" step="0.1" oninput="recalc()"></div>
         <div class="fg"><label>Disbursement Date</label><input id="m_disb" type="date" oninput="recalc()"></div>
         <div class="fg"><label>Tenure (months) *</label><input id="m_tenure" type="number" min="1" oninput="recalc()"></div>
-        <div class="fg full"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;"><input type="checkbox" id="m_intonly" style="width:auto;flex:none;" onchange="intOnlyToggle()"> Interest-only loan (byaj) — customer pays only monthly interest; principal returned later</label><div class="calc-note" style="margin-top:4px;">EMI becomes the monthly interest (principal × rate). The principal stays fully outstanding until returned — interest payments are income and don't reduce it. Tenure not required.</div></div>
-        <div class="calc-note">Calculated on <b>flat monthly interest</b>: Total Interest = Principal × Rate × Months (rate is charged every month on the full principal). EMI = Total Payable ÷ Months. You can adjust the figures below if needed.</div>
+        <div class="fg full"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;"><input type="checkbox" id="m_intonly" style="width:auto;flex:none;" onchange="intOnlyToggle()"> Interest-only loan</label></div>
         <div class="fg"><label>Total Interest ₹</label><input id="m_tint" class="calc" type="number"></div>
         <div class="fg"><label>Total Payable ₹</label><input id="m_tpay" class="calc" type="number" oninput="loanFigEdited('tpay')"></div>
-        <div class="fg"><label>Monthly EMI ₹</label><input id="m_emi" class="calc" type="number" oninput="loanFigEdited('emi')"><div class="calc-note" style="margin-top:4px;">Auto-calculated from amount, rate &amp; tenure. Type your own value to override it; clear the box to go back to automatic.</div></div>
-        <div class="fg"><label>Next Due Date</label><input id="m_due" type="date" oninput="dueEdited()"><div class="calc-note" style="margin-top:4px;">Auto-follows the disbursement date &amp; schedule. Type a custom date to override it — <a href="#" onclick="dueUseSchedule();return false;" style="color:#0b7a4b;">↻ use schedule</a> to go back to automatic.</div></div>
+        <div class="fg"><label>Monthly EMI ₹</label><input id="m_emi" class="calc" type="number" oninput="loanFigEdited('emi')"></div>
+        <div class="fg"><label>Next Due Date</label><input id="m_due" type="date" oninput="dueEdited()"></div>
         </div>
       </div>
 
