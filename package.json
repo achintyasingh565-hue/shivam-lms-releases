@@ -1,6 +1,6 @@
 {
   "name": "shivam-enterprises-lms",
-  "version": "2.0.65",
+  "version": "2.0.67",
   "description": "Shivam Enterprises Loan Management System — loan records, payments, customers, certificates & documents.",
   "author": "Shivam Enterprises (Finance)",
   "main": "main.js",
@@ -67,8 +67,17 @@
       "title": "Shivam Enterprises LMS"
     },
     "win": {
-      "target": "nsis",
-      "icon": "build/icon.ico"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "Shivam-Enterprises-LMS-${version}-Windows-${arch}-Setup.${ext}"
     },
     "nsis": {
       "oneClick": false,
