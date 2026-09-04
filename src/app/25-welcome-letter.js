@@ -60,7 +60,7 @@
 
   function _letterhead(compact) {
     var f = _firm();
-    return '<div style="text-align:center;font-size:' + (compact ? '20px' : '24px') + ';font-weight:bold;letter-spacing:1px;color:#0b1f4b;">' + esc(f.name) + '</div>' +
+    return '<div style="text-align:center;font-size:' + (compact ? '21px' : '25px') + ';font-weight:bold;letter-spacing:1px;color:#0b1f4b;font-family:Georgia,\'Times New Roman\',serif;">' + esc(f.name) + '</div>' +
       '<div style="text-align:center;font-size:11px;color:#444;margin:4px 0 2px;">' + esc(firmAddrLine()) + '<br>' + esc(firmRegLine()) + '</div>' +
       '<div style="border-bottom:2px solid #c8a02a;margin:8px 0 14px;"></div>';
   }
@@ -104,7 +104,7 @@
 
     return '' +
       _letterhead(false) +
-      '<div style="text-align:center;font-size:16px;font-weight:700;text-decoration:underline;letter-spacing:.5px;color:#0b1f4b;margin:2px 0 14px;">Welcome Letter</div>' +
+      '<div style="text-align:center;font-size:17px;font-weight:700;text-decoration:underline;letter-spacing:.5px;color:#0b1f4b;margin:2px 0 14px;font-family:Georgia,\'Times New Roman\',serif;">Welcome Letter</div>' +
       '<div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:12px;">' +
         '<div><b>To,</b><br>' + _addrBlock(l) + '</div>' +
         '<div style="text-align:right;"><b>Date:</b> ' + _longDate(_today()) + '</div></div>' +
@@ -123,9 +123,9 @@
     var f = _firm();
     var head =
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;font-size:11px;color:#444;">' +
-        '<div style="font-size:18px;font-weight:bold;color:#0b1f4b;">' + esc(f.name) + '</div>' +
+        '<div style="font-size:18px;font-weight:bold;color:#0b1f4b;font-family:Georgia,\'Times New Roman\',serif;">' + esc(f.name) + '</div>' +
         '<div style="text-align:right;">Issue Date: ' + _d(_today()) + '</div></div>' +
-      '<div style="text-align:center;font-weight:700;color:#0b1f4b;margin:6px 0 10px;">' + (l.interestOnly ? 'Loan Statement for ' : 'Repayment Schedule for ') + esc(l.acno || '—') + '</div>' +
+      '<div style="text-align:center;font-weight:700;color:#0b1f4b;margin:6px 0 10px;font-family:Georgia,\'Times New Roman\',serif;">' + (l.interestOnly ? 'Loan Statement for ' : 'Repayment Schedule for ') + esc(l.acno || '—') + '</div>' +
       '<div style="font-size:11.5px;color:#333;margin-bottom:4px;">' + _addrBlock(l) + '</div>';
 
     if (l.interestOnly) {
@@ -190,9 +190,16 @@
     return head + detail + table;
   }
 
+  function _cornerSVG(css) {
+    return '<svg style="position:absolute;width:32mm;height:32mm;z-index:-1;pointer-events:none;' + css + '" viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+      + '<polygon points="0,0 150,0 0,150" fill="#0b1f4b" opacity="0.07"/>'
+      + '<polygon points="0,0 105,0 0,105" fill="#c8a02a" opacity="0.22"/>'
+      + '<polygon points="0,0 48,0 0,48" fill="#0b1f4b" opacity="0.9"/></svg>';
+  }
   function _content(l) {
     var wm = '<div style="position:absolute;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);white-space:nowrap;font-family:Arial,Helvetica,sans-serif;font-weight:800;font-size:70px;letter-spacing:4px;color:#0b1f4b;opacity:.05;z-index:-1;pointer-events:none;">' + esc(_firm().name) + '</div>';
-    return '<div class="wl-cover" style="position:relative;z-index:0;">' + wm + _cover(l) + '</div>' +
+    var corners = _cornerSVG('top:0;left:0;') + _cornerSVG('bottom:0;right:0;transform:rotate(180deg);');
+    return '<div class="wl-cover" style="position:relative;z-index:0;min-height:248mm;">' + wm + corners + _cover(l) + '</div>' +
       '<div class="pgbreak" style="border-top:2px dashed #c8a02a;margin:26px 0;"></div>' +
       '<div class="wl-sched">' + _schedulePage(l) +
       '<div style="border-top:1px solid #c8a02a;margin-top:22px;padding-top:6px;text-align:center;font-size:10.5px;color:#555;font-style:italic;">This is a computer-generated document issued by ' + esc(_firm().name) + '.</div></div>';
@@ -200,10 +207,11 @@
 
   function _printHTML(l) {
     var brandCSS = (typeof docBrandCSS === 'function') ? docBrandCSS() : '';
-    var corners = (typeof docBrandHTML === 'function') ? docBrandHTML(false) : '';
+    // Corners live inside the cover page itself (see _content) so they frame page 1
+    // and never spill onto the schedule pages.
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc((l.name || 'Customer') + ' - Welcome Letter') + '</title>' +
       '<style>' + brandCSS + '@page{size:A4;margin:16mm 14mm;} body{font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;color:#141414;} .pgbreak{page-break-before:always;border:0 !important;margin:0 !important;} table{page-break-inside:auto;} tr{page-break-inside:avoid;}</style>' +
-      '</head><body>' + corners + _content(l) + '</body></html>';
+      '</head><body>' + _content(l) + '</body></html>';
   }
 
   window.openWelcomeLetter = function (id) {

@@ -29,6 +29,8 @@ function firmPanelHTML() {
     + '      <input id="firm_gstin" value="' + val(f.gstin) + '"></div>'
     + '    <div class="fg"><label>Udyam Registration No.</label>'
     + '      <input id="firm_udyam" value="' + val(f.udyam) + '"></div>'
+    + '    <div class="fg" style="grid-column:1/-1;"><label>Money Lender’s Licence No. <span style="font-weight:400;color:#94a3b8;">(add later when issued — shows on all documents)</span></label>'
+    + '      <input id="firm_licence" value="' + val(f.licence) + '" placeholder="e.g. ML/UP/2026/XXXX"></div>'
     + '  </div>'
     + '  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">'
     + '    <button class="btn btn-primary" onclick="saveFirmDetails()">Save firm details</button>'
@@ -47,7 +49,7 @@ function renderFirmPreview() {
     + '<div style="text-align:center; padding:14px 10px; background:#fff; border:1px solid var(--line); border-radius:8px; color:#141414;">'
     + '  <div style="font-size:20px; font-weight:700; letter-spacing:1px; color:#0b1f4b;">' + esc(f.name) + '</div>'
     + '  <div style="font-size:11px; color:#444; margin-top:4px;">' + esc(f.address) + ' &nbsp;|&nbsp; Mobile: ' + esc(f.phones) + '</div>'
-    + '  <div style="font-size:11px; color:#444;">GSTIN: ' + esc(f.gstin) + ' &nbsp;|&nbsp; Udyam Reg. No.: ' + esc(f.udyam) + '</div>'
+    + '  <div style="font-size:11px; color:#444;">' + esc(typeof firmRegLine === 'function' ? firmRegLine() : ('Udyam Reg. No.: ' + f.udyam)) + '</div>'
     + '  <div style="border-bottom:2px solid #c8a02a; margin-top:8px;"></div>'
     + '</div>';
 }
@@ -64,7 +66,7 @@ function renderFirmStatus() {
 window.saveFirmDetails = function () {
   if (typeof currentUser !== 'undefined' && currentUser && currentUser.role !== 'admin') { toast('Only an Administrator can change firm details'); return; }
   const g = (id) => (($(id) && $(id).value) || '').trim();
-  const next = { name: g('firm_name'), address: g('firm_address'), phones: g('firm_phones'), gstin: g('firm_gstin'), udyam: g('firm_udyam') };
+  const next = { name: g('firm_name'), address: g('firm_address'), phones: g('firm_phones'), gstin: g('firm_gstin'), udyam: g('firm_udyam'), licence: g('firm_licence') };
   if (!next.name) { toast('⚠ The firm name cannot be empty'); $('firm_name').focus(); return; }
   if (!next.address) { toast('⚠ The office address cannot be empty'); $('firm_address').focus(); return; }
   if (next.gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(next.gstin)) {

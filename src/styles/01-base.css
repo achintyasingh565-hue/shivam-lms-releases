@@ -194,17 +194,17 @@
   .page .pg-corner{position:absolute; width:34mm; height:34mm; z-index:-1; pointer-events:none;}
   .page .pg-corner.tl{top:0; left:0;} .page .pg-corner.br{bottom:0; right:0; transform:rotate(180deg);}
   .doc-hide{display:none;}
-  .lh-name{text-align:center; font-weight:bold; font-size:24px; color:#0b1f4b; letter-spacing:1px;}
+  .lh-name{text-align:center; font-weight:bold; font-size:25px; color:#0b1f4b; letter-spacing:1px; font-family:Georgia,"Times New Roman",serif;}
   .lh-fin{text-align:center; font-weight:700; font-size:13px; color:var(--accent); letter-spacing:6px; margin-top:2px;}
   .lh-addr{text-align:center; font-size:11px; color:#444; margin-top:6px; line-height:1.55;}
   .lh-rule{border-bottom:2px solid #c8a02a; margin-top:9px;}
   .banner{text-align:center; background:var(--accent-soft); border:1.5px solid var(--accent); color:var(--accent); font-weight:700; font-size:12px; letter-spacing:2px; padding:6px; margin-top:14px; border-radius:3px;}
   .refrow{display:flex; justify-content:space-between; font-size:13px; color:#222; margin-top:16px; font-weight:600;}
   .refrow .v{color:var(--navy2);}
-  .doc-title{text-align:center; font-weight:700; font-size:16px; color:#0b1f4b; text-decoration:underline; letter-spacing:.5px; margin-top:20px;}
+  .doc-title{text-align:center; font-weight:700; font-size:17px; color:#0b1f4b; text-decoration:underline; letter-spacing:.5px; margin-top:20px; font-family:Georgia,"Times New Roman",serif;}
   .doc-sub{text-align:center; font-size:12px; color:var(--grey); font-style:italic; margin-top:3px;}
   .doc-dot{text-align:center; color:var(--accent); margin-top:4px;}
-  .body-txt{font-size:14px; line-height:1.95; color:#1a1a1a; margin-top:18px; text-align:justify;}
+  .body-txt{font-size:14px; line-height:1.95; color:#1a1a1a; margin-top:18px; text-align:justify; font-family:Georgia,"Times New Roman",serif;}
   .body-txt.cert{margin-top:24px;}
   .fillv{color:var(--navy2); font-weight:700; border-bottom:1px solid #9bb0cc; padding:0 4px; display:inline-block; min-width:90px;}
   .relinline{font-weight:inherit; color:inherit;}
@@ -259,11 +259,11 @@
   .cv-row{display:flex; justify-content:space-between; gap:26px; margin-bottom:16px;}
   .cv-pair{display:flex; align-items:center; gap:10px; font-size:15px;}
   .cv-box{display:inline-block; min-width:140px; height:26px; border:1px solid #333; padding:2px 6px; font-weight:700; color:#0c2d63;}
-  .cv-brand{text-align:center; font-weight:800; font-size:46px; margin:auto 0; letter-spacing:1px;}
-  .cv-foot{text-align:center; font-weight:800; font-size:22px; border-top:3px double #111; padding-top:14px; margin-top:auto;}
+  .cv-brand{text-align:center; font-weight:700; font-size:46px; margin:auto 0; letter-spacing:1px; font-family:Georgia,"Times New Roman",serif;}
+  .cv-foot{text-align:center; font-weight:700; font-size:22px; border-top:3px double #111; padding-top:14px; margin-top:auto; font-family:Georgia,"Times New Roman",serif;}
 
   /* --- Agreement / Delivery doc --- */
-  .adoc{background:#fff; width:210mm; padding:14mm 16mm; box-shadow:0 14px 50px rgba(0,0,0,.22); color:#141414; font-family:"Times New Roman",Georgia,serif; font-size:12.5px; line-height:1.6;}
+  .adoc{background:#fff; width:210mm; padding:14mm 16mm; box-shadow:0 14px 50px rgba(0,0,0,.22); color:#141414; font-family:Georgia,"Times New Roman",serif; font-size:12.5px; line-height:1.6;}
   .ad-om{text-align:center; font-size:13px;}
   .ad-title{text-align:center; font-weight:800; font-size:25px; margin-top:4px; letter-spacing:.5px;}
   .ad-sub{text-align:center; font-weight:700; font-size:12.5px; margin-top:2px;}
@@ -633,7 +633,7 @@
   .fg2 textarea{resize:vertical; min-height:42px;}
   .fg2 input:focus, .fg2 select:focus, .fg2 textarea:focus{outline:none; border-color:var(--accent); background:#fff; box-shadow:0 0 0 3px rgba(46,117,182,.12);}
 
-  .pform{background:#fff; width:210mm; min-height:296mm; padding:14mm 15mm; box-shadow:0 14px 50px rgba(0,0,0,.22);
+  .pform{background:#fff; width:210mm; min-height:296mm; padding:14mm 15mm; box-shadow:0 14px 50px rgba(0,0,0,.22); font-family:Georgia,"Times New Roman",serif;
     color:#141414; font-family:"Times New Roman",Georgia,serif; font-size:14px; line-height:1.5;}
   .pf-om{text-align:center; font-size:14px; letter-spacing:1px;}
   .pf-name{text-align:center; font-weight:800; font-size:34px; letter-spacing:2px; margin-top:4px;}

@@ -45,7 +45,8 @@
     address: 'D-295, D-Block, Indira Nagar, Lucknow',
     phones:  '8528564196, 9839125800',
     gstin:   '',
-    udyam:   'UDYAM-UP-50-0268771'
+    udyam:   'UDYAM-UP-50-0268771',
+    licence: ''
   };
   function FIRM(){
     try{ const o=JSON.parse(localStorage.getItem('shivam_firm_v1')||'null');
@@ -53,21 +54,32 @@
     return FIRM_DEFAULT;
   }
   function firmAddrLine(){ const f=FIRM(); return f.address + ' \u00a0|\u00a0 Mobile: ' + f.phones; }
-  /* GSTIN is only shown once a number is set (blank for now) \u2014 Udyam always shows. */
-  function firmRegLine(){  const f=FIRM(); return (f.gstin ? ('GSTIN: ' + f.gstin + ' \u00a0|\u00a0 ') : '') + 'Udyam Reg. No.: ' + f.udyam; }
+  /* GSTIN and the Money Lender's Licence show only once their numbers are set (blank for
+     now); Udyam always shows. Enter the licence in Firm Details and it appears here on
+     every document automatically. */
+  function firmRegLine(){  const f=FIRM(); return (f.gstin ? ('GSTIN: ' + f.gstin + ' \u00a0|\u00a0 ') : '') + 'Udyam Reg. No.: ' + f.udyam + (f.licence ? (' \u00a0|\u00a0 Money Lender\u2019s Licence No.: ' + f.licence) : ''); }
 
   /* ---- Shared document branding (watermark + corner graphics) ----
      Injected into every customer document so they all look like one family.
      docBrandCSS() -> <style> rules;  docBrandHTML(withWatermark) -> elements to
      drop right after <body>. Watermark is used only on letters/certificates;
      data tables (schedules) pass withWatermark=false and get corners only. */
+  /* NOTE: use position:absolute (anchored to the document body), NOT position:fixed.
+     Chromium drops fixed-position elements onto a single (often blank) page when
+     printing multi-page documents, which put the corners on the wrong page. Absolute
+     anchors them to the body box, so they frame the document reliably. */
   function docBrandCSS(){
-    return 'body{position:relative;}'
-      + '@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}'
-      + '.doc-wm{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-32deg);white-space:nowrap;'
+    return 'html,body{position:relative;}'
+      + '@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact;} body{min-height:100vh;}}'
+      + '.doc-wm{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-32deg);white-space:nowrap;'
       + 'font-family:Arial,Helvetica,sans-serif;font-weight:800;font-size:74px;letter-spacing:4px;color:#0b1f4b;opacity:.045;z-index:-1;pointer-events:none;}'
-      + '.doc-corner{position:fixed;width:34mm;height:34mm;z-index:-1;pointer-events:none;}'
-      + '.doc-corner.tl{top:0;left:0;}.doc-corner.br{bottom:0;right:0;transform:rotate(180deg);}';
+      + '.doc-corner{position:absolute;width:32mm;height:32mm;z-index:-1;pointer-events:none;}'
+      + '.doc-corner.tl{top:0;left:0;}.doc-corner.br{bottom:0;right:0;transform:rotate(180deg);}'
+      // Elegant serif for the letter prose (name, titles and body); clean sans is kept
+      // for the number tables so financial figures stay crisp and aligned.
+      + '.name{font-family:Georgia,"Times New Roman",serif;}h2{font-family:Georgia,"Times New Roman",serif;}'
+      + 'body{font-family:Georgia,"Times New Roman",serif !important;}'
+      + 'table,table td,table th{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif !important;}';
   }
   function _docCornerSVG(cls){
     return '<svg class="doc-corner '+cls+'" viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'

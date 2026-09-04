@@ -264,6 +264,7 @@
     // no nested `.l` loan object — fall back to `d` itself so printing never crashes.
     var l=d.l||d;
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+_docFileName(l.name,l.acno,'Default_Notice')+'</title><style>'
+      +(typeof docBrandCSS==='function'?docBrandCSS():'')
       +'body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#141414;margin:32px;line-height:1.6;}'
       +'.name{font-size:24px;font-weight:bold;letter-spacing:1px;text-align:center;color:#0b1f4b;}'
       +'.addr{text-align:center;font-size:11px;color:#444;margin:4px 0 2px;}.rule{border-bottom:2px solid #c8a02a;margin:8px 0 18px;}'
@@ -275,6 +276,7 @@
       +'.sign{margin-top:34px;font-size:13px;}'
       +'.foot{margin-top:26px;font-size:11px;color:#555;font-style:italic;text-align:center;border-top:1px solid #c8a02a;padding-top:6px;}'
       +'</style></head><body>'
+      +(typeof docBrandHTML==='function'?docBrandHTML(true):'')
       +'<div class="name">'+esc(FIRM().name)+'</div><div class="addr">'+esc(firmAddrLine())+'<br>'+esc(firmRegLine())+'</div><div class="rule"></div>'
       +'<h2>'+_dnTitle(d.type)+'</h2>'
       +_dnRenameClasses(bodyHTML!=null?bodyHTML:_dnBody(d))
