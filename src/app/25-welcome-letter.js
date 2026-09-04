@@ -191,16 +191,19 @@
   }
 
   function _content(l) {
-    return '<div class="wl-cover">' + _cover(l) + '</div>' +
+    var wm = '<div style="position:absolute;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);white-space:nowrap;font-family:Arial,Helvetica,sans-serif;font-weight:800;font-size:70px;letter-spacing:4px;color:#0b1f4b;opacity:.05;z-index:-1;pointer-events:none;">' + esc(_firm().name) + '</div>';
+    return '<div class="wl-cover" style="position:relative;z-index:0;">' + wm + _cover(l) + '</div>' +
       '<div class="pgbreak" style="border-top:2px dashed #c8a02a;margin:26px 0;"></div>' +
       '<div class="wl-sched">' + _schedulePage(l) +
       '<div style="border-top:1px solid #c8a02a;margin-top:22px;padding-top:6px;text-align:center;font-size:10.5px;color:#555;font-style:italic;">This is a computer-generated document issued by ' + esc(_firm().name) + '.</div></div>';
   }
 
   function _printHTML(l) {
+    var brandCSS = (typeof docBrandCSS === 'function') ? docBrandCSS() : '';
+    var corners = (typeof docBrandHTML === 'function') ? docBrandHTML(false) : '';
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc((l.name || 'Customer') + ' - Welcome Letter') + '</title>' +
-      '<style>@page{size:A4;margin:16mm 14mm;} body{font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;color:#141414;} .pgbreak{page-break-before:always;border:0 !important;margin:0 !important;} table{page-break-inside:auto;} tr{page-break-inside:avoid;}</style>' +
-      '</head><body>' + _content(l) + '</body></html>';
+      '<style>' + brandCSS + '@page{size:A4;margin:16mm 14mm;} body{font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;color:#141414;} .pgbreak{page-break-before:always;border:0 !important;margin:0 !important;} table{page-break-inside:auto;} tr{page-break-inside:avoid;}</style>' +
+      '</head><body>' + corners + _content(l) + '</body></html>';
   }
 
   window.openWelcomeLetter = function (id) {

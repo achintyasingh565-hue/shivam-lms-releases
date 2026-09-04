@@ -42,9 +42,9 @@
   --------------------------------------------------------------- */
   const FIRM_DEFAULT = {
     name:    'SHIVAM ENTERPRISES',
-    address: 'D-1191, Indira Nagar, Lucknow',
-    phones:  '9839125800, 8528564196',
-    gstin:   '09JXBPK7550J1ZY',
+    address: 'D-295, D-Block, Indira Nagar, Lucknow',
+    phones:  '8528564196, 9839125800',
+    gstin:   '',
     udyam:   'UDYAM-UP-50-0268771'
   };
   function FIRM(){
@@ -53,7 +53,33 @@
     return FIRM_DEFAULT;
   }
   function firmAddrLine(){ const f=FIRM(); return f.address + ' \u00a0|\u00a0 Mobile: ' + f.phones; }
-  function firmRegLine(){  const f=FIRM(); return 'GSTIN: ' + f.gstin + ' \u00a0|\u00a0 Udyam Reg. No.: ' + f.udyam; }
+  /* GSTIN is only shown once a number is set (blank for now) \u2014 Udyam always shows. */
+  function firmRegLine(){  const f=FIRM(); return (f.gstin ? ('GSTIN: ' + f.gstin + ' \u00a0|\u00a0 ') : '') + 'Udyam Reg. No.: ' + f.udyam; }
+
+  /* ---- Shared document branding (watermark + corner graphics) ----
+     Injected into every customer document so they all look like one family.
+     docBrandCSS() -> <style> rules;  docBrandHTML(withWatermark) -> elements to
+     drop right after <body>. Watermark is used only on letters/certificates;
+     data tables (schedules) pass withWatermark=false and get corners only. */
+  function docBrandCSS(){
+    return 'body{position:relative;}'
+      + '@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}'
+      + '.doc-wm{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-32deg);white-space:nowrap;'
+      + 'font-family:Arial,Helvetica,sans-serif;font-weight:800;font-size:74px;letter-spacing:4px;color:#0b1f4b;opacity:.045;z-index:-1;pointer-events:none;}'
+      + '.doc-corner{position:fixed;width:34mm;height:34mm;z-index:-1;pointer-events:none;}'
+      + '.doc-corner.tl{top:0;left:0;}.doc-corner.br{bottom:0;right:0;transform:rotate(180deg);}';
+  }
+  function _docCornerSVG(cls){
+    return '<svg class="doc-corner '+cls+'" viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+      + '<polygon points="0,0 150,0 0,150" fill="#0b1f4b" opacity="0.07"/>'
+      + '<polygon points="0,0 105,0 0,105" fill="#c8a02a" opacity="0.22"/>'
+      + '<polygon points="0,0 48,0 0,48" fill="#0b1f4b" opacity="0.9"/></svg>';
+  }
+  function docBrandHTML(withWatermark){
+    return (withWatermark ? ('<div class="doc-wm">'+esc(FIRM().name)+'</div>') : '')
+      + _docCornerSVG('tl') + _docCornerSVG('br');
+  }
+  try{ window.docBrandCSS=docBrandCSS; window.docBrandHTML=docBrandHTML; }catch(e){}
 
   function repLetterhead(title,sub,metaPairs){
     var h='<div class="rep-head"><div class="rep-firm">SHIVAM ENTERPRISES</div>'

@@ -297,6 +297,7 @@
       ? '<div>For <b>Shivam Enterprises</b></div>'+sigImg+'<div class="ln" style="margin-top:2px;">Authorised Signatory</div>'
       : '<div>For <b>Shivam Enterprises</b></div><div class="ln">Authorised Signatory</div>';
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Payment Receipt \u2014 '+esc(l.name||'')+'</title><style>'+
+      (typeof docBrandCSS==='function'?docBrandCSS():'')+
       'body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#141414;margin:32px;line-height:1.6;}'+
       '.name{font-size:24px;font-weight:bold;letter-spacing:1px;text-align:center;color:#0b1f4b;}'+
       '.addr{text-align:center;font-size:11px;color:#444;margin:4px 0 2px;}.rule{border-bottom:2px solid #c8a02a;margin:8px 0 18px;}'+
@@ -307,9 +308,10 @@
       '.sig{margin-top:52px;display:flex;justify-content:flex-end;}.sig div{text-align:center;font-size:12.5px;}.sig .ln{border-top:1px solid #444;padding-top:5px;margin-top:44px;min-width:210px;}'+
       '.foot{border-top:1px solid #c8a02a;margin-top:36px;padding-top:6px;text-align:center;font-size:11px;color:#555;font-style:italic;}'+
       '</style></head><body>'+
+      (typeof docBrandHTML==='function'?docBrandHTML(true):'')+
       '<div class="name">'+esc(FIRM().name)+'</div>'+
       '<div class="addr">'+esc(FIRM().address)+' &nbsp;|&nbsp; Mobile: '+esc(FIRM().phones)+'</div>'+
-      '<div class="addr">GSTIN: '+esc(FIRM().gstin)+' &nbsp;|&nbsp; Udyam Reg. No.: '+esc(FIRM().udyam)+'</div>'+
+      '<div class="addr">'+esc(firmRegLine())+'</div>'+
       '<div class="rule"></div>'+
       '<h2>PAYMENT RECEIPT</h2>'+
       '<div class="refrow"><div>Receipt No.: <b>'+esc(refNo)+'</b></div><div>Date: <b>'+(fmtDate(p.date)||'\u2014')+'</b></div></div>'+
@@ -659,7 +661,7 @@
       const f=FIRM();
       document.querySelectorAll('#pageCert .lh-name, #pageRcpt .lh-name').forEach(function(el){ el.textContent=f.name; });
       document.querySelectorAll('#pageCert .lh-addr, #pageRcpt .lh-addr').forEach(function(el){
-        el.innerHTML = esc(f.address)+'<br>Mobile: '+esc(f.phones)+'<br>GSTIN: '+esc(f.gstin)+' &nbsp;|&nbsp; Udyam Reg. No.: '+esc(f.udyam);
+        el.innerHTML = esc(f.address)+'<br>Mobile: '+esc(f.phones)+'<br>'+(f.gstin?('GSTIN: '+esc(f.gstin)+' &nbsp;|&nbsp; '):'')+'Udyam Reg. No.: '+esc(f.udyam);
       });
     }catch(e){}
   }

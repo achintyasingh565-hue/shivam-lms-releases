@@ -85,6 +85,7 @@
     var l=d.l;
     var rows=d.rows.map(function(x){ var c=x.cls==='pd'?'#0b7a4b':(x.cls==='pt'?'#b26a00':'#333'); return '<tr><td>'+x.i+'</td><td>'+x.due+'</td><td style="text-align:right;">₹'+Math.round(x.emi).toLocaleString('en-IN')+'</td><td style="text-align:right;">₹'+Math.round(x.bal).toLocaleString('en-IN')+'</td><td style="color:'+c+';">'+x.status+(x.payDate?' · '+x.payDate:'')+'</td></tr>'; }).join('');
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+_docFileName(l.name,l.acno,'Repayment_Schedule')+'</title><style>'+
+      (typeof docBrandCSS==='function'?docBrandCSS():'')+
       'body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#141414;margin:32px;line-height:1.6;}'+
       '.name{font-size:24px;font-weight:bold;letter-spacing:1px;text-align:center;color:#0b1f4b;}'+
       '.addr{text-align:center;font-size:11px;color:#444;margin:4px 0 2px;}.rule{border-bottom:2px solid #c8a02a;margin:8px 0 18px;}'+
@@ -93,6 +94,7 @@
       '.sumbox{border:1px solid #c8a02a;border-radius:6px;padding:8px 12px;margin:10px 0;font-size:12px;background:#fffdf5;}'+
       '.foot{margin-top:22px;font-size:11px;color:#555;font-style:italic;text-align:center;border-top:1px solid #c8a02a;padding-top:6px;}'+
       '</style></head><body>'+
+      (typeof docBrandHTML==='function'?docBrandHTML(false):'')+
       '<div class="name">'+esc(FIRM().name)+'</div><div class="addr">'+esc(firmAddrLine())+'<br>'+esc(firmRegLine())+'</div><div class="rule"></div>'+
       '<h2>Loan Repayment Schedule</h2>'+
       '<div class="meta"><b>Borrower:</b> '+(l.name||'')+'</div><div class="meta"><b>Loan A/c:</b> '+(l.acno||'')+'</div><div class="meta"><b>As on:</b> '+new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'})+'</div>'+

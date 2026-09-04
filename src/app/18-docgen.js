@@ -136,6 +136,7 @@
       rows+='<tr><td>'+i+'</td><td>'+d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})+'</td><td style="text-align:right;">₹'+(pay).toLocaleString('en-IN')+'</td><td style="text-align:right;">₹'+bal.toLocaleString('en-IN')+'</td></tr>';
     }
     var html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+_docFileName(l.name,l.acno,'Revised_Schedule')+'</title><style>'+
+      (typeof docBrandCSS==='function'?docBrandCSS():'')+
       'body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#141414;margin:32px;line-height:1.6;}'+
       '.name{font-size:24px;font-weight:bold;letter-spacing:1px;text-align:center;color:#0b1f4b;}'+
       '.addr{text-align:center;font-size:11px;color:#444;margin:4px 0 2px;}'+
@@ -145,6 +146,7 @@
       'th,td{border:1px solid #bbb;padding:6px 10px;} th{background:#0b1f4b;color:#fff;text-align:left;}'+
       '.foot{margin-top:24px;font-size:11px;color:#555;font-style:italic;text-align:center;border-top:1px solid #c8a02a;padding-top:6px;}'+
       '</style></head><body>'+
+      (typeof docBrandHTML==='function'?docBrandHTML(false):'')+
       '<div class="name">'+esc(FIRM().name)+'</div>'+
       '<div class="addr">'+esc(firmAddrLine())+'<br>'+esc(firmRegLine())+'</div>'+
       '<div class="rule"></div><h2>Revised Repayment Schedule</h2>'+
