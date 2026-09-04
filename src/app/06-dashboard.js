@@ -57,9 +57,14 @@
     let cum=0; const cumv=amts.map(a=>cum+=a);
     const lastM=amts[amts.length-1]||0, prevM=amts[amts.length-2]||0;
     const disbDelta=prevM?(lastM-prevM)/prevM*100:0;
+    // New business booked since go-live (1 Oct 2026) — separates fresh loans from the
+    // historical records entered during setup.
+    let nbCount=0, nbDisb=0, nbOut=0;
+    loans.forEach(l=>{ if(typeof isNewLoan==='function' && isNewLoan(l)){ nbCount++; nbDisb+=Number(l.principal)||0; nbOut+=Number(l.outstanding)||0; } });
     $('kpiRow').innerHTML=[
       kpi('Portfolio Value', inr(outstanding), SVG.bank,'blue', spark(cumv.length>1?cumv:[0,outstanding],'#2563EB'), `${active+overdue} live accounts`),
       kpi('Monthly Disbursement', inr(lastM), SVG.trend,'green', spark(amts.length>1?amts:[0,lastM],'#16A34A'), deltaHtml(disbDelta,'vs last month')),
+      kpi('New Business (from Oct)', inr(nbDisb), SVG.trend,'green', shareBar(nbOut,nbDisb||1,'#16A34A'), `${nbCount} new loan${nbCount===1?'':'s'} · ${inr(nbOut)} outstanding`),
       kpi('Active Loans', String(active), SVG.check,'blue', spark(cnts.length>1?cnts:[0,active],'#2563EB'), `${overdue} overdue flagged`),
       kpiGauge('Collection Rate', collRate.toFixed(1)+'%', SVG.check,'green', collRate, '#16A34A', `${inr(recovered)} recovered`),
       kpiGauge('Portfolio at Risk', par.toFixed(1)+'%', SVG.alert,'red', par, '#DC2626', `${inr(overdueAmt)} at risk`),

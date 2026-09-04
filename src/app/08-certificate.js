@@ -237,6 +237,9 @@
     $('payb_amt').value=''; $('payb_cheqno').value=''; $('payb_bank').value=''; if($('payb_ref'))$('payb_ref').value='';
     renderPayReg(); refreshPayLoanDropdown();
     toast('Payment recorded for '+l.name+(p.status==='Pending'?' (pending cheque \u2014 balance unchanged until cleared)':''));
+    // Offer to send the customer a WhatsApp receipt (amount + remaining balance). Only for
+    // cleared payments \u2014 a pending cheque hasn't actually reduced the balance yet.
+    if(p.status==='Cleared'){ try{ if(typeof offerPaymentReceiptWA==='function') offerPaymentReceiptWA(l, p); }catch(e){} }
     } finally { setTimeout(function(){ recordPayTab._busy=false; }, 400); }
   }
   function payAllRows(){

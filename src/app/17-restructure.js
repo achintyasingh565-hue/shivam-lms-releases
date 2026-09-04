@@ -79,6 +79,8 @@
     $('schedOverlay').classList.add('show');
   };
   window.closeSchedule=function(){ $('schedOverlay').classList.remove('show'); };
+  /* expose the schedule builder so the Welcome Letter shows the exact same EMI plan */
+  try{ window._schedBuild=build; }catch(e){}
   function docHTML(d){
     var l=d.l;
     var rows=d.rows.map(function(x){ var c=x.cls==='pd'?'#0b7a4b':(x.cls==='pt'?'#b26a00':'#333'); return '<tr><td>'+x.i+'</td><td>'+x.due+'</td><td style="text-align:right;">₹'+Math.round(x.emi).toLocaleString('en-IN')+'</td><td style="text-align:right;">₹'+Math.round(x.bal).toLocaleString('en-IN')+'</td><td style="color:'+c+';">'+x.status+(x.payDate?' · '+x.payDate:'')+'</td></tr>'; }).join('');

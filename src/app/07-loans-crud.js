@@ -63,23 +63,37 @@
      existing number (across the whole book), so it can never clash with an old one,
      even if records were deleted. Format: SE-#### (kept at least 4 digits). The
      value is only a default — the user can still edit it before saving. */
+  /* The account number now carries the Indian financial year it was issued in, e.g.
+     SE-2627-0001 for a loan issued in FY 2026-27 (Apr 2026 - Mar 2027). The 4-digit
+     serial resets to 0001 each financial year, and continues after the highest serial
+     already used within THIS financial year (so it never clashes even after deletions).
+     Older SE-#### numbers stay valid and are simply ignored when picking the next one. */
+  function _loanFyCode(d){
+    var dt = d ? new Date(d) : new Date();
+    var y = dt.getFullYear(), m = dt.getMonth() + 1;         // April = start of the Indian FY
+    var start = (m >= 4) ? y : (y - 1);
+    return String(start % 100).padStart(2, '0') + String((start + 1) % 100).padStart(2, '0');
+  }
+  function loanAcnoPrefix(){ return 'SE-' + _loanFyCode() + '-'; }
   function nextLoanAcno(){
-    var max=0;
+    var prefix = loanAcnoPrefix();
+    var re = new RegExp('^' + prefix.replace(/-/g, '\\-') + '(\\d+)$', 'i');
+    var max = 0;
     (loans||[]).forEach(function(l){
-      var m=String((l&&l.acno)||'').match(/(\d+)\s*$/);   // trailing number, e.g. SE-16258 -> 16258
+      var m = String((l&&l.acno)||'').match(re);             // only this-FY numbers count toward the serial
       if(m){ var n=parseInt(m[1],10); if(!isNaN(n) && n>max) max=n; }
     });
-    var next=max+1;
-    var used=function(a){ return (loans||[]).some(function(l){ return String((l&&l.acno)||'').toLowerCase()===a.toLowerCase(); }); };
+    var next = max + 1;
+    var used = function(a){ return (loans||[]).some(function(l){ return String((l&&l.acno)||'').toLowerCase()===a.toLowerCase(); }); };
     var acno;
     do{
-      var pad=Math.max(4, String(next).length);
-      acno='SE-'+String(next).padStart(pad,'0');
+      acno = prefix + String(next).padStart(4, '0');
       next++;
     } while(used(acno));
     return acno;
   }
   window.nextLoanAcno=nextLoanAcno;
+  window.loanAcnoPrefix=loanAcnoPrefix;
 
   /* ---------- modal CRUD ---------- */
   function openLoan(id){
