@@ -21,6 +21,8 @@
     bounce_hi:"नमस्ते {name}, हम आपको सूचित करना चाहते हैं कि ऋण खाता {acno} के लिए आपका चेक नं. {cheque} बैंक द्वारा अस्वीकृत (बाउंस) कर दिया गया है। अब Rs {amount} का शुल्क लागू है। कृपया आगे की कार्रवाई से बचने के लिए शीघ्र भुगतान की व्यवस्था करें। - शिवम एंटरप्राइज़ेस",
     closed:"Namaste {name}, congratulations! Your loan account {acno} (disbursed amount {disbursed}) with Shivam Enterprises has been fully repaid and is now closed. No further dues remain. Thank you for your trust and timely payments. - Shivam Enterprises",
     closed_hi:"नमस्ते {name}, बधाई हो! शिवम एंटरप्राइजेज के साथ आपका ऋण खाता {acno} (वितरित राशि {disbursed}) पूर्ण रूप से चुकता हो गया है और अब बंद कर दिया गया है। कोई बकाया शेष नहीं है। आपके विश्वास और समय पर भुगतान के लिए धन्यवाद। - शिवम एंटरप्राइज़ेस",
+    chequepresent:"Namaste {name}, this is to inform you that your cheque no. {cheque} (drawn on {bank}) of Rs {amount} towards loan account {acno} will be presented in the bank on {date}. Kindly ensure sufficient balance in your account by that date to avoid cheque return / bounce charges. Thank you. - Shivam Enterprises",
+    chequepresent_hi:"नमस्ते {name}, आपको सूचित किया जाता है कि आपका चेक नं. {cheque} ({bank} पर देय), राशि Rs {amount}, ऋण खाता {acno} के लिए बैंक में दिनांक {date} को प्रस्तुत किया जाएगा। कृपया उस तिथि तक अपने खाते में पर्याप्त शेष राशि सुनिश्चित करें ताकि चेक वापसी / बाउंस शुल्क से बचा जा सके। धन्यवाद। - शिवम एंटरप्राइज़ेस",
     cleared:"Namaste {name}, we confirm that your cheque no. {cheque} of Rs {amount} towards loan account {acno} has been successfully cleared by the bank. Thank you for your payment. - Shivam Enterprises",
     cleared_hi:"नमस्ते {name}, हम पुष्टि करते हैं कि ऋण खाता {acno} के लिए आपका चेक नं. {cheque} राशि Rs {amount} बैंक द्वारा सफलतापूर्वक क्लियर हो गया है। आपके भुगतान के लिए धन्यवाद। - शिवम एंटरप्राइज़ेस",
     restructure:"Namaste {name}, your loan account {acno} has been restructured. Your revised EMI is {emi} over a tenure of {tenure} months. Thank you. - Shivam Enterprises",
@@ -39,6 +41,7 @@
        cleared, restructure, accwelcome, ...) keep their default text instead of being dropped */
     TPL=Object.assign({}, DEFAULT_TPL, { reminder:$('tpl_reminder').value, overdue:$('tpl_overdue').value, greeting:$('tpl_greeting').value, holiday:$('tpl_holiday').value,
           thanks:$('tpl_thanks').value, welcome:$('tpl_welcome').value, finalnotice:$('tpl_finalnotice').value, demandnotice:($('tpl_demandnotice')?$('tpl_demandnotice').value:DEFAULT_TPL.demandnotice),
+          chequepresent:($('tpl_chequepresent')?$('tpl_chequepresent').value:DEFAULT_TPL.chequepresent), chequepresent_hi:($('tpl_chequepresent_hi')?$('tpl_chequepresent_hi').value:DEFAULT_TPL.chequepresent_hi),
           reminder_hi:$('tpl_reminder_hi').value, overdue_hi:$('tpl_overdue_hi').value, greeting_hi:$('tpl_greeting_hi').value, holiday_hi:$('tpl_holiday_hi').value,
           thanks_hi:$('tpl_thanks_hi').value, welcome_hi:$('tpl_welcome_hi').value, finalnotice_hi:$('tpl_finalnotice_hi').value, demandnotice_hi:($('tpl_demandnotice_hi')?$('tpl_demandnotice_hi').value:DEFAULT_TPL.demandnotice_hi),
           fine:Number($('tpl_fine').value)||0 });
@@ -51,6 +54,7 @@
     $('tpl_reminder').value=TPL.reminder; $('tpl_overdue').value=TPL.overdue; $('tpl_greeting').value=TPL.greeting; $('tpl_holiday').value=TPL.holiday;
     $('tpl_reminder_hi').value=TPL.reminder_hi; $('tpl_overdue_hi').value=TPL.overdue_hi; $('tpl_greeting_hi').value=TPL.greeting_hi; $('tpl_holiday_hi').value=TPL.holiday_hi;
     $('tpl_thanks').value=TPL.thanks; $('tpl_welcome').value=TPL.welcome; $('tpl_finalnotice').value=TPL.finalnotice; $('tpl_thanks_hi').value=TPL.thanks_hi; $('tpl_welcome_hi').value=TPL.welcome_hi; $('tpl_finalnotice_hi').value=TPL.finalnotice_hi;
+    if($('tpl_chequepresent')){ $('tpl_chequepresent').value=TPL.chequepresent||DEFAULT_TPL.chequepresent; $('tpl_chequepresent_hi').value=TPL.chequepresent_hi||DEFAULT_TPL.chequepresent_hi; }
     if($('tpl_demandnotice')){ $('tpl_demandnotice').value=TPL.demandnotice||DEFAULT_TPL.demandnotice; $('tpl_demandnotice_hi').value=TPL.demandnotice_hi||DEFAULT_TPL.demandnotice_hi; }
     $('tpl_fine').value=(typeof getLateFeeRate==='function')?getLateFeeRate():TPL.fine;
   }
