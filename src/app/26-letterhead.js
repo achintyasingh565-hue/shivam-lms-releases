@@ -33,10 +33,14 @@
   function _doc(bodyHTML, ref, date) {
     var f = _firm();
     var brandCSS = (typeof docBrandCSS === 'function') ? docBrandCSS() : '';
+    // A real 10mm @page margin makes the printable area predictable regardless of the
+    // print dialog's "Default" margins, and a fit-to-page script shrinks the letter just
+    // enough to always land on ONE page (footer included).
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc(f.name) + ' — Letter</title><style>'
       + brandCSS
-      + '@page{size:A4;margin:0;} body{font-family:Georgia,"Times New Roman",serif;color:#1b1b1b;padding:12mm 16mm 10mm;position:relative;box-sizing:border-box;min-height:0 !important;}'
+      + '@page{size:A4;margin:10mm;} html,body{margin:0;padding:0;} body{font-family:Georgia,"Times New Roman",serif;color:#1b1b1b;position:relative;box-sizing:border-box;min-height:0 !important;}'
       + '@media print{body{min-height:0 !important;}}'
+      + '#lhpage{overflow:hidden;} #lhsheet{transform-origin:top left;}'
       + '.lhn{text-align:center;font-size:23px;font-weight:bold;letter-spacing:1px;color:#0b1f4b;font-family:Georgia,"Times New Roman",serif;}'
       + '.lha{text-align:center;font-size:10.5px;color:#555;margin-top:4px;line-height:1.5;font-family:-apple-system,"Segoe UI",Arial,sans-serif;}'
       + '.lhr{border-bottom:2px solid #c8a02a;margin:7px 0 10px;}'
@@ -46,12 +50,15 @@
       + '.lhfoot{border-top:1.5px solid #c8a02a;margin-top:16px;padding-top:5px;text-align:center;font-size:9px;color:#555;font-family:-apple-system,"Segoe UI",Arial,sans-serif;}'
       + '</style></head><body>'
       + _brand()
+      + '<div id="lhpage"><div id="lhsheet">'
       + '<div class="lhn">' + esc(f.name) + '</div>'
       + '<div class="lha">' + esc(firmAddrLine()) + '<br>' + esc(firmRegLine()) + '</div>'
       + '<div class="lhr"></div>'
       + '<div class="lhref"><div>Ref. No.: ' + esc(ref || '') + '</div><div>Date: ' + esc(date || '') + '</div></div>'
       + '<div class="lhbody">' + (bodyHTML || '') + '</div>'
       + '<div class="lhfoot">Proprietor: Achintya Kumar &bull; ' + esc(f.address) + ' &bull; ' + esc(f.phones) + (f.udyam ? (' &bull; Udyam Reg. No.: ' + esc(f.udyam)) : '') + '</div>'
+      + '</div></div>'
+      + '<script>(function(){function fit(){try{var pg=document.getElementById("lhpage"),sh=document.getElementById("lhsheet");if(!pg||!sh)return;sh.style.transform="none";var h=sh.getBoundingClientRect().height;var TARGET=1030;if(h>TARGET){var s=TARGET/h;sh.style.transform="scale("+s+")";sh.style.width=(100/s)+"%";pg.style.height=(h*s)+"px";}else{pg.style.height=h+"px";}}catch(e){}}fit();window.addEventListener("load",fit);setTimeout(fit,120);})();<\/script>'
       + '</body></html>';
   }
 
