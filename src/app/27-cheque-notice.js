@@ -3,11 +3,15 @@
  *
  * CHEQUE PRESENTATION NOTICE — a WhatsApp message telling the customer that
  * their cheque (number, bank, amount) will be presented in the bank on a chosen
- * date, so they keep sufficient balance. Opened from the "cheque notice" link on
- * any cheque entry in the Payments register. Wording is the editable
+ * date, so they keep sufficient balance. Two ways in:
+ *   1) the "cheque notice" link on any cheque entry in the Payments register
+ *      (cheque no. / bank / amount pre-filled from that entry), and
+ *   2) the "Cheque Notice" button on any loan row — no cheque payment needs to
+ *      exist yet; the cheque no. / bank / amount are typed into the form.
+ * All three fields are editable in the modal either way. Wording is the editable
  * chequepresent / chequepresent_hi template (English + Hindi).
  *
- * Public: window.chequeNotice(loanId, idx)
+ * Public: window.chequeNotice(loanId, idx)   // idx optional
  * ======================================================================== */
 (function () {
   function _phone(l) {
@@ -16,6 +20,7 @@
     return p;
   }
   function _amtPlain(n) {
+    if (n === '' || n == null) return '';
     if (typeof inrPlain === 'function') return inrPlain(n);
     return Number(n || 0).toLocaleString('en-IN');
   }
@@ -27,24 +32,26 @@
     } catch (e) {}
     return 'Namaste {name}, your cheque no. {cheque} (drawn on {bank}) of Rs {amount} towards loan account {acno} will be presented in the bank on {date}. Kindly keep sufficient balance to avoid cheque return / bounce charges. - ' + ((typeof FIRM === 'function') ? FIRM().name : 'Shivam Enterprises');
   }
-  function _fill(tpl, l, p, dateISO) {
+  function _fill(tpl, l, cheque, bank, amount, dateISO) {
     var d = (typeof fmtDate === 'function' && fmtDate(dateISO)) ? fmtDate(dateISO) : (dateISO || '');
     return String(tpl || '')
       .replace(/\{name\}/g, l.name || '')
-      .replace(/\{cheque\}/g, p.cheque || '—')
-      .replace(/\{bank\}/g, p.bank || 'your bank')
-      .replace(/\{amount\}/g, _amtPlain(p.amount))
+      .replace(/\{cheque\}/g, cheque || '—')
+      .replace(/\{bank\}/g, bank || 'your bank')
+      .replace(/\{amount\}/g, _amtPlain(amount) || '—')
       .replace(/\{acno\}/g, l.acno || '')
       .replace(/\{date\}/g, d);
   }
+  var _fld = 'border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;font-size:13px;';
 
   window.chequeNotice = function (loanId, idx) {
     var l = loans.find(function (x) { return x.id === loanId; });
     if (!l) { toast('Loan not found'); return; }
-    var p = (l.payments || [])[idx];
-    if (!p) { toast('Cheque entry not found'); return; }
-    if (p.mode !== 'Cheque') { toast('This entry is not a cheque'); return; }
-    window._cnCtx = { l: l, p: p };
+    // Pre-fill from an existing cheque payment when opened from the register;
+    // otherwise start blank so a notice can be sent before any payment is recorded.
+    var p = (idx != null) ? ((l.payments || [])[idx] || null) : null;
+    if (p && p.mode !== 'Cheque') p = null;
+    window._cnCtx = { l: l };
 
     var ov = document.getElementById('cnOverlay');
     if (!ov) {
@@ -55,7 +62,11 @@
       ov.addEventListener('click', function (e) { if (e.target === ov) window.closeChequeNotice(); });
     }
     var today = (typeof todayISO === 'function') ? todayISO() : new Date().toISOString().slice(0, 10);
-    var defDate = p.date && p.date > today ? p.date : today;
+    var defDate = (p && p.date && p.date > today) ? p.date : today;
+    var chq = p ? (p.cheque || '') : '';
+    var bank = p ? (p.bank || '') : '';
+    var amt = p ? (p.amount != null ? p.amount : '') : (l.emi != null ? l.emi : '');
+
     ov.innerHTML =
       '<div style="background:#fff;max-width:560px;width:100%;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.35);overflow:hidden;">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#0b1f4b;color:#fff;">'
@@ -64,12 +75,13 @@
       + '</div>'
       + '<div style="padding:16px 18px;">'
       + '<div style="font-size:13px;color:#334155;background:#f2f5fa;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:12px;">'
-      + '<b>' + esc(l.name || '') + '</b> &middot; A/c ' + esc(l.acno || '') + '<br>'
-      + 'Cheque no. <b>' + esc(p.cheque || '—') + '</b>' + (p.bank ? (' &middot; ' + esc(p.bank)) : '') + ' &middot; Rs ' + esc(_amtPlain(p.amount))
-      + '</div>'
-      + '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;">'
-      + '<label style="font-size:13px;color:#334155;">Presentation date <input type="date" id="cnDate" value="' + esc(defDate) + '" oninput="cnPreview()" style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 8px;font-size:13px;"></label>'
-      + '<label style="font-size:13px;color:#334155;">Language <select id="cnLang" onchange="cnPreview()" style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 8px;font-size:13px;"><option value="en">English</option><option value="hi">हिंदी</option></select></label>'
+      + '<b>' + esc(l.name || '') + '</b> &middot; A/c ' + esc(l.acno || '—') + '</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:12px;">'
+      + '<label style="font-size:12.5px;color:#334155;display:flex;flex-direction:column;gap:3px;">Cheque no.<input id="cnCheque" value="' + esc(chq) + '" oninput="cnPreview()" placeholder="e.g. 100231" style="' + _fld + '"></label>'
+      + '<label style="font-size:12.5px;color:#334155;display:flex;flex-direction:column;gap:3px;">Bank (customer’s)<input id="cnBank" value="' + esc(bank) + '" oninput="cnPreview()" placeholder="e.g. HDFC Bank" style="' + _fld + '"></label>'
+      + '<label style="font-size:12.5px;color:#334155;display:flex;flex-direction:column;gap:3px;">Amount (Rs)<input id="cnAmount" type="number" value="' + esc(amt) + '" oninput="cnPreview()" placeholder="e.g. 9250" style="' + _fld + '"></label>'
+      + '<label style="font-size:12.5px;color:#334155;display:flex;flex-direction:column;gap:3px;">Presentation date<input type="date" id="cnDate" value="' + esc(defDate) + '" oninput="cnPreview()" style="' + _fld + '"></label>'
+      + '<label style="font-size:12.5px;color:#334155;display:flex;flex-direction:column;gap:3px;">Language<select id="cnLang" onchange="cnPreview()" style="' + _fld + '"><option value="en">English</option><option value="hi">हिंदी</option></select></label>'
       + '</div>'
       + '<div style="font-size:12px;color:#64748b;margin-bottom:4px;">Message preview:</div>'
       + '<textarea id="cnPrev" readonly style="width:100%;min-height:130px;border:1px solid #cbd5e1;border-radius:8px;padding:10px;font-size:13px;line-height:1.5;color:#111;background:#fff;resize:vertical;"></textarea>'
@@ -86,7 +98,10 @@
     var ctx = window._cnCtx; if (!ctx) return;
     var lang = (document.getElementById('cnLang') || {}).value || 'en';
     var date = (document.getElementById('cnDate') || {}).value || '';
-    var msg = _fill(_tpl(lang), ctx.l, ctx.p, date);
+    var chq = (document.getElementById('cnCheque') || {}).value || '';
+    var bank = (document.getElementById('cnBank') || {}).value || '';
+    var amt = (document.getElementById('cnAmount') || {}).value || '';
+    var msg = _fill(_tpl(lang), ctx.l, chq, bank, amt, date);
     var pv = document.getElementById('cnPrev'); if (pv) pv.value = msg;
     return msg;
   };
@@ -96,8 +111,9 @@
     var ph = _phone(ctx.l);
     if (!ph) { toast('No phone number on file — open the loan to add one'); return; }
     var msg = window.cnPreview();
+    var chq = (document.getElementById('cnCheque') || {}).value || '';
     window.open('https://wa.me/' + ph + '?text=' + encodeURIComponent(msg), '_blank');
-    try { logAudit('Cheque Notice Sent', (ctx.l.name || '') + ' — chq ' + (ctx.p.cheque || '') + ' (' + (ctx.l.acno || '') + ')'); } catch (e) {}
+    try { logAudit('Cheque Notice Sent', (ctx.l.name || '') + ' — chq ' + (chq || '') + ' (' + (ctx.l.acno || '') + ')'); } catch (e) {}
     try { toast('WhatsApp opened — review and send'); } catch (e) {}
     window.closeChequeNotice();
   };

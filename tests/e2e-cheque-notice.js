@@ -37,8 +37,46 @@ const path = require('path');
     };
   });
 
+  // Second scenario: the notice is reachable from Greetings & Notices as its own
+  // message type, and can be opened standalone on a loan with NO cheque recorded.
+  const out2 = await p.evaluate(() => {
+    loans.splice(0, loans.length,
+      { id: 'A', name: 'Ramesh Kumar', acno: 'SE-2627-0007', phone: '9839125800', emi: 9250, principal: 100000, rate: 2, tenure: 12, tpay: 111000, disb: '2026-09-01', due: '2026-10-01', payments: [{ pid: 'p1', date: '2026-10-05', mode: 'Cheque', amount: 9250, cheque: '100231', bank: 'HDFC Bank', status: 'Pending' }] },
+      { id: 'B', name: 'No Cheque Guy', acno: 'SE-2627-0008', phone: '9000000000', emi: 5000, principal: 50000, rate: 2, tenure: 12, tpay: 60000, disb: '2026-09-01', due: '2026-10-01', payments: [] }
+    );
+    go('messages');
+    try { document.querySelector('[data-m=greetings]').click(); } catch (e) {}
+    const sel = document.getElementById('grType');
+    const hasOption = !!(sel && [].slice.call(sel.options).some(o => o.value === 'chequepresent'));
+    if (sel) { sel.value = 'chequepresent'; renderGreetings(); }
+    const list = window._grList || [];
+    // standalone open on a loan with no cheque payment
+    let waUrl = ''; window.open = (u) => { waUrl = String(u); return null; };
+    chequeNotice('B');
+    const editable = !!document.getElementById('cnCheque');
+    if (editable) { document.getElementById('cnCheque').value = '55555'; document.getElementById('cnBank').value = 'SBI'; document.getElementById('cnAmount').value = '5000'; cnPreview(); }
+    const prev = (document.getElementById('cnPrev') || {}).value || '';
+    cnSend();
+    return {
+      hasOption,
+      listOnlyPending: list.length === 1 && list[0].acno === 'SE-2627-0007',
+      listMsgHasCheque: /100231/.test((list[0] || {}).msg || ''),
+      listCat: (list[0] || {}).cat === 'Cheque Presentation',
+      editable,
+      standalonePreview: /55555/.test(prev) && /SBI/.test(prev),
+      standaloneSends: waUrl.includes('wa.me/919000000000')
+    };
+  });
+
   const checks = {
     'notice modal opens with preview':      out.opened === true,
+    'appears as a Greetings & Notices type': out2.hasOption === true,
+    'greetings list targets pending cheques': out2.listOnlyPending === true,
+    'greetings message auto-fills cheque':  out2.listMsgHasCheque === true,
+    'logged under "Cheque Presentation"':   out2.listCat === true,
+    'opens standalone (no payment needed)': out2.editable === true,
+    'editable fields drive the preview':    out2.standalonePreview === true,
+    'standalone send hits WhatsApp':        out2.standaloneSends === true,
     'preview shows cheque number':          out.hasCheque === true,
     'preview shows customer bank':          out.hasBank === true,
     'preview shows cheque amount':          out.hasAmount === true,
@@ -46,7 +84,7 @@ const path = require('path');
     'Hindi template available':             out.hindi === true,
     'sends to borrower WhatsApp number':    out.waPhone === true,
     'WhatsApp message carries the text':    out.waHindi === true,
-    'no page errors':                       errs.length === 0
+    'no page errors':                       errs.length === 0 && out2.hasOption !== undefined
   };
 
   console.log('\n===== CHEQUE PRESENTATION NOTICE =====');
