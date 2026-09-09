@@ -57,7 +57,11 @@ const path = require('path');
     if (editable) { document.getElementById('cnCheque').value = '55555'; document.getElementById('cnBank').value = 'SBI'; document.getElementById('cnAmount').value = '5000'; cnPreview(); }
     const prev = (document.getElementById('cnPrev') || {}).value || '';
     cnSend();
+    // the API send path must find an approved-template mapping for this category
+    var wt = (typeof loadWaTpl === 'function') ? loadWaTpl() : {};
+    var mapped = !!(wt['Cheque Presentation'] && wt['Cheque Presentation'].name);
     return {
+      apiTemplateMapped: mapped,
       hasOption,
       listOnlyPending: list.length === 1 && list[0].acno === 'SE-2627-0007',
       listMsgHasCheque: /100231/.test((list[0] || {}).msg || ''),
@@ -74,6 +78,7 @@ const path = require('path');
     'greetings list targets pending cheques': out2.listOnlyPending === true,
     'greetings message auto-fills cheque':  out2.listMsgHasCheque === true,
     'logged under "Cheque Presentation"':   out2.listCat === true,
+    'approved-template mapping exists':     out2.apiTemplateMapped === true,
     'opens standalone (no payment needed)': out2.editable === true,
     'editable fields drive the preview':    out2.standalonePreview === true,
     'standalone send hits WhatsApp':        out2.standaloneSends === true,
