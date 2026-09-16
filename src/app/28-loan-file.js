@@ -24,9 +24,9 @@
 
   function _css() {
     return ':root{--navy:#0b1f4b;--gold:#c8a02a;--ink:#1a1a1a;}*{box-sizing:border-box;margin:0;padding:0;}'
-      + '@page{size:A4;margin:0;}body{font-family:Georgia,"Times New Roman",serif;color:var(--ink);font-size:11px;line-height:1.35;}'
-      + '.sheet{position:relative;overflow:hidden;padding:16mm 15mm;}.cover-sheet{padding:0;min-height:296mm;height:296mm;}'
-      + '.sheet:not(:last-child){page-break-after:always;}'
+      + '@page{size:A4;margin:0;}body{font-family:Georgia,"Times New Roman",serif;color:var(--ink);font-size:12.5px;line-height:1.42;}'
+      + '.sheet{position:relative;overflow:visible;padding:11mm 14mm;page-break-before:always;}.sheet:first-child{page-break-before:avoid;}.cover-sheet{padding:0;min-height:296mm;height:296mm;overflow:hidden;}'
+      + '.sheet:last-child{page-break-after:avoid;}'
       + '.cv-frame{position:absolute;top:6mm;left:6mm;right:6mm;bottom:6mm;border:2.5px solid var(--navy);}'
       + '.cv-frame::after{content:"";position:absolute;top:4px;left:4px;right:4px;bottom:4px;border:1px solid var(--gold);}'
       + '.cv-corner{position:absolute;width:17mm;height:17mm;z-index:3;}'
@@ -39,23 +39,23 @@
       + '.cv-title{font-family:Georgia,serif;font-size:26px;font-weight:bold;letter-spacing:8px;color:var(--navy);margin-top:12px;}'
       + '.cv-box{width:100%;max-width:155mm;margin:auto 0 8mm;border:1px solid #c9d2e0;border-radius:7px;padding:16px 22px;text-align:left;background:#fcfdff;}'
       + '.cv-box .line{margin:13px 0;font-size:12.5px;}.cv-box .line b{color:var(--navy);}'
-      + '.om{text-align:center;font-size:12px;letter-spacing:1px;color:#666;}'
-      + '.firm{text-align:center;font-size:23px;font-weight:bold;color:var(--navy);}'
-      + '.addr{text-align:center;font-size:10.5px;color:#444;margin-top:3px;font-family:Arial,sans-serif;}'
-      + '.rule{border-bottom:2px solid var(--gold);margin:8px 0 12px;}'
-      + '.doctitle{text-align:center;font-size:16px;font-weight:bold;color:var(--navy);text-decoration:underline;letter-spacing:.5px;margin:6px 0 4px;}'
-      + '.docsub{text-align:center;font-size:11px;font-style:italic;color:#555;margin-bottom:8px;}'
-      + 'p.cl{margin:5px 0;text-align:justify;}'
+      + '.om{text-align:center;font-size:13.5px;letter-spacing:1px;color:#666;}'
+      + '.firm{text-align:center;font-size:27px;font-weight:bold;color:var(--navy);}'
+      + '.addr{text-align:center;font-size:12px;color:#444;margin-top:3px;font-family:Arial,sans-serif;}'
+      + '.rule{border-bottom:2px solid var(--gold);margin:6px 0 10px;}'
+      + '.doctitle{text-align:center;font-size:19px;font-weight:bold;color:var(--navy);text-decoration:underline;letter-spacing:.5px;margin:6px 0 4px;}'
+      + '.docsub{text-align:center;font-size:12.5px;font-style:italic;color:#555;margin-bottom:8px;}'
+      + 'p.cl{margin:6px 0;text-align:justify;}'
       + '.b{display:inline-block;border-bottom:1px dotted #444;min-width:110px;height:15px;vertical-align:baseline;}'
       + '.bl{min-width:210px;}.bxl{min-width:330px;}.bw{min-width:165px;}.bfull{display:block;border-bottom:1px dotted #444;height:17px;margin-top:2px;}'
       + '.fv{border-bottom:1px solid #333;padding:0 5px;font-weight:600;color:#111;font-family:Arial,sans-serif;}'
-      + '.sec-h{font-weight:bold;color:var(--navy);margin-top:12px;letter-spacing:.5px;}'
+      + '.sec-h{font-weight:bold;color:var(--navy);margin-top:8px;letter-spacing:.5px;}'
       + '.row{display:flex;gap:18px;flex-wrap:wrap;margin:5px 0;}.row>div{flex:1;min-width:180px;}'
       + 'table.kv{width:100%;border-collapse:collapse;margin-top:6px;}table.kv td{padding:5px 4px;vertical-align:top;}'
-      + '.sig-line{border-top:1px solid #333;margin-top:26px;padding-top:4px;}'
-      + '.note{font-size:11px;font-style:italic;color:#333;margin-top:10px;border:1px solid #ddd;background:#fafafa;padding:8px 10px;}'
+      + '.sig-line{border-top:1px solid #333;margin-top:16px;padding-top:4px;}'
+      + '.note{font-size:12.5px;font-style:italic;color:#333;margin-top:10px;border:1px solid #ddd;background:#fafafa;padding:8px 10px;}'
       + '.photo{float:right;width:30mm;height:38mm;border:1px solid #999;display:flex;align-items:center;justify-content:center;font-size:10px;color:#888;text-align:center;margin-left:12px;}'
-      + 'ol.clauses{margin:5px 0 0 18px;}ol.clauses li{margin:5px 0;text-align:justify;page-break-inside:avoid;}'
+      + 'ol.clauses{margin:5px 0 0 18px;}ol.clauses li{margin:3px 0;text-align:justify;page-break-inside:avoid;}'
       + '.sig-row,table.kv,.note{page-break-inside:avoid;}';
   }
 
@@ -109,7 +109,7 @@
       + '<p class="cl">(i) PAN Card No.: ' + fv(l.pan, 'bl') + '</p>'
       + '<p class="cl">Guarantor Name: ' + fv(l.gname, 'bxl') + '</p>'
       + '<div class="note">Note:- We the undersigned solemnly affirm that the declaration made above by us is absolutely true and no part is false and nothing has been withheld or concealed. This declaration is signed on the basis of the agreement.</div>'
-      + '<div style="display:flex;justify-content:space-between;margin-top:36px;gap:40px;font-size:11px;"><div style="text-align:left;">Place: <b>Lucknow</b><br><br>Date: ' + fv(_d(l.disb), 'bl') + '</div>'
+      + '<div style="display:flex;justify-content:space-between;margin-top:36px;gap:40px;font-size:12.5px;"><div style="text-align:left;">Place: <b>Lucknow</b><br><br>Date: ' + fv(_d(l.disb), 'bl') + '</div>'
       + '<div style="text-align:center;flex:0 0 45%;"><div class="sig-line" style="margin-top:6px;">Applicant Signature</div><div class="sig-line" style="margin-top:34px;">Guarantor Signature</div></div></div>'
       + '</section>'
 
@@ -132,9 +132,8 @@
       + '<div class="sec-h">SECURITY</div><p class="cl">Type of security held: ' + fv(l.propdesc, 'bl') + ' &nbsp; Approx. value of security Rs. ' + fv(_r(l.propvalue)) + '</p>'
       + '<div class="sec-h">SCHEDULE OF LOAN</div><table class="kv"><tr><td>Loan amount Rs. ' + fv(_r(l.principal)) + '</td><td>Rate of interest ' + fv(l.rate) + ' % per month</td></tr>'
       + '<tr><td>Monthly instalment Rs. ' + fv(_r(l.emi)) + ' &times; ' + fv(l.tenure) + '</td><td>Total amount repayable Rs. ' + fv(_r(l.tpay)) + '</td></tr></table>'
-      + '<div style="display:flex;justify-content:space-between;margin-top:22px;gap:24px;font-size:11px;text-align:center;"><div style="flex:1;"><div class="sig-line">Signature of the Borrower</div></div><div style="flex:1;"><div class="sig-line">Signature of Guarantor</div></div><div style="flex:1;"><div class="sig-line">For Shivam Enterprises (Lender)</div></div></div>'
-      + '<div class="row" style="margin-top:14px;"><div>Witness 1: <span class="b"></span> &nbsp; Address: <span class="b"></span></div></div>'
-      + '<div class="row"><div>Witness 2: <span class="b"></span> &nbsp; Address: <span class="b"></span></div></div>'
+      + '<div style="display:flex;justify-content:space-between;margin-top:14px;gap:24px;font-size:12.5px;text-align:center;"><div style="flex:1;"><div class="sig-line">Signature of the Borrower</div></div><div style="flex:1;"><div class="sig-line">Signature of Guarantor</div></div><div style="flex:1;"><div class="sig-line">For Shivam Enterprises (Lender)</div></div></div>'
+      + '<div class="row" style="margin-top:6px;"><div>Witness 1: <span class="b" style="min-width:95px;"></span> Addr: <span class="b" style="min-width:80px;"></span></div><div>Witness 2: <span class="b" style="min-width:95px;"></span> Addr: <span class="b" style="min-width:80px;"></span></div></div>'
       + '</section>'
 
       /* ---- Page 4: Security & Declaration + Promissory Note ---- */
@@ -151,7 +150,7 @@
       + '<div class="rule" style="margin-top:30px;"></div><div class="doctitle" style="margin-top:6px;">PROMISSORY NOTE</div>'
       + '<p class="cl"><b>Rs. ' + fv(_r(l.principal)) + '</b></p>'
       + '<p class="cl">On demand I, (Borrower) ' + fv(l.name, 'bl') + ' Son / Daughter / Wife of ' + fv(l.relname, 'bw') + ', resident of ' + fv(l.addr, 'bl') + ', and (Guarantor) ' + fv(l.gname, 'bl') + ' Son / Daughter / Wife of <span class="b bw"></span>, resident of <span class="b bl"></span>, jointly and severally promise to pay <b>Shivam Enterprises, ' + esc(FIRM().address) + '</b>, or order, the sum of Rs. ' + fv(_r(l.principal)) + ' (Rupees <span class="b bl"></span>) together with interest at ' + fv(l.rate) + ' % per month, for value received. Dated this ' + fv(l.disb ? new Date(l.disb).getDate() : '') + ' day of ' + fv(l.disb ? new Date(l.disb).toLocaleString('en-IN', { month: 'long' }) : '') + ' 20' + fv(l.disb ? String(new Date(l.disb).getFullYear()).slice(2) : '') + '.</p>'
-      + '<div style="display:flex;justify-content:space-between;margin-top:26px;gap:40px;font-size:11px;"><div style="text-align:left;">Place: <b>Lucknow</b></div><div style="text-align:center;flex:0 0 45%;"><div class="sig-line" style="margin-top:6px;">Signature of Borrower</div><div class="sig-line" style="margin-top:34px;">Signature of Guarantor</div></div></div>'
+      + '<div style="display:flex;justify-content:space-between;margin-top:26px;gap:40px;font-size:12.5px;"><div style="text-align:left;">Place: <b>Lucknow</b></div><div style="text-align:center;flex:0 0 45%;"><div class="sig-line" style="margin-top:6px;">Signature of Borrower</div><div class="sig-line" style="margin-top:34px;">Signature of Guarantor</div></div></div>'
       + '</section>'
 
       + '</body></html>';

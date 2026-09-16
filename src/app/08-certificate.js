@@ -203,9 +203,17 @@
   window.recomputeAll=recomputeAll;
   function refreshPayLoanDropdown(){
     const sel=$('payb_loan'); if(!sel) return; const cur=sel.value;
-    sel.innerHTML='<option value="">\u2014 Select a borrower \u2014</option>'+loans.map(l=>`<option value="${l.id}">${esc(l.name)} (${esc(l.acno)}) \u2014 bal ${inr(l.outstanding)}</option>`).join('');
-    sel.value=cur;
+    // Borrowers are listed A\u2192Z; an optional search box filters the list as you type.
+    var q=(($('payb_search')||{}).value||'').trim().toLowerCase();
+    var list=loans.slice().sort(function(a,b){ return (a.name||'').localeCompare(b.name||'')||(a.acno||'').localeCompare(b.acno||''); });
+    if(q) list=list.filter(function(l){ return ((l.name||'')+' '+(l.acno||'')).toLowerCase().indexOf(q)>=0; });
+    sel.innerHTML='<option value="">\u2014 Select a borrower \u2014</option>'+list.map(l=>`<option value="${l.id}">${esc(l.name)} (${esc(l.acno)}) \u2014 bal ${inr(l.outstanding)}</option>`).join('');
+    // keep the current pick if it still matches the filter; if the search narrows to a
+    // single borrower, select them automatically so recording is one step.
+    if(cur && list.some(function(l){return l.id===cur;})) sel.value=cur;
+    else if(q && list.length===1) sel.value=list[0].id;
   }
+  window.filterPayLoans=function(){ refreshPayLoanDropdown(); };
   function payTabModeUI(){ const m=$('payb_mode').value; const cq=$('payb_cheqRow'); const on=$('payb_onlineRow'); if(cq) cq.style.display=(m==='Cheque')?'grid':'none'; if(on) on.style.display=(m==='Online')?'grid':'none'; }
   /* Every payment gets a unique id so entries have an identity (dedup, audit, sync). */
   function newPayId(){ return 'P'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
@@ -237,9 +245,7 @@
     $('payb_amt').value=''; $('payb_cheqno').value=''; $('payb_bank').value=''; if($('payb_ref'))$('payb_ref').value='';
     renderPayReg(); refreshPayLoanDropdown();
     toast('Payment recorded for '+l.name+(p.status==='Pending'?' (pending cheque \u2014 balance unchanged until cleared)':''));
-    // Offer to send the customer a WhatsApp receipt (amount + remaining balance). Only for
-    // cleared payments \u2014 a pending cheque hasn't actually reduced the balance yet.
-    if(p.status==='Cleared'){ try{ if(typeof offerPaymentReceiptWA==='function') offerPaymentReceiptWA(l, p); }catch(e){} }
+    // (Automatic WhatsApp receipt prompt removed \u2014 send receipts manually when needed.)
     } finally { setTimeout(function(){ recordPayTab._busy=false; }, 400); }
   }
   function payAllRows(){

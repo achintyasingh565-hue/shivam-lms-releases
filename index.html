@@ -98,7 +98,7 @@
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.4 2.4 4.6-5"/></svg> Audit Logging Enabled</span>
       </div>
       <div class="auth-meta"><span id="lastLogin"></span></div>
-      <div class="auth-meta auth-verline">Version 2.0.81 &nbsp;·&nbsp; © Shivam Enterprises</div>
+      <div class="auth-meta auth-verline">Version 2.0.83 &nbsp;·&nbsp; © Shivam Enterprises</div>
     </div>
   </div>
 </div>
@@ -665,8 +665,12 @@
         <div class="panel">
           <h3>Record a Payment</h3>
           <p class="ph-sub">Enter a cash or cheque payment against a borrower. It updates that loan&rsquo;s outstanding balance automatically &mdash; you don&rsquo;t need to open the loan record. Pending cheques are saved but do not reduce the balance until you mark them cleared.</p>
+          <div style="max-width:840px;margin-bottom:10px;">
+            <label style="display:block;font-size:12px;color:var(--muted,#64748b);margin-bottom:4px;">Search borrower</label>
+            <input id="payb_search" type="text" placeholder="Type a name or A/C no. to filter&hellip;" oninput="filterPayLoans()" style="width:100%;">
+          </div>
           <div class="form-grid" style="grid-template-columns:1.6fr 0.9fr 0.9fr; max-width:840px;">
-            <div class="fg"><label>Borrower / Loan A/C</label><select id="payb_loan"><option value="">&mdash; Select a borrower &mdash;</option></select></div>
+            <div class="fg"><label>Borrower / Loan A/C <span class="ph-sub">(A&ndash;Z)</span></label><select id="payb_loan"><option value="">&mdash; Select a borrower &mdash;</option></select></div>
             <div class="fg"><label>Date</label><input id="payb_date" type="date"></div>
             <div class="fg"><label>Mode</label><select id="payb_mode" onchange="payTabModeUI()"><option value="Cash">Cash</option><option value="Cheque">Cheque</option><option value="Online">Online (UPI / NEFT / IMPS)</option></select></div>
           </div>
@@ -1221,6 +1225,15 @@
     <div class="modal-head"><h3 id="rsTitle">Restructure / Prepayment</h3><button class="x" aria-label="Close" onclick="closeRestructure()">&times;</button></div>
     <div class="modal-body" style="display:block;">
       <div id="rsCurrent" style="background:var(--field,#f2f5fa);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;"></div>
+
+      <div id="rsCombine" style="display:none;border:1px solid #cfe0d6;background:#f4faf6;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;font-weight:600;cursor:pointer;">
+          <input type="checkbox" id="rsCombineOn" onchange="calcRestructure()" style="margin-top:2px;">
+          <span>Merge this customer&rsquo;s loans into ONE new combined loan<br>
+          <span class="ph-sub" style="font-weight:400;">Tick the loans to include. Each loan&rsquo;s remaining <b>principal</b> (interest already paid is not carried over) is combined into a single new loan; the old loans are closed.</span></span>
+        </label>
+        <div id="rsCombineList" style="margin-top:8px;font-size:12.5px;"></div>
+      </div>
 
       <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;gap:12px;">
         <div><label>Lump-sum payment</label><input id="rs_amt" type="number" min="0" placeholder="0" oninput="calcRestructure()"></div>

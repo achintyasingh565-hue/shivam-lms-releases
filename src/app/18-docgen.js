@@ -3,6 +3,34 @@
   var L=null; /* the loan being restructured */
   function monthsLeft(l){ var e=Number(l.emi)||0, o=outstandingOf(l); if(e<=0) return Number(l.tenure)||0; return Math.max(1, Math.round(o/e)); }
   function outstandingOf(l){ return Math.max(0, (Number(l.tpay)||0) - (Number(l.paid)||0)); }
+  /* Remaining PRINCIPAL only (interest already paid is NOT carried forward). For a flat
+     loan the principal share of the balance = principal × (outstanding ÷ total payable).
+     Interest-only (byaj) loans keep the full principal until it is returned. */
+  function remPrincipalOf(l){
+    var P=Number(l.principal)||0; if(P<=0) return 0;
+    if(l.interestOnly){ var b=Number(l.outstanding); return Math.max(0, Math.min(P, (b>0?b:P))); }
+    var tp=Number(l.tpay)||0, out=outstandingOf(l);
+    if(tp<=0) return Math.max(0, Math.min(P, out));
+    return Math.max(0, Math.min(P, Math.round(P*(out/tp))));
+  }
+  function _normName(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
+  /* Other still-open loans belonging to the SAME borrower name (user ticks which to merge —
+     names can repeat for different people, so selection is always manual). */
+  function _rsSiblings(){ if(!L) return []; var n=_normName(L.name); return (loans||[]).filter(function(x){ return x && x.id!==L.id && _normName(x.name)===n && x.status!=='Closed' && outstandingOf(x)>0; }); }
+  function _rsCombinePicked(){ var out=[]; var box=document.getElementById('rsCombineList'); if(!box) return out; [].forEach.call(box.querySelectorAll('input[type=checkbox][data-id]'), function(cb){ if(cb.checked && !cb.disabled){ var l=(loans||[]).find(function(x){return x.id===cb.getAttribute('data-id');}); if(l) out.push(l); } }); return out; }
+  function _rsCombineActive(){ var on=document.getElementById('rsCombineOn'); return !!(on&&on.checked) && _rsCombinePicked().length>=1; }
+  function _rsFillCombine(){
+    var cb=document.getElementById('rsCombine'), cl=document.getElementById('rsCombineList'); if(!cb||!cl) return;
+    var sibs=_rsSiblings();
+    var on=document.getElementById('rsCombineOn'); if(on) on.checked=false;
+    if(!sibs.length){ cb.style.display='none'; cl.innerHTML=''; return; }
+    cb.style.display='block';
+    cl.innerHTML=[L].concat(sibs).map(function(x){ var isCur=(x.id===L.id);
+      return '<label style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;'+(isCur?'opacity:.8;':'cursor:pointer;')+'">'
+        +'<span><input type="checkbox" data-id="'+esc(x.id)+'" '+(isCur?'checked disabled':'')+' onchange="calcRestructure()"> '+esc(x.acno||'')+(isCur?' <span class="ph-sub">(this loan)</span>':'')+'</span>'
+        +'<span class="ph-sub">bal '+inr(outstandingOf(x))+' &middot; principal left '+inr(remPrincipalOf(x))+'</span></label>';
+    }).join('');
+  }
   window.openRestructure=function(id){
     var lid = id || (typeof editId!=='undefined' ? editId : null);
     if(!lid){ toast('Open or save a loan first, then restructure it'); return; }
@@ -17,6 +45,7 @@
       '<div class="rs-row"><span>EMI</span><span>'+inr(L.emi||0)+'</span></div>'+
       '<div class="rs-row"><span>Months remaining (approx.)</span><span>'+monthsLeft(L)+'</span></div>'+
       '<div class="rs-row"><span>Interest rate</span><span>'+(L.rate!=null?L.rate+'% p.m.':'—')+'</span></div>';
+    _rsFillCombine();
     calcRestructure();
     $('rsOverlay').classList.add('show');
   };
@@ -26,17 +55,29 @@
 
   function compute(){
     if(!L) return null;
+    // Combine mode: merge the ticked loans — carry only each loan's remaining PRINCIPAL into
+    // one new loan. Otherwise it's an ordinary single-loan restructure on the outstanding.
+    var combine=_rsCombineActive();
+    var combLoans=null, combinedPrincipal=0, principalPaid=0, totalPaid=0;
     var oldOut=outstandingOf(L);
+    var base;
+    if(combine){
+      combLoans=[L].concat(_rsCombinePicked());
+      combLoans.forEach(function(x){ var rp=remPrincipalOf(x); combinedPrincipal+=rp; principalPaid+=Math.max(0,(Number(x.principal)||0)-rp); totalPaid+=(Number(x.paid)||0); });
+      base=combinedPrincipal;
+    } else {
+      base=oldOut;
+    }
     var lumpEntered=Math.max(0, Number($('rs_amt').value)||0);
     /* A lump-sum can never exceed what is owed. Before this cap, an over-payment REWROTE the
        contract (tpay was inflated to paid+0) so the books claimed the customer owed more than
        the agreement — the excess must be handled as a separate refund/advance, not absorbed. */
-    var lump=Math.min(lumpEntered, oldOut);
-    var overpay=Math.max(0, lumpEntered-oldOut);
-    var newOut=Math.max(0, oldOut - lump);
+    var lump=Math.min(lumpEntered, base);
+    var overpay=Math.max(0, lumpEntered-base);
+    var newOut=Math.max(0, base - lump);
     var mode=(document.querySelector('input[name="rsMode"]:checked')||{}).value||'emi';
     $('rsManual').style.display = (mode==='manual')?'grid':'none';
-    var mLeft=monthsLeft(L);
+    var mLeft = combine ? Math.max.apply(null, [1].concat(combLoans.map(function(x){return monthsLeft(x);}))) : monthsLeft(L);
     var newEmi, newMonths;
     if(newOut<=0){ newEmi=0; newMonths=0; }
     else if(mode==='emi'){ newMonths=mLeft; newEmi=Math.ceil(newOut/mLeft); }
@@ -62,7 +103,8 @@
     var lastEmi = (newMonths>0) ? (newTotal - newEmi*(newMonths-1)) : 0;
     if(lastEmi<0) lastEmi=0;
     var newRate=(raw==='')?L.rate:freshRate;   // blank keeps the old rate label; a value sets it
-    return { oldOut:oldOut, lump:lump, lumpEntered:lumpEntered, overpay:overpay, newOut:newOut, interest:interest, newTotal:newTotal, newEmi:newEmi, newMonths:newMonths, lastEmi:lastEmi, newRate:newRate, freshRate:freshRate, mode:mode };
+    return { oldOut:oldOut, lump:lump, lumpEntered:lumpEntered, overpay:overpay, newOut:newOut, interest:interest, newTotal:newTotal, newEmi:newEmi, newMonths:newMonths, lastEmi:lastEmi, newRate:newRate, freshRate:freshRate, mode:mode,
+      combine:combine, combLoans:combLoans, combinedPrincipal:combinedPrincipal, principalPaid:principalPaid, totalPaid:totalPaid, base:base };
   }
   window.calcRestructure=function(){
     var c=compute(); if(!c) return;
@@ -75,6 +117,22 @@
       ? '<div class="rs-row"><span>Add: fresh interest @ '+c.freshRate+'% p.m. × '+c.newMonths+' months</span><span>+ '+inr(c.interest)+'</span></div>'
         +'<div class="rs-row"><span><b>New total payable</b></span><span class="rs-new">'+inr(c.newTotal)+'</span></div>'
       : '';
+    if(c.combine){
+      var combHead='<b>Combining '+c.combLoans.length+' loans into one</b>'
+        +'<div class="rs-row"><span>Combined remaining principal</span><span class="rs-new">'+inr(c.combinedPrincipal)+'</span></div>'
+        +'<div class="rs-row"><span>Principal already repaid (all loans)</span><span>'+inr(c.principalPaid)+'</span></div>'
+        +'<div class="rs-row"><span>Total amount paid so far (all loans)</span><span>'+inr(c.totalPaid)+'</span></div>'
+        +'<div style="border-top:1px dashed #bcd;margin:8px 0;"></div>';
+      $('rsAfter').innerHTML=combHead+
+        (c.lump>0?'<div class="rs-row"><span>Less: lump-sum paid now ('+($('rs_mode').value)+')</span><span>− '+inr(c.lump)+'</span></div>':'')+
+        '<div class="rs-row"><span><b>New combined loan principal</b></span><span class="rs-new">'+inr(c.newOut)+'</span></div>'+
+        interestLines +
+        '<div class="rs-row"><span>New EMI'+(c.interest>0?'':' (no fresh interest added)')+'</span><span class="rs-new">'+inr(c.newEmi)+'</span></div>'+
+        '<div class="rs-row"><span>Months</span><span class="rs-new">'+c.newMonths+'</span></div>'+
+        lastLine + overLine +
+        '<div style="color:#0b7a4b;font-weight:600;margin-top:6px;">The '+c.combLoans.length+' old loans will be closed and one new combined loan will be created.</div>';
+      return;
+    }
     $('rsAfter').innerHTML='<b>After restructuring</b>'+
       '<div class="rs-row"><span>Current outstanding (interest already included)</span><span>'+inr(c.oldOut)+'</span></div>'+
       (c.lump>0?'<div class="rs-row"><span>Less: lump-sum paid now ('+($('rs_mode').value)+')</span><span>− '+inr(c.lump)+'</span></div>':'')+
@@ -84,9 +142,61 @@
       '<div class="rs-row"><span>Months remaining</span><span class="rs-new">'+c.newMonths+'</span></div>'+
       lastLine + overLine + closed;
   };
+  function applyCombine(c){
+    if(!c||!L||!c.combLoans||c.combLoans.length<2){ toast('Select at least one more loan to combine'); return; }
+    var acnos=c.combLoans.map(function(x){return x.acno||'';}).filter(Boolean);
+    if(!confirm('Combine '+c.combLoans.length+' loans ('+acnos.join(', ')+') into ONE new loan?\n\nCombined principal: '+inr(c.newOut)+'\nNew EMI: '+inr(c.newEmi)+' × '+c.newMonths+' months'+(c.interest>0?('\nFresh interest: '+inr(c.interest)):'')+'\n\nThe old loans will be closed and a new combined loan created.')) return;
+    var rsDate=$('rs_date').value||todayISO();
+    try{ if(typeof snapBefore==='function') snapBefore('Before combine: '+acnos.join(',')); }catch(e){}
+    var newAcno=(typeof nextLoanAcno==='function')?nextLoanAcno():('SE-'+Date.now());
+    var due=(typeof repAddMonths==='function')?repAddMonths(rsDate,1):rsDate;
+    // Carry the borrower's identity from the primary loan into the new combined loan.
+    var COPY=['name','reltype','relname','phone','addr','ids','idproof','pan','type','secured','gname','gphone','coname','cophone','corel','coid','coaddr','age','residence','occupation','designation','officeaddr','propdesc','propaddr','proparea','propvalue','bN','bS','bE','bW','title','dealer','officer'];
+    var rec={ id:'L'+Date.now()+Math.random().toString(36).slice(2,6), acno:newAcno };
+    COPY.forEach(function(k){ if(L[k]!=null) rec[k]=L[k]; });
+    rec.principal=Math.max(0, Math.round(c.newOut));
+    rec.rate=(c.newRate!=null?c.newRate:0);
+    rec.disb=rsDate; rec.due=due; rec.tenure=c.newMonths;
+    rec.tint=Math.max(0, Math.round(c.interest||0));
+    rec.tpay=Math.max(0, Math.round(c.newTotal));
+    rec.emi=c.newEmi;
+    rec.paid=0; rec.outstanding=rec.tpay; rec.status='Active';
+    rec.payments=[]; rec.charges=[]; rec.interestOnly=false;
+    rec.deductions=0; rec.downpay=0;
+    rec.product=(L.product||'Combined loan');
+    rec.combinedFrom=acnos.slice();
+    rec.remarks=('Combined from: '+acnos.join(', ')+(c.lump>0?(' | Prepaid at merge: '+inr(c.lump)):'')+((L.remarks)?(' | '+L.remarks):''));
+    rec.createdAt=todayISO();
+    try{ recomputeLoan(rec); }catch(e){}
+    loans.unshift(rec);
+    // Close every source loan by settling its remaining balance (the leftover interest not
+    // carried forward is written off; only the principal moves into the new loan).
+    c.combLoans.forEach(function(x){
+      try{ recomputeLoan(x); }catch(e){}
+      var settle=Math.max(0, Number(x.outstanding)||outstandingOf(x));
+      x.payments=Array.isArray(x.payments)?x.payments:[];
+      if(settle>0) x.payments.push({ pid:newPayId(), date:rsDate, mode:'Adjustment', amount:settle, status:'Cleared', note:'Merged into '+newAcno });
+      x.mergedInto=newAcno;
+      x.remarks=((x.remarks?x.remarks+' | ':'')+'Merged into '+newAcno+' on '+rsDate);
+      try{ recomputeLoan(x); }catch(e){}
+      x.status='Closed'; x.outstanding=0; x.arrears=0;
+      loans=loans.map(function(y){return y.id===x.id?x:y;});
+    });
+    save();
+    try{ logAudit('Loans Combined', acnos.join(', ')+' → '+newAcno+' · principal '+inr(rec.principal)+', EMI '+inr(rec.emi)+' × '+rec.tenure+'m'); }catch(e){}
+    try{ renderLoans(); }catch(e){}
+    try{ if(typeof renderDash==='function') renderDash(); }catch(e){}
+    var snap=Object.assign({}, rec, {_c:c});
+    closeRestructure(); try{ closeLoan(); }catch(e){}
+    toast('Combined into new loan '+newAcno);
+    if(confirm('Combined successfully into '+newAcno+'. Print the schedule for the new loan?')){
+      try{ printSchedule(snap, { newOut:rec.principal, newTotal:rec.tpay, newEmi:rec.emi, newMonths:rec.tenure, lastEmi:(rec.tpay-rec.emi*(rec.tenure-1)), newRate:rec.rate, lump:0 }); }catch(e){}
+    }
+  }
   window.applyRestructure=function(){
     if(typeof can==='function' && !can('edit')){ toast('⚠ You do not have permission to restructure loans. Ask an administrator.'); return; }
     var c=compute(); if(!c||!L) return;
+    if(c.combine){ return applyCombine(c); }
     if(c.lump<=0 && c.newEmi===(Number(L.emi)||0)){ toast('Nothing to change — enter a lump-sum payment, or set a new EMI / tenure'); return; }
     if(c.overpay>0 && !confirm('The amount entered is '+inr(c.overpay)+' MORE than the outstanding balance.\n\nOnly '+inr(c.lump)+' will be recorded against this loan and it will be closed. The excess '+inr(c.overpay)+' is NOT recorded here — return it to the customer or record it separately.\n\nContinue?')) return;
     var rsDate=$('rs_date').value||todayISO();

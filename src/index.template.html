@@ -353,6 +353,15 @@
     <div class="modal-body" style="display:block;">
       <div id="rsCurrent" style="background:var(--field,#f2f5fa);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;"></div>
 
+      <div id="rsCombine" style="display:none;border:1px solid #cfe0d6;background:#f4faf6;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;font-weight:600;cursor:pointer;">
+          <input type="checkbox" id="rsCombineOn" onchange="calcRestructure()" style="margin-top:2px;">
+          <span>Merge this customer&rsquo;s loans into ONE new combined loan<br>
+          <span class="ph-sub" style="font-weight:400;">Tick the loans to include. Each loan&rsquo;s remaining <b>principal</b> (interest already paid is not carried over) is combined into a single new loan; the old loans are closed.</span></span>
+        </label>
+        <div id="rsCombineList" style="margin-top:8px;font-size:12.5px;"></div>
+      </div>
+
       <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;gap:12px;">
         <div><label>Lump-sum payment</label><input id="rs_amt" type="number" min="0" placeholder="0" oninput="calcRestructure()"></div>
         <div><label>Mode</label><select id="rs_mode"><option value="Cash">Cash</option><option value="Online">Online (UPI / NEFT / IMPS)</option><option value="Cheque">Cheque</option></select></div>
