@@ -3,15 +3,28 @@
   var L=null; /* the loan being restructured */
   function monthsLeft(l){ var e=Number(l.emi)||0, o=outstandingOf(l); if(e<=0) return Number(l.tenure)||0; return Math.max(1, Math.round(o/e)); }
   function outstandingOf(l){ return Math.max(0, (Number(l.tpay)||0) - (Number(l.paid)||0)); }
-  /* Remaining PRINCIPAL only (interest already paid is NOT carried forward). For a flat
-     loan the principal share of the balance = principal × (outstanding ÷ total payable).
-     Interest-only (byaj) loans keep the full principal until it is returned. */
+  /* Remaining PRINCIPAL only (interest already paid is NOT carried forward).
+     Flat loan: each EMI = (principal ÷ tenure) + (interest ÷ tenure). A payment covers that
+     EMI's INTEREST first, then its principal — so a part-payment that only covers interest
+     reduces no principal. We walk the cleared payments EMI-by-EMI and subtract the principal
+     actually covered. (This matches how the schedule is read: ₹6,250 principal per full EMI,
+     the ₹6,000 interest slice first.) Interest-only loans keep the full principal. */
   function remPrincipalOf(l){
     var P=Number(l.principal)||0; if(P<=0) return 0;
     if(l.interestOnly){ var b=Number(l.outstanding); return Math.max(0, Math.min(P, (b>0?b:P))); }
+    var n=Math.round(Number(l.tenure)||0);
     var tp=Number(l.tpay)||0, out=outstandingOf(l);
-    if(tp<=0) return Math.max(0, Math.min(P, out));
-    return Math.max(0, Math.min(P, Math.round(P*(out/tp))));
+    var cleared=Math.max(0, tp-out);                 // total cleared against the schedule
+    if(n<=0 || tp<=0){ return Math.max(0, Math.min(P, out)); }
+    var I=Number(l.tint); if(!(I>0)) I=Math.max(0, tp-P);
+    var intPerEmi=I/n, prinPerEmi=P/n;
+    var rem=cleared, prinPaid=0;
+    for(var i=0;i<n && rem>0.0001;i++){
+      var payInt=Math.min(rem, intPerEmi); rem-=payInt;              // interest slice first
+      if(rem<=0.0001) break;
+      var payPrin=Math.min(rem, prinPerEmi); prinPaid+=payPrin; rem-=payPrin;   // then principal
+    }
+    return Math.max(0, Math.min(P, Math.round(P - prinPaid)));
   }
   function _normName(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
   /* Other still-open loans belonging to the SAME borrower name (user ticks which to merge —

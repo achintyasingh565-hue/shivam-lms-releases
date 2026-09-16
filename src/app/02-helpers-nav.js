@@ -372,7 +372,7 @@
     if(!l){ host.innerHTML='<p style="color:var(--grey);">Select a borrower to view their statement.</p>'; return; }
     var pays=(l.payments||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     var payable=repLoanPayable(l); var ded=Number(l.deductions)||0; var run=0;
-    var rowsHtml = pays.length? pays.map(function(p){ var amt=Number(p.amount)||0; if(p.status!=='Pending'){ run+=amt; } var pf=_isPrepay(p)?' <span style="color:var(--muted);font-size:10.5px;">· prepayment</span>':''; return '<tr><td>'+fmtDate(p.date)+'</td><td>'+esc(p.mode)+pf+'</td><td>'+repChqRef(p)+'</td><td class="right">'+inr(amt)+'</td><td>'+esc(p.status||'')+'</td><td class="right">'+inr(run)+'</td></tr>'; }).join('')
+    var rowsHtml = pays.length? pays.map(function(p){ var amt=Number(p.amount)||0; if(p.status!=='Pending'){ run+=amt; } var pf=_isPrepay(p)?' <span style="color:var(--muted);font-size:10.5px;">· prepayment</span>':''; var itag=(p.intOnly||p.type==='Interest')?' <span style="color:#4338ca;font-size:10.5px;">· interest only</span>':''; return '<tr><td>'+fmtDate(p.date)+'</td><td>'+esc(p.mode)+pf+itag+'</td><td>'+repChqRef(p)+'</td><td class="right">'+inr(amt)+'</td><td>'+esc(p.status||'')+'</td><td class="right">'+inr(run)+'</td></tr>'; }).join('')
       : '<tr><td colspan="6" style="text-align:center;color:var(--grey);padding:18px;">No payments recorded yet.</td></tr>';
     var rs=repRsHistory(l);
     var rsHtml = rs.length ? ('<div style="font-weight:650;font-size:13px;margin:4px 0 6px;">Restructuring &amp; Prepayment History</div>'
@@ -382,6 +382,7 @@
     var meta='<div class="pay-tiles" style="margin-bottom:14px;">'
       +repTile('Total payable',inr(payable))
       +repTile('Paid (cleared)',inr(run),'ok')
+      +((Number(l.intIncome)||0)>0?repTile('Interest serviced',inr(l.intIncome)):'')
       +(ded?repTile('Processing/Deductions',inr(ded)):'')
       +repTile('Outstanding',inr(Number(l.outstanding)||0),'warn')+'</div>';
     var terms='<div class="table-wrap" style="margin-bottom:14px;"><table class="data"><tbody>'

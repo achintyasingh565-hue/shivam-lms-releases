@@ -67,8 +67,16 @@
   function recomputeLoan(l){
     if(l && l.interestOnly){ return _recomputeInterestOnly(l); }
     const pays=Array.isArray(l.payments)?l.payments:[];
-    const cleared=pays.filter(p=>p.status==='Cleared').reduce((a,p)=>a+(Number(p.amount)||0),0);
+    const _isInt=function(p){ return p && (p.intOnly===true || p.type==='Interest'); };
+    // Interest-only payments service that month's interest (byaj) — they are INCOME and push
+    // the due date forward, but they do NOT reduce principal, so they are excluded from the
+    // amount that brings the balance down.
+    const clearedAll=pays.filter(p=>p.status==='Cleared').reduce((a,p)=>a+(Number(p.amount)||0),0);
+    const intPaid=pays.filter(p=>p.status==='Cleared' && _isInt(p)).reduce((a,p)=>a+(Number(p.amount)||0),0);
+    const cleared=Math.max(0, clearedAll-intPaid);
     l.paid=cleared;
+    l.intServiced=pays.filter(p=>p.status==='Cleared' && _isInt(p)).length;   // months serviced by interest only
+    l.intIncome=Math.round(intPaid);                                          // total interest received this way
     const tpay=Number(l.tpay)||0;
     // Extra charges the customer must repay — late fees, cheque-bounce fees, etc. — are
     // ADDED to what they owe. They are stored line-items (sticky: once charged they stay
@@ -86,9 +94,12 @@
     // unpaid forever and still show "Active". Horizon-cap at 50 years as a safety bound.
     const horizon = n>0 ? n : (emi>0 ? 600 : 0);
     const t=todayISO();
+    // Each interest-only month serviced pushes the WHOLE EMI schedule forward by a month, so
+    // servicing this month's interest keeps the account current and defers the principal EMIs.
+    var _shift=Math.max(0, Number(l.intServiced)||0);
     // how many EMIs were due on/before today (due dates are monotonic — stop at the first future one)
     var dueByToday=0;
-    for(var i=1;i<=horizon;i++){ var d=emiDueDate(l,i); if(d && d<=t) dueByToday++; else if(d && d>t) break; }
+    for(var i=1;i<=horizon;i++){ var d=emiDueDate(l,i); if(d && _shift) d=repAddMonths(d,_shift); if(d && d<=t) dueByToday++; else if(d && d>t) break; }
     // amount that should have been paid by today. For fixed-tenure loans this is capped at the
     // total payable of the current (forward) schedule, so the last month's rounding difference
     // (n*emi can differ from tpay by a few rupees) can never overstate arrears.
@@ -110,7 +121,7 @@
       if(!l.dueManual && emi>0 && (l.baseDate||l.disb)){
         var nextIdx=Math.min(horizon, Math.floor(fwdCleared/emi)+1);
         var nd=emiDueDate(l, nextIdx);
-        if(nd) l.due=nd;
+        if(nd){ if(_shift) nd=repAddMonths(nd,_shift); l.due=nd; }
       }
       // Status is driven by overdue EMIs only, so an unpaid fee on an otherwise-current
       // loan does not flip it to "Overdue" (but it still adds to the balance).
@@ -214,6 +225,17 @@
     else if(q && list.length===1) sel.value=list[0].id;
   }
   window.filterPayLoans=function(){ refreshPayLoanDropdown(); };
+  /* One month's interest for a flat loan = total interest ÷ tenure (e.g. ₹2,88,000 ÷ 48 = ₹6,000). */
+  function monthlyInterestOf(l){ if(!l) return 0; var n=Math.max(1, Math.round(Number(l.tenure)||0)); var I=Number(l.tint); if(!(I>0)) I=Math.max(0,(Number(l.tpay)||0)-(Number(l.principal)||0)); return Math.round(I/n); }
+  window.monthlyInterestOf=monthlyInterestOf;
+  window.payIntOnlyToggle=function(){
+    var on=$('payb_intonly')&&$('payb_intonly').checked;
+    if(!on) return;
+    var id=$('payb_loan')?$('payb_loan').value:''; var l=loans.find(function(x){return x.id===id;});
+    if(!l){ toast('Choose a borrower first — then tick interest-only'); if($('payb_intonly')) $('payb_intonly').checked=false; return; }
+    var mi=monthlyInterestOf(l);
+    if($('payb_amt')) $('payb_amt').value=mi>0?mi:'';
+  };
   function payTabModeUI(){ const m=$('payb_mode').value; const cq=$('payb_cheqRow'); const on=$('payb_onlineRow'); if(cq) cq.style.display=(m==='Cheque')?'grid':'none'; if(on) on.style.display=(m==='Online')?'grid':'none'; }
   /* Every payment gets a unique id so entries have an identity (dedup, audit, sync). */
   function newPayId(){ return 'P'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
@@ -233,24 +255,29 @@
     var _out=Number(l.outstanding)||0;
     if(_out>0 && amt>_out*1.5 && !confirm('This payment of '+inr(amt)+' is much larger than the outstanding balance of '+inr(_out)+' for '+l.name+'.\n\nRecord it anyway?')){ return; }
     const mode=$('payb_mode').value;
+    const isInt=!!($('payb_intonly')&&$('payb_intonly').checked);
     const p={ pid:newPayId(), date:$('payb_date').value||todayISO(), mode, amount:amt,
       cheque: mode==='Cheque'?$('payb_cheqno').value.trim():'',
       bank: mode==='Cheque'?$('payb_bank').value.trim():'',
       ref: mode==='Online'?$('payb_ref').value.trim():'',
       status: mode==='Cheque'?$('payb_status').value:'Cleared' };
+    if(isInt){ p.intOnly=true; p.type='Interest'; }   // services the month's interest; principal unchanged
     if(!Array.isArray(l.payments)) l.payments=[];
     if(isDuplicatePayment(l,p) && !confirm('A payment of '+inr(amt)+' ('+mode+') on '+fmtDate(p.date)+' is ALREADY recorded for '+l.name+'.\n\nRecord it again anyway?')){ toast('Duplicate payment not recorded'); return; }
     recordPayTab._busy=true; try{
     l.payments.push(p); recomputeLoan(l); save(); logAudit(p.mode==='Cheque'?'Cheque Entry Added':'Cash Entry Added', l.name+' \u2014 '+inr(p.amount)+(p.mode==='Cheque'?(' chq '+(p.cheque||'')+' ['+p.status+']'):''));
     $('payb_amt').value=''; $('payb_cheqno').value=''; $('payb_bank').value=''; if($('payb_ref'))$('payb_ref').value='';
+    if($('payb_intonly')) $('payb_intonly').checked=false;
     renderPayReg(); refreshPayLoanDropdown();
-    toast('Payment recorded for '+l.name+(p.status==='Pending'?' (pending cheque \u2014 balance unchanged until cleared)':''));
+    toast(isInt
+      ? ('Interest-only payment recorded for '+l.name+' \u2014 due date moved forward, principal unchanged')
+      : ('Payment recorded for '+l.name+(p.status==='Pending'?' (pending cheque \u2014 balance unchanged until cleared)':'')));
     // (Automatic WhatsApp receipt prompt removed \u2014 send receipts manually when needed.)
     } finally { setTimeout(function(){ recordPayTab._busy=false; }, 400); }
   }
   function payAllRows(){
     const rows=[];
-    loans.forEach(l=>{ (l.payments||[]).forEach((p,idx)=>{ rows.push({loanId:l.id, idx, name:l.name, acno:l.acno, date:p.date, mode:p.mode, amount:Number(p.amount)||0, cheque:p.cheque||'', bank:p.bank||'', ref:p.ref||'', status:p.status}); }); });
+    loans.forEach(l=>{ (l.payments||[]).forEach((p,idx)=>{ rows.push({loanId:l.id, idx, name:l.name, acno:l.acno, date:p.date, mode:p.mode, amount:Number(p.amount)||0, cheque:p.cheque||'', bank:p.bank||'', ref:p.ref||'', status:p.status, intOnly:!!(p.intOnly||p.type==='Interest')}); }); });
     rows.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
     return rows;
   }
@@ -273,7 +300,8 @@
     if(!rows.length){ body.innerHTML=`<tr><td colspan="8"><div class="empty"><b>No payments recorded yet.</b><br>Use the form above to record a cash or cheque payment.</div></td></tr>`; return; }
     body.innerHTML=rows.map(r=>{
       const chq = r.mode==='Cheque' ? (esc(r.cheque||'\u2014')+(r.bank?(' / '+esc(r.bank)):'')) : (r.mode==='Online'?('Ref '+esc(r.ref||'\u2014')):'\u2014');
-      const badge = r.status==='Cleared'?'<span class="pp ok">Cleared</span>':'<span class="pp pend">Pending</span>';
+      const intTag = r.intOnly ? ' <span class="pp" style="background:#eef2ff;color:#4338ca;">Interest</span>' : '';
+      const badge = (r.status==='Cleared'?'<span class="pp ok">Cleared</span>':'<span class="pp pend">Pending</span>')+intTag;
       const tog = r.mode==='Cheque' ? `<button class="lnk" onclick="payToggle('${r.loanId}',${r.idx})">${r.status==='Cleared'?'mark pending':'mark cleared'}</button>` : '';
       const chqNotice = r.mode==='Cheque' ? `<button class="lnk" style="color:#0b7a4b;" onclick="chequeNotice('${r.loanId}',${r.idx})">cheque notice</button>` : '';
       return `<tr><td>${fmtDate(r.date)||'\u2014'}</td><td><div class="name">${esc(r.name)}</div></td><td>${esc(r.acno)}</td><td>${esc(r.mode)}</td><td>${chq}</td><td class="right num">${inr(r.amount)}</td><td>${badge}</td><td><div class="rowact" style="gap:12px;"><button class="lnk" onclick="printPayReceipt('${r.loanId}',${r.idx})">receipt</button>${chqNotice}${tog}<button class="lnk del" onclick="payRemove('${r.loanId}',${r.idx})">remove</button></div></td></tr>`;

@@ -33,11 +33,17 @@
     /* pool of actual payments (date-sorted) to allocate against installments; after restructure only
        payments made AFTER the baseline date count toward the forward schedule */
     var baseD=l.baseDate||'';
-    var pays=(l.payments||[]).slice().filter(function(p){return Number(p.amount)>0 && (!baseD || (p.date||'')>baseD);}).sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+    var _isInt=function(p){ return p && (p.intOnly===true || p.type==='Interest'); };
+    var allPays=(l.payments||[]).slice().filter(function(p){return Number(p.amount)>0 && (!baseD || (p.date||'')>baseD);}).sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+    // Interest-only months service the interest and push the schedule forward — they are shown
+    // as their own rows and are NOT used to cover EMIs (they don't reduce principal).
+    var intPays=allPays.filter(_isInt);
+    var pays=allPays.filter(function(p){return !_isInt(p);});
+    var shift=intPays.length, intIncome=intPays.reduce(function(a,p){return a+(Number(p.amount)||0);},0);
     var pool=pays.map(function(p){return {amt:Number(p.amount)||0, date:p.date};});
     var pi=0, carry=0, rows=[], bal=totalPayable, paidCount=0, paidSum=0;
     for(var i=1;i<=months;i++){
-      var due = (i===1 && l.disb) ? addMonths(start, 1) : addMonths(start, i);
+      var due = addMonths(start, ((i===1 && l.disb) ? 1 : i) + shift);
       var thisEmi = (i===months) ? Math.max(0, totalPayable - emi*(months-1)) : emi;
       if(thisEmi<=0) thisEmi=emi;
       /* try to cover thisEmi from the payment pool */
@@ -52,13 +58,17 @@
       else if(covered>0){ status='Part ('+rupee(covered)+')'; cls='pt'; paidSum+=covered; }
       else { status='Due'; cls='dueb'; }
       bal=Math.max(0, bal-thisEmi);
-      rows.push({i:i, due:fmt(due), emi:thisEmi, bal:bal, status:status, cls:cls, payDate:payDate&&cls==='pd'?fmt(new Date(payDate)):''});
+      rows.push({i:i, _d:due.getTime(), due:fmt(due), emi:thisEmi, bal:bal, status:status, cls:cls, payDate:payDate&&cls==='pd'?fmt(new Date(payDate)):''});
     }
+    // Interest-only months shown as their own rows, interleaved by date (no principal, no balance change).
+    intPays.forEach(function(p){ var dd=new Date(p.date); rows.push({i:'', _d:dd.getTime(), due:fmt(dd), emi:Number(p.amount)||0, bal:null, status:'Interest paid', cls:'int', payDate:'', isInt:true}); });
+    rows.sort(function(a,b){ return (a._d||0)-(b._d||0); });
     var remaining=Math.max(0, totalPayable - paidSum);
-    return {l:l, rows:rows, months:months, emi:emi, totalPayable:totalPayable, paidSum:paidSum, remaining:remaining, paidCount:paidCount, capped:capped};
+    return {l:l, rows:rows, months:months, emi:emi, totalPayable:totalPayable, paidSum:paidSum, remaining:remaining, paidCount:paidCount, capped:capped, intCount:shift, intIncome:intIncome};
   }
   function tableHTML(d, forPrint){
     var r=d.rows.map(function(x){
+      if(x.isInt){ return '<tr><td>·</td><td>'+x.due+'</td><td style="text-align:right;">'+rupee(x.emi)+'</td><td style="text-align:right;color:#9aa3b2;">—</td><td style="color:#4338ca;font-weight:600;">Interest paid</td></tr>'; }
       var color = x.cls==='pd'?'#0b7a4b':(x.cls==='pt'?'#b26a00':'#444');
       return '<tr><td>'+x.i+'</td><td>'+x.due+'</td><td style="text-align:right;">'+rupee(x.emi)+'</td><td style="text-align:right;">'+rupee(x.bal)+'</td><td style="color:'+color+';font-weight:600;">'+x.status+(x.payDate?' · '+x.payDate:'')+'</td></tr>';
     }).join('');
@@ -67,8 +77,9 @@
   function summaryHTML(d){
     return '<div class="rs-row"><span>Total payable</span><span>'+rupee(d.totalPayable)+'</span></div>'+
            '<div class="rs-row"><span>Paid so far</span><span style="color:#0b7a4b;font-weight:700;">'+rupee(d.paidSum)+' ('+d.paidCount+' EMIs)</span></div>'+
+           ((d.intCount>0)?'<div class="rs-row"><span>Interest-only months serviced</span><span style="color:#4338ca;font-weight:700;">'+d.intCount+' · '+rupee(d.intIncome)+'</span></div>':'')+
            '<div class="rs-row"><span>Remaining</span><span style="font-weight:700;">'+rupee(d.remaining)+'</span></div>'+
-           '<div class="rs-row"><span>EMI</span><span>'+rupee(d.emi)+' × '+d.months+' months</span></div>';
+           '<div class="rs-row"><span>EMI</span><span>'+rupee(d.emi)+' × '+d.months+' months'+((d.intCount>0)?(' (+'+d.intCount+' interest month'+(d.intCount>1?'s':'')+')'):'')+'</span></div>';
   }
   window.openSchedule=function(id){
     L=loans.find(function(x){return x.id===id;}); if(!L){ toast('Loan not found'); return; }
@@ -83,7 +94,7 @@
   try{ window._schedBuild=build; }catch(e){}
   function docHTML(d){
     var l=d.l;
-    var rows=d.rows.map(function(x){ var c=x.cls==='pd'?'#0b7a4b':(x.cls==='pt'?'#b26a00':'#333'); return '<tr><td>'+x.i+'</td><td>'+x.due+'</td><td style="text-align:right;">₹'+Math.round(x.emi).toLocaleString('en-IN')+'</td><td style="text-align:right;">₹'+Math.round(x.bal).toLocaleString('en-IN')+'</td><td style="color:'+c+';">'+x.status+(x.payDate?' · '+x.payDate:'')+'</td></tr>'; }).join('');
+    var rows=d.rows.map(function(x){ if(x.isInt){ return '<tr><td>·</td><td>'+x.due+'</td><td style="text-align:right;">₹'+Math.round(x.emi).toLocaleString('en-IN')+'</td><td style="text-align:right;color:#888;">—</td><td style="color:#4338ca;">Interest paid</td></tr>'; } var c=x.cls==='pd'?'#0b7a4b':(x.cls==='pt'?'#b26a00':'#333'); return '<tr><td>'+x.i+'</td><td>'+x.due+'</td><td style="text-align:right;">₹'+Math.round(x.emi).toLocaleString('en-IN')+'</td><td style="text-align:right;">₹'+Math.round(x.bal).toLocaleString('en-IN')+'</td><td style="color:'+c+';">'+x.status+(x.payDate?' · '+x.payDate:'')+'</td></tr>'; }).join('');
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+_docFileName(l.name,l.acno,'Repayment_Schedule')+'</title><style>'+
       (typeof docBrandCSS==='function'?docBrandCSS():'')+
       'body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#141414;margin:32px;line-height:1.6;}'+

@@ -22,6 +22,11 @@
           <div class="form-grid" style="grid-template-columns:1fr; max-width:280px; margin-top:10px;">
             <div class="fg"><label>Amount &#8377;</label><input id="payb_amt" type="number" min="0" placeholder="0"></div>
           </div>
+          <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;max-width:840px;cursor:pointer;font-size:13px;">
+            <input type="checkbox" id="payb_intonly" onchange="payIntOnlyToggle()" style="margin-top:2px;">
+            <span><b>Interest-only payment</b> &mdash; customer is paying only this month&rsquo;s interest.<br>
+            <span class="ph-sub">The amount is pre-filled with the month&rsquo;s interest (editable). Principal does not go down; the due date moves forward one month.</span></span>
+          </label>
           <button class="btn btn-primary" style="margin-top:14px;" onclick="recordPayTab()">&#65291; Record payment</button>
         </div>
 
