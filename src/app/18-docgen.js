@@ -53,15 +53,44 @@
     $('rs_mode').value='Cash';
     var r=document.querySelector('input[name="rsMode"][value="emi"]'); if(r) r.checked=true;
     $('rsManual').style.display='none';
-    $('rsCurrent').innerHTML='<b>Current loan</b> &nbsp; '+esc(L.name||'')+' &nbsp;·&nbsp; '+esc(L.acno||'')+
-      '<div class="rs-row"><span>Outstanding</span><span>'+inr(outstandingOf(L))+'</span></div>'+
-      '<div class="rs-row"><span>EMI</span><span>'+inr(L.emi||0)+'</span></div>'+
-      '<div class="rs-row"><span>Months remaining (approx.)</span><span>'+monthsLeft(L)+'</span></div>'+
-      '<div class="rs-row"><span>Interest rate</span><span>'+(L.rate!=null?L.rate+'% p.m.':'—')+'</span></div>';
+    $('rsCurrent').innerHTML=
+      '<div class="rs-who">'+esc(L.name||'')+' &nbsp;&middot;&nbsp; '+esc(L.acno||'')+'</div>'+
+      '<div class="rs-stat"><div class="k">Outstanding</div><div class="v">'+inr(outstandingOf(L))+'</div></div>'+
+      '<div class="rs-stat"><div class="k">EMI</div><div class="v">'+inr(L.emi||0)+'</div></div>'+
+      '<div class="rs-stat"><div class="k">Months left</div><div class="v">'+monthsLeft(L)+'</div></div>'+
+      '<div class="rs-stat"><div class="k">Rate p.m.</div><div class="v">'+(L.rate!=null?(L.rate+'%'):'&mdash;')+'</div></div>';
+    // reset pending / post-dated payment list
+    window._rsPending=[];
+    if($('rsp_amt')) $('rsp_amt').value=''; if($('rsp_ref')) $('rsp_ref').value='';
+    if($('rsp_date')) $('rsp_date').value=todayISO(); if($('rsp_mode')) $('rsp_mode').value='Cheque';
+    rsPendRender();
     _rsFillCombine();
     calcRestructure();
     $('rsOverlay').classList.add('show');
   };
+  /* ---- pending / post-dated payments added during a restructure ---- */
+  window._rsPending=window._rsPending||[];
+  function rsPendRender(){
+    var box=$('rsPendList'); if(!box) return; var arr=window._rsPending||[];
+    if(!arr.length){ box.innerHTML=''; return; }
+    box.innerHTML=arr.map(function(p,i){ return '<div class="rs-pend-row"><span>'+fmtDate(p.date)+' &middot; '+esc(p.mode)+(p.ref?(' &middot; '+esc(p.ref)):'')+' &middot; <b>'+inr(p.amount)+'</b> <span class="ph-sub">(pending)</span></span><button class="rs-del" title="Remove" onclick="rsPendRemove('+i+')">&times;</button></div>'; }).join('');
+  }
+  window.rsPendRender=rsPendRender;
+  window.rsPendAdd=function(){
+    var amt=Math.round(Number(($('rsp_amt')||{}).value)||0);
+    if(amt<=0){ toast('Enter a pending amount first'); return; }
+    var date=($('rsp_date')||{}).value||todayISO();
+    var mode=($('rsp_mode')||{}).value||'Cheque';
+    var ref=(($('rsp_ref')||{}).value||'').trim();
+    window._rsPending=window._rsPending||[];
+    window._rsPending.push({date:date, amount:amt, mode:mode, ref:ref});
+    if($('rsp_amt')) $('rsp_amt').value=''; if($('rsp_ref')) $('rsp_ref').value='';
+    rsPendRender();
+  };
+  window.rsPendRemove=function(i){ if(window._rsPending){ window._rsPending.splice(i,1); rsPendRender(); } };
+  function _rsPendingToPayments(){
+    return (window._rsPending||[]).map(function(pp){ return { pid:newPayId(), date:pp.date, mode:pp.mode, amount:Number(pp.amount)||0, status:'Pending', cheque:(pp.mode==='Cheque'?pp.ref:''), bank:'', ref:(pp.mode!=='Cheque'?pp.ref:''), note:'Added at restructure' }; });
+  }
   window.closeRestructure=function(){ $('rsOverlay').classList.remove('show'); L=null; };
   window.rsManualEmi=function(){ if($('rs_memi').value) $('rs_mmonths').value=''; calcRestructure(); };
   window.rsManualMonths=function(){ if($('rs_mmonths').value) $('rs_memi').value=''; calcRestructure(); };
@@ -180,6 +209,7 @@
     rec.combinedFrom=acnos.slice();
     rec.remarks=('Combined from: '+acnos.join(', ')+(c.lump>0?(' | Prepaid at merge: '+inr(c.lump)):'')+((L.remarks)?(' | '+L.remarks):''));
     rec.createdAt=todayISO();
+    _rsPendingToPayments().forEach(function(pp){ rec.payments.push(pp); });   // pending / post-dated payments onto the new loan
     try{ recomputeLoan(rec); }catch(e){}
     loans.unshift(rec);
     // Close every source loan by settling its remaining balance (the leftover interest not
@@ -210,7 +240,8 @@
     if(typeof can==='function' && !can('edit')){ toast('⚠ You do not have permission to restructure loans. Ask an administrator.'); return; }
     var c=compute(); if(!c||!L) return;
     if(c.combine){ return applyCombine(c); }
-    if(c.lump<=0 && c.newEmi===(Number(L.emi)||0)){ toast('Nothing to change — enter a lump-sum payment, or set a new EMI / tenure'); return; }
+    var _pendN=(window._rsPending||[]).length;
+    if(c.lump<=0 && c.newEmi===(Number(L.emi)||0) && _pendN===0){ toast('Nothing to change — add a payment, a new EMI/tenure, or a pending payment'); return; }
     if(c.overpay>0 && !confirm('The amount entered is '+inr(c.overpay)+' MORE than the outstanding balance.\n\nOnly '+inr(c.lump)+' will be recorded against this loan and it will be closed. The excess '+inr(c.overpay)+' is NOT recorded here — return it to the customer or record it separately.\n\nContinue?')) return;
     var rsDate=$('rs_date').value||todayISO();
     snapBefore('Before restructure: '+(L.acno||''));
@@ -242,6 +273,7 @@
     L.outstanding=Math.max(0, c.newTotal);
     if(L.outstanding<=0) L.status='Closed';
     L.restructuredAt=rsDate;
+    _rsPendingToPayments().forEach(function(pp){ L.payments.push(pp); });   // pending / post-dated payments
     recomputeLoan(L);
     loans=loans.map(function(x){return x.id===L.id?L:x;});
     save(); logAudit('Loan Restructured', (L.name||'')+' ('+(L.acno||'')+') → EMI '+inr(c.newEmi)+', '+c.newMonths+'m'+(c.lump>0?', prepaid '+inr(c.lump):''));

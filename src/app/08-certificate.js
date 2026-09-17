@@ -390,13 +390,14 @@
     var total=(l&&l.baseOut!=null)?Math.max(0,Number(l.baseOut)):((Number(l&&l.tpay)>0)?Number(l.tpay):emi*n);
     var alloc=[]; for(var k=0;k<=n;k++) alloc[k]=0;
     if(!l || n<=0) return alloc;
+    var _isInt=function(p){ return p && (p.intOnly===true || p.type==='Interest'); };  // interest-only payments don't cover EMIs
     var emiOf=function(i){ return (i<n)?emi:Math.max(0,total-emi*(n-1)); };
     var paidBase=Number(l.paidBase)||0;
-    var clearedTot=Math.max(0,(l.payments||[]).filter(function(p){return p.status==='Cleared';}).reduce(function(a,p){return a+(Number(p.amount)||0);},0)-paidBase);
+    var clearedTot=Math.max(0,(l.payments||[]).filter(function(p){return p.status==='Cleared' && !_isInt(p);}).reduce(function(a,p){return a+(Number(p.amount)||0);},0)-paidBase);
     if(paidBase>0){ for(var w=1;w<=n;w++) alloc[w]=Math.max(0,Math.min(emiOf(w), clearedTot-emi*(w-1))); return alloc; }
     var keyToIdx={}; for(var i2=1;i2<=n;i2++){ var dk=_ymKey(emiDueDate(l,i2)); if(dk && keyToIdx[dk]==null) keyToIdx[dk]=i2; }
     var earliestUnfull=function(){ for(var j=1;j<=n;j++){ if(alloc[j] < emiOf(j)-0.001) return j; } return 0; };
-    var pays=(l.payments||[]).filter(function(p){return p.status==='Cleared' && (Number(p.amount)||0)>0;})
+    var pays=(l.payments||[]).filter(function(p){return p.status==='Cleared' && !_isInt(p) && (Number(p.amount)||0)>0;})
       .map(function(p){return {date:p.date||'', amt:Number(p.amount)||0};})
       .sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
     pays.forEach(function(p){
