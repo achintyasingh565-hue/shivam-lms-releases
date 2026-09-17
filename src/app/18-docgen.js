@@ -59,10 +59,9 @@
       '<div class="rs-stat"><div class="k">EMI</div><div class="v">'+inr(L.emi||0)+'</div></div>'+
       '<div class="rs-stat"><div class="k">Months left</div><div class="v">'+monthsLeft(L)+'</div></div>'+
       '<div class="rs-stat"><div class="k">Rate p.m.</div><div class="v">'+(L.rate!=null?(L.rate+'%'):'&mdash;')+'</div></div>';
-    // reset pending / post-dated payment list
+    // reset pending-dues list
     window._rsPending=[];
     if($('rsp_amt')) $('rsp_amt').value=''; if($('rsp_ref')) $('rsp_ref').value='';
-    if($('rsp_date')) $('rsp_date').value=todayISO(); if($('rsp_mode')) $('rsp_mode').value='Cheque';
     rsPendRender();
     _rsFillCombine();
     calcRestructure();
@@ -73,24 +72,19 @@
   function rsPendRender(){
     var box=$('rsPendList'); if(!box) return; var arr=window._rsPending||[];
     if(!arr.length){ box.innerHTML=''; return; }
-    box.innerHTML=arr.map(function(p,i){ return '<div class="rs-pend-row"><span>'+fmtDate(p.date)+' &middot; '+esc(p.mode)+(p.ref?(' &middot; '+esc(p.ref)):'')+' &middot; <b>'+inr(p.amount)+'</b> <span class="ph-sub">(pending)</span></span><button class="rs-del" title="Remove" onclick="rsPendRemove('+i+')">&times;</button></div>'; }).join('');
+    box.innerHTML=arr.map(function(p,i){ return '<div class="rs-pend-row"><span><b>'+inr(p.amount)+'</b>'+(p.note?(' &middot; '+esc(p.note)):'')+' <span class="ph-sub">(added to the EMIs)</span></span><button class="rs-del" title="Remove" onclick="rsPendRemove('+i+')">&times;</button></div>'; }).join('');
   }
   window.rsPendRender=rsPendRender;
   window.rsPendAdd=function(){
     var amt=Math.round(Number(($('rsp_amt')||{}).value)||0);
     if(amt<=0){ toast('Enter a pending amount first'); return; }
-    var date=($('rsp_date')||{}).value||todayISO();
-    var mode=($('rsp_mode')||{}).value||'Cheque';
-    var ref=(($('rsp_ref')||{}).value||'').trim();
+    var note=(($('rsp_ref')||{}).value||'').trim();
     window._rsPending=window._rsPending||[];
-    window._rsPending.push({date:date, amount:amt, mode:mode, ref:ref});
+    window._rsPending.push({amount:amt, note:note});
     if($('rsp_amt')) $('rsp_amt').value=''; if($('rsp_ref')) $('rsp_ref').value='';
-    rsPendRender();
+    rsPendRender(); calcRestructure();
   };
-  window.rsPendRemove=function(i){ if(window._rsPending){ window._rsPending.splice(i,1); rsPendRender(); } };
-  function _rsPendingToPayments(){
-    return (window._rsPending||[]).map(function(pp){ return { pid:newPayId(), date:pp.date, mode:pp.mode, amount:Number(pp.amount)||0, status:'Pending', cheque:(pp.mode==='Cheque'?pp.ref:''), bank:'', ref:(pp.mode!=='Cheque'?pp.ref:''), note:'Added at restructure' }; });
-  }
+  window.rsPendRemove=function(i){ if(window._rsPending){ window._rsPending.splice(i,1); rsPendRender(); calcRestructure(); } };
   window.closeRestructure=function(){ $('rsOverlay').classList.remove('show'); L=null; };
   window.rsManualEmi=function(){ if($('rs_memi').value) $('rs_mmonths').value=''; calcRestructure(); };
   window.rsManualMonths=function(){ if($('rs_mmonths').value) $('rs_memi').value=''; calcRestructure(); };
@@ -142,11 +136,19 @@
       newTotal=newOut+interest;
       newEmi=Math.ceil(newTotal/newMonths);   // spread principal + fresh interest over the tenure
     }
+    // Pending dues (e.g. unpaid interest for previous months) are ADDED to the new loan and
+    // spread across the EMIs — so whether the tenure is 48 or 36, each EMI carries its share.
+    var pendingTotal=(window._rsPending||[]).reduce(function(a,p){return a+(Number(p.amount)||0);},0);
+    if(pendingTotal>0){
+      if(newMonths<=0) newMonths=(mLeft>0?mLeft:1);
+      newTotal=newTotal+pendingTotal;
+      newEmi=Math.ceil(newTotal/newMonths);
+    }
     var lastEmi = (newMonths>0) ? (newTotal - newEmi*(newMonths-1)) : 0;
     if(lastEmi<0) lastEmi=0;
     var newRate=(raw==='')?L.rate:freshRate;   // blank keeps the old rate label; a value sets it
     return { oldOut:oldOut, lump:lump, lumpEntered:lumpEntered, overpay:overpay, newOut:newOut, interest:interest, newTotal:newTotal, newEmi:newEmi, newMonths:newMonths, lastEmi:lastEmi, newRate:newRate, freshRate:freshRate, mode:mode,
-      combine:combine, combLoans:combLoans, combinedPrincipal:combinedPrincipal, principalPaid:principalPaid, totalPaid:totalPaid, base:base };
+      combine:combine, combLoans:combLoans, combinedPrincipal:combinedPrincipal, principalPaid:principalPaid, totalPaid:totalPaid, base:base, pendingTotal:pendingTotal };
   }
   window.calcRestructure=function(){
     var c=compute(); if(!c) return;
@@ -155,10 +157,10 @@
     var closed = c.newOut<=0 ? '<div style="color:#0b7a4b;font-weight:700;margin-top:4px;">This payment clears the loan — it will be marked closed.</div>' : '';
     // Plain-language breakdown so it's clear the EMIs paid so far AND this lump-sum are
     // already accounted for (outstanding = original total payable − everything paid).
-    var interestLines = (c.interest>0)
-      ? '<div class="rs-row"><span>Add: fresh interest @ '+c.freshRate+'% p.m. × '+c.newMonths+' months</span><span>+ '+inr(c.interest)+'</span></div>'
-        +'<div class="rs-row"><span><b>New total payable</b></span><span class="rs-new">'+inr(c.newTotal)+'</span></div>'
-      : '';
+    var interestOnlyLine = (c.interest>0) ? '<div class="rs-row"><span>Add: fresh interest @ '+c.freshRate+'% p.m. × '+c.newMonths+' months</span><span>+ '+inr(c.interest)+'</span></div>' : '';
+    var pendLine = (c.pendingTotal>0) ? '<div class="rs-row"><span>Add: pending dues (spread across the EMIs)</span><span>+ '+inr(c.pendingTotal)+'</span></div>' : '';
+    var totalLine = (c.interest>0 || c.pendingTotal>0) ? '<div class="rs-row"><span><b>New total payable</b></span><span class="rs-new">'+inr(c.newTotal)+'</span></div>' : '';
+    var interestLines = interestOnlyLine + pendLine + totalLine;
     if(c.combine){
       var combHead='<b>Combining '+c.combLoans.length+' loans into one</b>'
         +'<div class="rs-row"><span>Combined remaining principal</span><span class="rs-new">'+inr(c.combinedPrincipal)+'</span></div>'
@@ -207,9 +209,9 @@
     rec.deductions=0; rec.downpay=0;
     rec.product=(L.product||'Combined loan');
     rec.combinedFrom=acnos.slice();
-    rec.remarks=('Combined from: '+acnos.join(', ')+(c.lump>0?(' | Prepaid at merge: '+inr(c.lump)):'')+((L.remarks)?(' | '+L.remarks):''));
+    rec.tint=Math.max(0, rec.tpay-rec.principal);   // interest = fresh interest + any pending dues folded in
+    rec.remarks=('Combined from: '+acnos.join(', ')+(c.lump>0?(' | Prepaid at merge: '+inr(c.lump)):'')+(c.pendingTotal>0?(' | Pending dues added: '+inr(c.pendingTotal)):'')+((L.remarks)?(' | '+L.remarks):''));
     rec.createdAt=todayISO();
-    _rsPendingToPayments().forEach(function(pp){ rec.payments.push(pp); });   // pending / post-dated payments onto the new loan
     try{ recomputeLoan(rec); }catch(e){}
     loans.unshift(rec);
     // Close every source loan by settling its remaining balance (the leftover interest not
@@ -273,7 +275,6 @@
     L.outstanding=Math.max(0, c.newTotal);
     if(L.outstanding<=0) L.status='Closed';
     L.restructuredAt=rsDate;
-    _rsPendingToPayments().forEach(function(pp){ L.payments.push(pp); });   // pending / post-dated payments
     recomputeLoan(L);
     loans=loans.map(function(x){return x.id===L.id?L:x;});
     save(); logAudit('Loan Restructured', (L.name||'')+' ('+(L.acno||'')+') → EMI '+inr(c.newEmi)+', '+c.newMonths+'m'+(c.lump>0?', prepaid '+inr(c.lump):''));
