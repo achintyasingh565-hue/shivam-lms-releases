@@ -190,7 +190,7 @@
   /* ---------------- DOCUMENT PAGE ---------------- */
   .page{background:#fff; width:210mm; min-height:296mm; padding:17mm 16mm; box-shadow:0 14px 50px rgba(0,0,0,.22); color:#1a1a1a; position:relative; overflow:hidden; z-index:0;}
   /* watermark + corner graphics behind the certificate / receipt content */
-  .page .pg-wm{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-32deg); white-space:nowrap; font-family:Arial,Helvetica,sans-serif; font-weight:800; font-size:74px; letter-spacing:4px; color:#0b1f4b; opacity:.045; z-index:-1; pointer-events:none;}
+  .page .pg-wm{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-32deg); white-space:nowrap; font-family:Arial,Helvetica,sans-serif; font-weight:800; font-size:52px; letter-spacing:2px; color:#0b1f4b; opacity:.05; z-index:-1; pointer-events:none;}
   .page .pg-corner{position:absolute; width:34mm; height:34mm; z-index:-1; pointer-events:none;}
   .page .pg-corner.tl{top:0; left:0;} .page .pg-corner.br{bottom:0; right:0; transform:rotate(180deg);}
   .doc-hide{display:none;}
@@ -204,9 +204,11 @@
   .doc-title{text-align:center; font-weight:700; font-size:17px; color:#0b1f4b; text-decoration:underline; letter-spacing:.5px; margin-top:20px; font-family:Georgia,"Times New Roman",serif;}
   .doc-sub{text-align:center; font-size:12px; color:var(--grey); font-style:italic; margin-top:3px;}
   .doc-dot{text-align:center; color:var(--accent); margin-top:4px;}
-  .body-txt{font-size:14px; line-height:1.95; color:#1a1a1a; margin-top:18px; text-align:justify; font-family:Georgia,"Times New Roman",serif;}
-  .body-txt.cert{margin-top:24px;}
-  .fillv{color:var(--navy2); font-weight:700; border-bottom:1px solid #9bb0cc; padding:0 4px; display:inline-block; min-width:90px;}
+  /* Left-aligned (not justified): with the inline fill-in fields, justify stretched the
+     words into big ugly gaps. Left alignment keeps the sentence flowing naturally. */
+  .body-txt{font-size:14px; line-height:1.7; color:#1a1a1a; margin-top:14px; text-align:left; font-family:Georgia,"Times New Roman",serif;}
+  .body-txt.cert{margin-top:16px;}
+  .fillv{color:var(--navy2); font-weight:700; border-bottom:1px solid #9bb0cc; padding:0 4px; display:inline-block; min-width:60px;}
   .relinline{font-weight:inherit; color:inherit;}
   .sec-h{font-size:12.5px; font-weight:700; letter-spacing:1.5px; color:var(--accent); margin-top:22px;}
   table.details{width:100%; border-collapse:collapse; margin-top:10px;}
@@ -614,7 +616,17 @@
     body.printing-proposal #sec-proposal{display:block !important;}
     .cert-layout,.prop-layout{display:block;}
     .preview-col{gap:0; display:block;}
-    .page{box-shadow:none; margin:0; width:auto; min-height:auto; padding:15mm 15mm;}
+    .page{box-shadow:none; margin:0; width:auto; min-height:auto; padding:12mm 15mm;}
+    /* keep the whole certificate / receipt on ONE page — tighten the vertical rhythm */
+    .page .body-txt{line-height:1.55; margin-top:11px;}
+    .page .body-txt.cert{margin-top:12px;}
+    .page .doc-title{margin-top:12px;}
+    .page .sec-h{margin-top:12px;}
+    .page .refrow{margin-top:12px;}
+    .page table.details td{padding:5px 6px; font-size:12.5px;}
+    .page .sigblock{margin-top:26px;}
+    .page .docfoot{margin-top:16px; page-break-inside:avoid;}
+    .page .banner{margin-top:10px;}
     .pform{box-shadow:none; margin:0; width:auto; min-height:auto; padding:8mm 13mm;} .pform .pf-line{margin-top:4px;} .pform .pf-name{font-size:29px;margin-top:2px;} .pform .pf-title{font-size:18px;margin-top:10px;} .pform .pf-sec{margin-top:9px;} .pform .pf-note{margin-top:9px;font-size:12px;} .pform .photo-box{height:104px;}
     body.show-cert .page-receipt{display:none;}
     body.show-receipt .page-cert{display:none;}
