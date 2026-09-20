@@ -660,24 +660,27 @@
   }
   function certFromLoan(id){ go('cert'); refreshLoanDropdown(); $('loadLoan').value=id; loadFromLoan(); }
   function loanCap(v){ return v?v.charAt(0).toUpperCase()+v.slice(1):''; }
+  /* Title-case each word (English only) so the loan type reads "Personal Loan", not
+     "personal loan". Devanagari has no ASCII word chars, so Hindi is left untouched. */
+  function loanTitle(v){ return String(v||'').replace(/\b[a-z]/g, function(c){ return c.toUpperCase(); }); }
   function _clLoan(v){ if(window._certLang!=='hi') return v; return v==='personal loan'?'व्यक्तिगत ऋण':(v==='housing loan'?'आवास ऋण':(v==='product loan'?'उत्पाद ऋण':v)); }
   function _clMode(v){ if(window._certLang!=='hi') return v; return v==='Cash'?'नकद':(v==='Cheque'?'चेक':v); }
   function _clRel(t){ if(window._certLang!=='hi') return t; return t==='son of'?'पुत्र':(t==='daughter of'?'पुत्री':(t==='wife of'?'पत्नी':t)); }
   function updateCert(){
     applyFirmToDocs();
     const name=$('f_name').value.trim(), relt=$('f_reltype').value, relname=$('f_relname').value.trim();
-    const addr=$('f_addr').value.trim(), loan=_clLoan($('f_loan').value), mode=_clMode($('f_mode').value);
+    const addr=$('f_addr').value.trim(), loan=loanTitle(_clLoan($('f_loan').value)), mode=_clMode($('f_mode').value);
     const ref=$('f_ref').value.trim(), date=fmtDate($('f_date').value);
     const hi=(window._certLang==='hi');
     $('c_ref').textContent=ref||"______"; $('c_ref2').textContent=ref||"______"; $('c_date').textContent=date||"______";
     $('c_name').textContent=name||dash; $('c_addr').textContent=addr||dash; $('c_loan').textContent=loan; $('c_mode').textContent=mode;
-    if($('c_rel')) $('c_rel').textContent=relname?(", "+_clRel(relt)+" "+relname):"";
+    if($('c_rel')) $('c_rel').innerHTML=relname?(", "+esc(_clRel(relt))+' <span class="fillv">'+esc(relname)+'</span>'):"";
     $('c_t_name').textContent=name||"—"; $('c_t_addr').textContent=addr||"—"; $('c_t_mode').textContent=mode;
     $('r_ref').textContent=ref||"______"; $('r_date').textContent=date||"______";
     $('r_name').textContent=name||dash;
-    $('r_rel').textContent=relname?(_clRel(relt)+" "+relname):_clRel(relt)+" "+dash;
+    if($('r_rel')) $('r_rel').innerHTML=relname?(esc(_clRel(relt))+' <span class="fillv">'+esc(relname)+'</span>'):(esc(_clRel(relt))+" "+dash);
     $('r_addr').textContent=addr||dash; $('r_loan').textContent=loan;
-    $('r_t_name').textContent=name||"—"; $('r_t_addr').textContent=addr||"—"; $('r_t_loan').textContent=hi?loan:loanCap(loan);
+    $('r_t_name').textContent=name||"—"; $('r_t_addr').textContent=addr||"—"; $('r_t_loan').textContent=loan;
     $('r_t_ref').textContent=ref||"—"; $('r_t_mode').textContent=mode; $('r_t_date').textContent=date||"—";
     // Loan amount + security (shown on both the certificate and the receipt)
     var amt=Number(($('f_amount')||{}).value)||0;
