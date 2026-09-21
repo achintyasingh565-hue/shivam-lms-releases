@@ -56,7 +56,7 @@ html:not(.dark) .topbar h2{ color:var(--bnavy) !important; }
 
 /* ---------------- KPI CARDS ---------------- */
 .kpi::before, .kpi[class*="tone-"]::before{ background:linear-gradient(90deg,var(--bgold),var(--bgoldl)) !important; opacity:1 !important; }
-.kpi .k-val{ font-family:Georgia,"Times New Roman",serif !important; }
+/* KPI numbers keep the app's original (sans, tabular) font — only the gold top-edge changes. */
 html:not(.dark) .kpi .k-val, html:not(.dark) .kpi[class*="tone-"] .k-val{ color:var(--bnavy) !important; }
 
 /* ---------------- PANELS / SECTION TITLES ---------------- */
@@ -70,3 +70,19 @@ html:not(.dark) .table-wrap table.data th:last-child{ background:var(--bcream) !
 /* ---------------- PRIMARY BUTTONS ---------------- */
 .btn-primary{ background:var(--bnavy) !important; box-shadow:0 1px 2px rgba(11,31,75,.28) !important; }
 .btn-primary:hover{ background:#0e2755 !important; }
+
+/* ---------------- PAYMENTS PAGE (tidy, elegant) ---------------- */
+#sec-pay .pay-panel .ph-sub{ max-width:760px; }
+#sec-pay .pay-form{ max-width:860px; }
+#sec-pay .pay-form .fg{ margin:0; }
+#sec-pay .pay-form .fg.full{ margin-bottom:14px; }
+#sec-pay .pay-form .fg > label{ display:block; font-size:11.5px; font-weight:600; color:var(--muted,#64748b); margin-bottom:5px; }
+#sec-pay .pay-form input, #sec-pay .pay-form select{ width:100%; }
+#sec-pay .pay-row{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px; }
+#sec-pay .pay-row .fg{ flex:1; min-width:170px; }
+#sec-pay .pay-row .fg.grow2{ flex:2.2; }
+#sec-pay .pay-intonly{ display:flex; gap:10px; align-items:flex-start; cursor:pointer; font-size:13px; border:1px solid var(--line,#e6e9f0); background:#f8fafc; border-radius:10px; padding:12px 14px; margin-bottom:16px; }
+#sec-pay .pay-intonly input{ margin-top:3px; width:auto !important; }
+html.dark #sec-pay .pay-intonly{ background:rgba(255,255,255,.03); border-color:rgba(255,255,255,.08); }
+/* late-fee assist — refined brand tone instead of the bright yellow strip */
+#sec-pay .latefee-assist{ border:1px solid #e6d6a4 !important; background:linear-gradient(0deg,#fffdf7,#fbf6e8) !important; border-radius:11px !important; }

@@ -50,7 +50,8 @@
       else if(dueD && dueD<t){ st='Overdue'; }
       else if(dueD && repDaysBetween(t,dueD)<=7){ st='Due soon'; }
       else { st='Upcoming'; }
-      rows.push({i:i,due:dueD,emi:thisEmi,paid:allocated,lateFee:lf,bal:bal,st:st});
+      var dueAmt=Math.max(0, thisEmi-allocated);   // shortfall still owed for THIS installment
+      rows.push({i:i,due:dueD,emi:thisEmi,paid:allocated,lateFee:lf,bal:bal,st:st,dueAmt:dueAmt});
     }
     // interest-only months, interleaved by date
     var intIncome=0;
@@ -72,7 +73,8 @@
       +repTile('Paid / scheduled',paidCount+' / '+D.n,'ok')+'</div>';
     var body=D.rows.map(function(r){
       if(r.isInt) return '<tr><td>·</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">'+inr(r.emi)+'</td><td class="right">'+inr(r.emi)+'</td><td class="right">&mdash;</td><td class="right" style="color:#9aa3b2;">&mdash;</td><td style="color:#4338ca;font-weight:600;">Interest paid</td></tr>';
-      return '<tr><td>'+r.i+'</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">'+inr(r.emi)+'</td><td class="right">'+(r.paid>0?inr(r.paid):'&mdash;')+'</td><td class="right" style="color:'+(r.lateFee>0?'#b26a00':'inherit')+';">'+(r.lateFee>0?('+'+inr(r.lateFee)):'&mdash;')+'</td><td class="right">'+inr(r.bal)+'</td><td style="color:'+repStColor(r.st)+';font-weight:600;">'+r.st+'</td></tr>';
+      var stTxt=r.st+(((r.st==='Partial'||r.st==='Overdue') && r.dueAmt>0)?(' &middot; <span style="font-weight:600;">'+inr(r.dueAmt)+' due</span>'):'');
+      return '<tr><td>'+r.i+'</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">'+inr(r.emi)+'</td><td class="right">'+(r.paid>0?inr(r.paid):'&mdash;')+'</td><td class="right" style="color:'+(r.lateFee>0?'#b26a00':'inherit')+';">'+(r.lateFee>0?('+'+inr(r.lateFee)):'&mdash;')+'</td><td class="right">'+inr(r.bal)+'</td><td style="color:'+repStColor(r.st)+';font-weight:600;white-space:nowrap;">'+stTxt+'</td></tr>';
     }).join('');
     host.innerHTML = '<div style="font-weight:600; margin-bottom:8px;">'+esc(l.name)+' &mdash; A/C '+esc(l.acno||'')+'</div>'+tiles
       +'<div class="table-wrap"><table class="data"><thead><tr><th>#</th><th>Due Date</th>'
@@ -81,16 +83,16 @@
   function repScheduleCSV(){
     var l=repScheduleLoan(); if(!l){ toast('Select a borrower first'); return; }
     var D=repScheduleData(l); if(!D.n){ toast('No tenure set'); return; }
-    var data=D.rows.map(r=>[r.isInt?'·':r.i,fmtDate(r.due),r.emi,(r.isInt?'—':r.bal),r.isInt?'Interest paid':r.st]);
-    repCSV('EMI_Schedule_'+(l.acno||l.name||'loan')+'.csv', ['Installment','Due Date','EMI','Balance After','Status'], data);
+    var data=D.rows.map(r=>[r.isInt?'·':r.i,fmtDate(r.due),r.emi,(r.isInt?0:r.paid),(r.isInt?'—':(r.dueAmt||0)),(r.isInt?'—':r.bal),r.isInt?'Interest paid':r.st]);
+    repCSV('EMI_Schedule_'+(l.acno||l.name||'loan')+'.csv', ['Installment','Due Date','EMI','Paid','Due','Balance After','Status'], data);
   }
   function repSchedulePrint(){
     var l=repScheduleLoan(); if(!l){ toast('Select a borrower first'); return; }
     var D=repScheduleData(l); if(!D.n){ toast('No tenure set'); return; }
-    var t='<table><thead><tr><th>#</th><th>Due Date</th><th class="r">EMI</th><th class="r">Balance After</th><th>Status</th></tr></thead><tbody>'
+    var t='<table><thead><tr><th>#</th><th>Due Date</th><th class="r">EMI</th><th class="r">Paid</th><th class="r">Due</th><th class="r">Balance After</th><th>Status</th></tr></thead><tbody>'
       + D.rows.map(r=> r.isInt
-          ? '<tr><td>&middot;</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+inr(r.emi)+'</td><td class="r">&mdash;</td><td>Interest paid</td></tr>'
-          : '<tr><td>'+r.i+'</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+inr(r.emi)+'</td><td class="r">'+inr(r.bal)+'</td><td>'+r.st+'</td></tr>').join('')
+          ? '<tr><td>&middot;</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+inr(r.emi)+'</td><td class="r">'+inr(r.emi)+'</td><td class="r">&mdash;</td><td class="r">&mdash;</td><td>Interest paid</td></tr>'
+          : '<tr><td>'+r.i+'</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+inr(r.emi)+'</td><td class="r">'+(r.paid>0?inr(r.paid):'-')+'</td><td class="r">'+((r.dueAmt>0)?inr(r.dueAmt):'-')+'</td><td class="r">'+inr(r.bal)+'</td><td>'+r.st+((r.dueAmt>0&&(r.st==="Partial"||r.st==="Overdue"))?(' ('+inr(r.dueAmt)+' due)'):'')+'</td></tr>').join('')
       + '</tbody></table>';
     var paidCount=D.paidCount;
     printReport('EMI Schedule', l.name+'  (A/C '+(l.acno||'')+')',

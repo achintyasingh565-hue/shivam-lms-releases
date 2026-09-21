@@ -1,41 +1,41 @@
       <section class="section" id="sec-pay">
-        <div class="panel">
+        <div class="panel pay-panel">
           <h3>Record a Payment</h3>
-          <p class="ph-sub">Enter a cash or cheque payment against a borrower. It updates that loan&rsquo;s outstanding balance automatically &mdash; you don&rsquo;t need to open the loan record. Pending cheques are saved but do not reduce the balance until you mark them cleared.</p>
-          <div style="max-width:840px;margin-bottom:10px;">
-            <label style="display:block;font-size:12px;color:var(--muted,#64748b);margin-bottom:4px;">Search borrower</label>
-            <input id="payb_search" type="text" placeholder="Type a name or A/C no. to filter&hellip;" oninput="filterPayLoans()" style="width:100%;">
+          <p class="ph-sub">Enter a cash, cheque or online payment against a borrower &mdash; it updates that loan&rsquo;s outstanding balance automatically. Pending cheques are saved but don&rsquo;t reduce the balance until marked cleared.</p>
+          <div class="pay-form">
+            <div class="fg full"><label>Search borrower</label><input id="payb_search" type="text" placeholder="Type a name or A/C no. to filter&hellip;" oninput="filterPayLoans()"></div>
+            <div class="pay-row">
+              <div class="fg grow2"><label>Borrower / Loan A/C <span class="ph-sub">(A&ndash;Z)</span></label><select id="payb_loan"><option value="">&mdash; Select a borrower &mdash;</option></select></div>
+              <div class="fg"><label>Amount &#8377;</label><input id="payb_amt" type="number" min="0" placeholder="0"></div>
+            </div>
+            <div class="pay-row">
+              <div class="fg"><label>Date</label><input id="payb_date" type="date"></div>
+              <div class="fg"><label>Mode</label><select id="payb_mode" onchange="payTabModeUI()"><option value="Cash">Cash</option><option value="Cheque">Cheque</option><option value="Online">Online (UPI / NEFT / IMPS)</option></select></div>
+            </div>
+            <div class="pay-row" id="payb_cheqRow" style="display:none;">
+              <div class="fg"><label>Cheque No.</label><input id="payb_cheqno"></div>
+              <div class="fg"><label>Bank</label><input id="payb_bank"></div>
+              <div class="fg"><label>Cheque status</label><select id="payb_status"><option value="Cleared">Cleared</option><option value="Pending">Pending</option></select></div>
+            </div>
+            <div class="pay-row" id="payb_onlineRow" style="display:none;">
+              <div class="fg full"><label>Reference / UTR No.</label><input id="payb_ref"></div>
+            </div>
+            <label class="pay-intonly">
+              <input type="checkbox" id="payb_intonly" onchange="payIntOnlyToggle()">
+              <span><b>Interest-only payment</b> &mdash; customer is paying only this month&rsquo;s interest.<br>
+              <span class="ph-sub">Amount is pre-filled with the month&rsquo;s interest (editable). Principal does not go down; the due date moves forward one month.</span></span>
+            </label>
+            <div><button class="btn btn-primary" onclick="recordPayTab()">&#65291; Record payment</button></div>
           </div>
-          <div class="form-grid" style="grid-template-columns:1.6fr 0.9fr 0.9fr; max-width:840px;">
-            <div class="fg"><label>Borrower / Loan A/C <span class="ph-sub">(A&ndash;Z)</span></label><select id="payb_loan"><option value="">&mdash; Select a borrower &mdash;</option></select></div>
-            <div class="fg"><label>Date</label><input id="payb_date" type="date"></div>
-            <div class="fg"><label>Mode</label><select id="payb_mode" onchange="payTabModeUI()"><option value="Cash">Cash</option><option value="Cheque">Cheque</option><option value="Online">Online (UPI / NEFT / IMPS)</option></select></div>
-          </div>
-          <div class="form-grid" id="payb_cheqRow" style="grid-template-columns:1fr 1fr 1fr; max-width:840px; display:none; margin-top:10px;">
-            <div class="fg"><label>Cheque No.</label><input id="payb_cheqno"></div>
-            <div class="fg"><label>Bank</label><input id="payb_bank"></div>
-            <div class="fg"><label>Cheque status</label><select id="payb_status"><option value="Cleared">Cleared</option><option value="Pending">Pending</option></select></div>
-          </div>
-          <div class="form-grid" id="payb_onlineRow" style="grid-template-columns:1fr; max-width:840px; display:none; margin-top:10px;">
-            <div class="fg"><label>Reference / UTR No.</label><input id="payb_ref"></div>
-          </div>
-          <div class="form-grid" style="grid-template-columns:1fr; max-width:280px; margin-top:10px;">
-            <div class="fg"><label>Amount &#8377;</label><input id="payb_amt" type="number" min="0" placeholder="0"></div>
-          </div>
-          <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;max-width:840px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" id="payb_intonly" onchange="payIntOnlyToggle()" style="margin-top:2px;">
-            <span><b>Interest-only payment</b> &mdash; customer is paying only this month&rsquo;s interest.<br>
-            <span class="ph-sub">The amount is pre-filled with the month&rsquo;s interest (editable). Principal does not go down; the due date moves forward one month.</span></span>
-          </label>
-          <button class="btn btn-primary" style="margin-top:14px;" onclick="recordPayTab()">&#65291; Record payment</button>
         </div>
 
         <div class="panel">
           <h3>Record a Charge <span style="font-weight:400;font-size:13px;color:var(--muted);">— late fee / cheque bounce</span></h3>
           <p class="ph-sub">Record a late fee or cheque-bounce charge against a borrower. Charges are <b>added to the borrower's outstanding balance</b> (and their overdue amount), stay owed until paid, and appear in the schedule, reminders and reports.</p>
           <div class="latefee-assist" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 14px;padding:11px 14px;border:1px solid #e7c873;background:#fff7e2;border-radius:9px;">
-            <label style="font-size:12.5px;font-weight:600;color:#6b5413;">Late fee ₹/month <input id="lateFeeRate" type="number" min="0" placeholder="500" style="width:96px;margin-left:6px;border:1px solid #d9b45a;border-radius:7px;padding:6px 8px;font-size:13px;background:#ffffff;color:#3a2f10;" onchange="setLateFeeRate(this.value)"></label>
-            <button class="btn btn-sm btn-primary" onclick="applyLateFeesSelected()">⚡ Apply late fees for overdue months</button>
+            <label style="font-size:12.5px;font-weight:600;color:#6b5413;">Late fee ₹/month <input id="lateFeeRate" type="number" min="0" placeholder="500" style="width:90px;margin-left:6px;border:1px solid #d9b45a;border-radius:7px;padding:6px 8px;font-size:13px;background:#ffffff;color:#3a2f10;" onchange="setLateFeeRate(this.value)"></label>
+            <label style="font-size:12.5px;font-weight:600;color:#6b5413;">Grace days <input id="lateGraceDays" type="number" min="0" placeholder="7" style="width:70px;margin-left:6px;border:1px solid #d9b45a;border-radius:7px;padding:6px 8px;font-size:13px;background:#ffffff;color:#3a2f10;" onchange="setLateGraceDays(this.value)" title="A payment counts as late only if the installment isn't covered within this many days of its due date."></label>
+            <button class="btn btn-sm btn-primary" onclick="applyLateFeesSelected()">⚡ Apply late fees (missed &amp; late-paid)</button>
             <button class="btn btn-sm" onclick="waiveLateFeesSelected()" style="background:#ffffff;color:#6b5413;border:1px solid #d9b45a;">Remove late fees</button>
             <span id="lateFeeHint" style="margin:0;font-size:12px;color:#6b5413;"></span>
           </div>

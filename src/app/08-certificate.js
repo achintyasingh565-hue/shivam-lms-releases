@@ -236,7 +236,7 @@
     var mi=monthlyInterestOf(l);
     if($('payb_amt')) $('payb_amt').value=mi>0?mi:'';
   };
-  function payTabModeUI(){ const m=$('payb_mode').value; const cq=$('payb_cheqRow'); const on=$('payb_onlineRow'); if(cq) cq.style.display=(m==='Cheque')?'grid':'none'; if(on) on.style.display=(m==='Online')?'grid':'none'; }
+  function payTabModeUI(){ const m=$('payb_mode').value; const cq=$('payb_cheqRow'); const on=$('payb_onlineRow'); if(cq) cq.style.display=(m==='Cheque')?'flex':'none'; if(on) on.style.display=(m==='Online')?'flex':'none'; }
   /* Every payment gets a unique id so entries have an identity (dedup, audit, sync). */
   function newPayId(){ return 'P'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
   /* True when an identical payment (same date+amount+mode+cheque/ref) already exists on the loan. */
@@ -371,12 +371,19 @@
     try{ logAudit('Receipt Printed', (l.name||'')+' \u2014 '+inr(Number(l.payments[idx].amount)||0)); }catch(_){}
   }
   function renderPayTab(){ refreshPayLoanDropdown(); if($('payb_date')&&!$('payb_date').value)$('payb_date').value=todayISO(); refreshChargeUI(); payTabModeUI(); renderPayReg(); }
-  function refreshChargeUI(){ var sel=$('chg_loan'); if(sel){ var cur=sel.value; sel.innerHTML='<option value="">\u2014 Select a borrower \u2014</option>'+loans.map(function(l){return '<option value="'+l.id+'">'+esc(l.name)+' ('+esc(l.acno)+')</option>';}).join(''); sel.value=cur; } if($('chg_date')&&!$('chg_date').value)$('chg_date').value=todayISO(); if($('lateFeeRate')) $('lateFeeRate').value=getLateFeeRate(); renderChargeList(); try{ chgUpdateHint(); }catch(e){} }
+  function refreshChargeUI(){ var sel=$('chg_loan'); if(sel){ var cur=sel.value; sel.innerHTML='<option value="">\u2014 Select a borrower \u2014</option>'+loans.map(function(l){return '<option value="'+l.id+'">'+esc(l.name)+' ('+esc(l.acno)+')</option>';}).join(''); sel.value=cur; } if($('chg_date')&&!$('chg_date').value)$('chg_date').value=todayISO(); if($('lateFeeRate')) $('lateFeeRate').value=getLateFeeRate(); if($('lateGraceDays')) $('lateGraceDays').value=getLateGraceDays(); renderChargeList(); try{ chgUpdateHint(); }catch(e){} }
   /* ---- Late-fee rate (₹ per overdue month) — persistent, default ₹500 ---- */
   function getLateFeeRate(){ try{ var v=Number(localStorage.getItem('shivam_latefee_v1')); return (!isNaN(v) && v>=0)?v:500; }catch(e){ return 500; } }
   window.getLateFeeRate=getLateFeeRate;
   window.setLateFeeRate=function(v){ try{ localStorage.setItem('shivam_latefee_v1', String(Math.max(0,Math.round(Number(v)||0)))); }catch(e){} try{ chgUpdateHint(); }catch(e){} };
-  /* EMIs whose due date has passed and are NOT yet fully covered by cleared payments. */
+  /* Grace period (days) before a late-paid / unpaid installment attracts a late fee. Default 7. */
+  function getLateGraceDays(){ try{ var v=Number(localStorage.getItem('shivam_lategrace_v1')); return (!isNaN(v) && v>=0)?Math.round(v):7; }catch(e){ return 7; } }
+  window.getLateGraceDays=getLateGraceDays;
+  window.setLateGraceDays=function(v){ try{ localStorage.setItem('shivam_lategrace_v1', String(Math.max(0,Math.round(Number(v)||0)))); }catch(e){} try{ chgUpdateHint(); }catch(e){} };
+  function _lfAddDays(iso, days){ if(!iso) return iso; var p=String(iso).split('-'); var dt=new Date(+p[0], +p[1]-1, +p[2]); dt.setDate(dt.getDate()+(Number(days)||0)); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+  /* Installments that attract a late fee: an installment is LATE if it was not fully covered by
+     cleared payments received on/before (its due date + grace days). This catches missed months,
+     partially-paid months, AND months that were paid but after the due date (beyond grace). */
   /* Which EMI each CLEARED payment actually pays — matched by the MONTH the money was
      received, not just the running total. So a month the customer genuinely skipped stays
      unpaid even if later months were paid; a "catch-up" payment (more than one EMI in a
@@ -396,14 +403,17 @@
     var clearedTot=Math.max(0,(l.payments||[]).filter(function(p){return p.status==='Cleared' && !_isInt(p);}).reduce(function(a,p){return a+(Number(p.amount)||0);},0)-paidBase);
     if(paidBase>0){ for(var w=1;w<=n;w++) alloc[w]=Math.max(0,Math.min(emiOf(w), clearedTot-emi*(w-1))); return alloc; }
     var keyToIdx={}; for(var i2=1;i2<=n;i2++){ var dk=_ymKey(emiDueDate(l,i2)); if(dk && keyToIdx[dk]==null) keyToIdx[dk]=i2; }
-    var earliestUnfull=function(){ for(var j=1;j<=n;j++){ if(alloc[j] < emiOf(j)-0.001) return j; } return 0; };
+    var earliestUnfull=function(from){ for(var j=(from||1);j<=n;j++){ if(alloc[j] < emiOf(j)-0.001) return j; } return 0; };
     var pays=(l.payments||[]).filter(function(p){return p.status==='Cleared' && !_isInt(p) && (Number(p.amount)||0)>0;})
       .map(function(p){return {date:p.date||'', amt:Number(p.amount)||0};})
       .sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
     pays.forEach(function(p){
       var remaining=p.amt, pk=_ymKey(p.date), target=(pk!=null)?keyToIdx[pk]:null;
       if(target!=null && alloc[target] < emiOf(target)-0.001){ var room=emiOf(target)-alloc[target], put=Math.min(room,remaining); alloc[target]+=put; remaining-=put; }
-      while(remaining>0.001){ var e=earliestUnfull(); if(!e) break; var room2=emiOf(e)-alloc[e], put2=Math.min(room2,remaining); alloc[e]+=put2; remaining-=put2; }
+      // Any surplus spills FORWARD only (to later unpaid installments) — a payment dated in a
+      // given month never back-fills an EARLIER missed month, so a skipped month stays overdue.
+      var startIdx=(target!=null)?target:1;
+      while(remaining>0.001){ var e=earliestUnfull(startIdx); if(!e) break; var room2=emiOf(e)-alloc[e], put2=Math.min(room2,remaining); alloc[e]+=put2; remaining-=put2; }
     });
     return alloc;
   }
@@ -413,8 +423,35 @@
     var n=Math.max(0,Math.round(Number(l.tenure)||0)), emi=Math.round(Number(l.emi)||0), t=todayISO();
     var total=(l.baseOut!=null)?Math.max(0,Number(l.baseOut)):((Number(l.tpay)>0)?Number(l.tpay):emi*n);
     var emiOf=function(i){ return (i<n)?emi:Math.max(0,total-emi*(n-1)); };
-    var alloc=emiPaidByIndex(l);
-    var out=[]; for(var i=1;i<=n;i++){ var d=emiDueDate(l,i); if(d && d<t && alloc[i] < emiOf(i)-0.001) out.push({i:i,due:d}); } return out;
+    var grace=getLateGraceDays(), paidBase=Number(l.paidBase)||0;
+    // Restructured loans reset the schedule baseline — keep the simple rule there.
+    if(paidBase>0){
+      var a=emiPaidByIndex(l), o=[]; for(var i0=1;i0<=n;i0++){ var d0=emiDueDate(l,i0); if(d0 && d0<t && a[i0]<emiOf(i0)-0.001) o.push({i:i0,due:d0}); } return o;
+    }
+    // Date-aware allocation (same forward-spill as emiPaidByIndex) that also records the DATE
+    // each installment became fully covered, so we can tell if it was covered on time.
+    var alloc=[], cover=[]; for(var k=0;k<=n;k++){ alloc[k]=0; cover[k]=null; }
+    var keyToIdx={}; for(var i2=1;i2<=n;i2++){ var dk=_ymKey(emiDueDate(l,i2)); if(dk && keyToIdx[dk]==null) keyToIdx[dk]=i2; }
+    var earliestUnfull=function(from){ for(var j=(from||1);j<=n;j++){ if(alloc[j] < emiOf(j)-0.001) return j; } return 0; };
+    var pays=(l.payments||[]).filter(function(p){ return p && p.status==='Cleared' && !(p.intOnly||p.type==='Interest') && (Number(p.amount)||0)>0; })
+      .map(function(p){ return {date:String(p.date||''), amt:Number(p.amount)||0}; })
+      .sort(function(a,b){ return a.date.localeCompare(b.date); });
+    pays.forEach(function(p){
+      var remaining=p.amt, target=(p.date?keyToIdx[_ymKey(p.date)]:null);
+      var fill=function(j){ if(j && alloc[j] < emiOf(j)-0.001){ var put=Math.min(emiOf(j)-alloc[j], remaining); alloc[j]+=put; remaining-=put; if(alloc[j] >= emiOf(j)-0.5 && !cover[j]) cover[j]=p.date; } };
+      if(target!=null) fill(target);
+      var start=(target!=null)?target:1;
+      while(remaining>0.5){ var e=earliestUnfull(start); if(!e) break; fill(e); }
+    });
+    var out=[];
+    for(var i=1;i<=n;i++){
+      var d=emiDueDate(l,i); if(!d) continue;
+      var deadline=_lfAddDays(d, grace);
+      if(deadline>t) continue;                            // grace window not elapsed yet — not late
+      // late if never fully covered (missed/partial) OR only covered after the grace deadline
+      if(!cover[i] || cover[i] > deadline) out.push({i:i, due:d});
+    }
+    return out;
   }
   window.overdueEmiIdxs=overdueEmiIdxs;
   function chgTypeChange(){ var t=($('chg_type')||{}).value; if($('chg_chequeWrap')) $('chg_chequeWrap').style.display=(t==='Cheque bounce')?'block':'none'; chgUpdateHint(); }
