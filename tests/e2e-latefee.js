@@ -27,12 +27,23 @@ const path = require('path');
     recomputeAll();
     const l = loans[0];
     const before = { arrears: l.arrears, outstanding: l.outstanding };
-    const expOverdue = overdueEmiIdxs(l).length;      // how many months are overdue
+    const odIdxs = overdueEmiIdxs(l);
+    const expOverdue = odIdxs.length;                 // how many months are overdue
     const expLate = expOverdue * RATE;
+    // Overdue interest is also charged, but only for FULLY-MISSED months (nothing paid that month).
+    const expMonthInt = overdueMonthlyInterest(l);
+    const missedCount = odIdxs.filter(o => {
+      const mk = _ymKey(emiDueDate(l, o.i));
+      const paidThatMonth = (l.payments || []).filter(p => p.status === 'Cleared' && !(p.intOnly || p.type === 'Interest') && _ymKey(p.date) === mk).reduce((a, p) => a + (Number(p.amount) || 0), 0);
+      return paidThatMonth <= 0.5;
+    }).length;
+    const expInt = missedCount * expMonthInt;
+    const expTotalCharge = expLate + expInt;
 
     // ---- one-click apply ----
     applyLateFees('LF');
     const lateCharges = (l.charges || []).filter(c => c.type === 'Late fee');
+    const intCharges = (l.charges || []).filter(c => c.type === 'Overdue interest');
     const after = { arrears: l.arrears, outstanding: l.outstanding, lateFees: l.lateFees };
 
     // ---- idempotent: applying again adds nothing ----
@@ -56,8 +67,8 @@ const path = require('path');
     const afterWaive = { count: (l.charges || []).filter(c => c.type === 'Late fee').length, lateFees: l.lateFees };
 
     return {
-      expOverdue, expLate,
-      chargesAdded: lateCharges.length, countAfter2,
+      expOverdue, expLate, expMonthInt, missedCount, expInt, expTotalCharge,
+      chargesAdded: lateCharges.length, intAdded: intCharges.length, countAfter2,
       outBefore: before.outstanding, outAfter: after.outstanding, lateFees: after.lateFees,
       arrBefore: before.arrears, arrAfter: after.arrears,
       schedTotalLate: D.totalLate, lastBal, anOverdueRowHasFee,
@@ -69,11 +80,12 @@ const path = require('path');
   const checks = {
     'account has overdue months to charge':      R.expOverdue > 0,
     'apply adds one ₹500 fee per overdue month':  R.chargesAdded === R.expOverdue && R.lateFees === R.expLate,
-    'late fees added to outstanding':             R.outAfter === R.outBefore + R.expLate,
-    'late fees added to arrears (overdue amt)':   R.arrAfter === R.arrBefore + R.expLate,
+    'apply adds interest for fully-missed months': R.intAdded === R.missedCount,
+    'late fees + interest added to outstanding':  R.outAfter === R.outBefore + R.expTotalCharge,
+    'late fees + interest added to arrears':      R.arrAfter === R.arrBefore + R.expTotalCharge,
     'apply is idempotent (no double-charge)':     R.countAfter2 === R.expOverdue,
     'schedule shows the late fees':               R.schedTotalLate === R.expLate && R.anOverdueRowHasFee,
-    'schedule balance carries the late fees':     R.lastBal === R.outAfter,
+    'schedule balance carries all charges':       R.lastBal === R.outAfter,
     'demand notice shows higher arrears/balance': R.dnArr === R.expDnArr && R.dnOut === R.expDnOut,
     'waiving a fee reduces the total':            R.waiveCount === R.expOverdue - 1 && R.waiveLateFees === R.expLate - 500,
     'no page errors':                             errs.length === 0

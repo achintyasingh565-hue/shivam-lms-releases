@@ -27,14 +27,18 @@
     var intPays=(l.payments||[]).filter(function(p){return p.status==='Cleared' && _isInt(p) && (Number(p.amount)||0)>0;}).slice().sort(function(a,b){return String(a.date||'').localeCompare(String(b.date||''));});
     var shift=intPays.length;
     var t=todayISO();
-    // Applied late-fee charges, mapped to the EMI month they were charged for.
+    // Applied late-fee charges, mapped to the EMI month they were charged for (shown in the Late Fee column).
     var lateByIdx={}, totalLate=0;
     (l.charges||[]).forEach(function(c){ if(c && c.type==='Late fee'){ var amt=Number(c.amount)||0; totalLate+=amt; if(c.emiIdx) lateByIdx[c.emiIdx]=(lateByIdx[c.emiIdx]||0)+amt; } });
+    // ALL overdue charges (late fee + overdue interest) accrue into the running balance so the
+    // schedule's Balance After matches the loan's true outstanding.
+    var chgByIdx={}, totalChg=0;
+    (l.charges||[]).forEach(function(c){ if(c && (c.type==='Late fee'||c.type==='Overdue interest')){ var amt=Number(c.amount)||0; totalChg+=amt; if(c.emiIdx) chgByIdx[c.emiIdx]=(chgByIdx[c.emiIdx]||0)+amt; } });
     // Each cleared payment is credited to the MONTH it was actually received (see
     // emiPaidByIndex) — so a skipped month stays unpaid instead of being back-filled from
     // the running total, and the schedule matches the payment register.
     var alloc=(typeof emiPaidByIndex==='function')?emiPaidByIndex(l):null;
-    var rows=[]; var paidCount=0; var cumLate=0; var cumAlloc=0;
+    var rows=[]; var paidCount=0; var cumLate=0; var cumChg=0; var cumAlloc=0;
     for(var i=1;i<=n;i++){
       var dueD = emiDueDate(l,i); if(dueD && shift) dueD=repAddMonths(dueD, shift);   // interest months defer the schedule
       // last installment absorbs any rounding so the schedule sums exactly to the payable
@@ -42,8 +46,9 @@
       // amount credited to THIS installment (date-matched), with a safe waterfall fallback
       var allocated = alloc ? Math.round(alloc[i]||0) : Math.max(0, Math.min(thisEmi, cleared-emi*(i-1)));
       cumAlloc += allocated;
-      var lf=lateByIdx[i]||0; cumLate+=lf;                       // late fee charged for this month
-      var bal=Math.max(0, total-cumAlloc) + cumLate;            // balance reflects date-matched payments + accrued late fees
+      var lf=lateByIdx[i]||0; cumLate+=lf;                       // late fee charged for this month (display column)
+      cumChg+=(chgByIdx[i]||0);                                 // all overdue charges (late fee + interest) accrue into balance
+      var bal=Math.max(0, total-cumAlloc) + cumChg;            // balance reflects date-matched payments + accrued charges
       var st;
       if(allocated>=thisEmi && thisEmi>0){ st='Paid'; paidCount++; }
       else if(allocated>0){ st='Partial'; }
@@ -57,7 +62,10 @@
     var intIncome=0;
     intPays.forEach(function(p){ var a=Number(p.amount)||0; intIncome+=a; rows.push({i:'',due:(p.date||''),emi:a,paid:a,lateFee:0,bal:null,st:'Interest',isInt:true}); });
     if(shift) rows.sort(function(a,b){ return String(a.due||'').localeCompare(String(b.due||'')); });
-    return {rows:rows,emi:emi,n:n,total:total,cleared:cleared,paidCount:paidCount,totalLate:totalLate,intCount:shift,intIncome:intIncome};
+    // Cleared money not tied to any scheduled installment (e.g. a payment made after the last
+    // EMI, or an advance) — shown separately so it is never merged into a past-due row.
+    var advance=Math.max(0, Math.round(cleared - cumAlloc));
+    return {rows:rows,emi:emi,n:n,total:total,cleared:cleared,paidCount:paidCount,totalLate:totalLate,intCount:shift,intIncome:intIncome,advance:advance};
   }
   function repScheduleFill(){
     var l=repScheduleLoan(); var host=$('scBody'); if(!host) return;
@@ -70,6 +78,7 @@
       +repTile('Total of installments',inr(D.total))
       +(D.totalLate>0?repTile('Late fees',inr(D.totalLate),'bad'):'')
       +((D.intCount>0)?repTile('Interest serviced',D.intCount+' mo · '+inr(D.intIncome)):'')
+      +((D.advance>0)?repTile('Advance / unscheduled',inr(D.advance)):'')
       +repTile('Paid / scheduled',paidCount+' / '+D.n,'ok')+'</div>';
     var body=D.rows.map(function(r){
       if(r.isInt) return '<tr><td>·</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">'+inr(r.emi)+'</td><td class="right">'+inr(r.emi)+'</td><td class="right">&mdash;</td><td class="right" style="color:#9aa3b2;">&mdash;</td><td style="color:#4338ca;font-weight:600;">Interest paid</td></tr>';
