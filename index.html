@@ -100,7 +100,7 @@
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.4 2.4 4.6-5"/></svg> Audit Logging Enabled</span>
       </div>
       <div class="auth-meta"><span id="lastLogin"></span></div>
-      <div class="auth-meta auth-verline">Version 2.0.96 &nbsp;·&nbsp; © Shivam Enterprises</div>
+      <div class="auth-meta auth-verline">Version 2.0.97 &nbsp;·&nbsp; © Shivam Enterprises</div>
     </div>
   </div>
 </div>
@@ -693,35 +693,51 @@
           </div>
         </div>
 
-        <div class="panel">
-          <h3>Record a Charge <span style="font-weight:400;font-size:13px;color:var(--muted);">— late fee / cheque bounce</span></h3>
-          <p class="ph-sub">Record a late fee or cheque-bounce charge against a borrower. Charges are <b>added to the borrower's outstanding balance</b> (and their overdue amount), stay owed until paid, and appear in the schedule, reminders and reports.</p>
-          <div class="latefee-assist" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 14px;padding:11px 14px;border:1px solid #e7c873;background:#fff7e2;border-radius:9px;">
-            <label style="font-size:12.5px;font-weight:600;color:#6b5413;">Late fee ₹/month <input id="lateFeeRate" type="number" min="0" placeholder="500" style="width:90px;margin-left:6px;border:1px solid #d9b45a;border-radius:7px;padding:6px 8px;font-size:13px;background:#ffffff;color:#3a2f10;" onchange="setLateFeeRate(this.value)"></label>
-            <label style="font-size:12.5px;font-weight:600;color:#6b5413;">Grace days <input id="lateGraceDays" type="number" min="0" placeholder="7" style="width:70px;margin-left:6px;border:1px solid #d9b45a;border-radius:7px;padding:6px 8px;font-size:13px;background:#ffffff;color:#3a2f10;" onchange="setLateGraceDays(this.value)" title="A payment counts as late only if the installment isn't covered within this many days of its due date."></label>
-            <button class="btn btn-sm btn-primary" onclick="applyLateFeesSelected()">⚡ Apply overdue interest + late fees</button>
-            <button class="btn btn-sm" onclick="waiveLateFeesSelected()" style="background:#ffffff;color:#6b5413;border:1px solid #d9b45a;">Remove overdue charges</button>
-            <span id="lateFeeHint" style="margin:0;font-size:12px;color:#6b5413;"></span>
+        <div class="panel chg-panel">
+          <h3>Charges &amp; Late Fees</h3>
+          <p class="ph-sub">One place for every charge on a borrower &mdash; late fees, cheque-bounce or other. Charges are <b>added to the outstanding balance</b> and appear in the EMI schedule, reminders and reports. Pick the borrower once, then either apply overdue charges in one click or add a single charge by hand.</p>
+
+          <div class="fg full chg-borrower"><label>Borrower / Loan A/C</label><select id="chg_loan" onchange="chgLoanChange()"><option value="">— Select a borrower —</option></select></div>
+
+          <!-- 1 · one-click overdue charges -->
+          <div class="chg-card">
+            <div class="chg-card-h"><span class="chg-step">1</span> Apply overdue charges automatically</div>
+            <p class="chg-card-p">Adds a late fee for every overdue month and this month&rsquo;s interest for any fully-missed month, in one click. Repeatable &mdash; it never double-charges.</p>
+            <div class="chg-auto-row">
+              <label class="chg-inp">Late fee &#8377;/month<input id="lateFeeRate" type="number" min="0" placeholder="500" onchange="setLateFeeRate(this.value)"></label>
+              <label class="chg-inp">Grace days<input id="lateGraceDays" type="number" min="0" placeholder="7" onchange="setLateGraceDays(this.value)" title="A payment counts as late only if the installment isn't covered within this many days of its due date."></label>
+              <button class="btn btn-primary" onclick="applyLateFeesSelected()">⚡ Apply overdue interest + late fees</button>
+              <button class="btn btn-ghost" onclick="waiveLateFeesSelected()">Remove overdue charges</button>
+            </div>
+            <div id="lateFeeHint" class="chg-hint"></div>
           </div>
-          <div class="form-grid" style="grid-template-columns:1.4fr 0.9fr 0.8fr 0.9fr; max-width:900px;">
-            <div class="fg"><label>Borrower / Loan A/C</label><select id="chg_loan" onchange="chgLoanChange()"><option value="">— Select a borrower —</option></select></div>
-            <div class="fg"><label>Charge type</label><select id="chg_type" onchange="chgTypeChange()"><option>Late fee</option><option>Cheque bounce</option><option>Other</option></select></div>
-            <div class="fg"><label>Amount (₹)</label><input id="chg_amt" type="number" min="0" placeholder="0"></div>
-            <div class="fg"><label>Date</label><input id="chg_date" type="date"></div>
-            <div class="fg" id="chg_chequeWrap" style="display:none;"><label>Cheque no.</label><input id="chg_cheque" placeholder="Bounced cheque no."></div>
+
+          <!-- 2 · manual charge (any type, amount and date — incl. months after the tenure) -->
+          <div class="chg-card">
+            <div class="chg-card-h"><span class="chg-step">2</span> Add a single charge manually</div>
+            <p class="chg-card-p">Use this to charge a late fee on a specific date and amount (including months after the tenure), a cheque-bounce fee, or any other charge.</p>
+            <div class="pay-row">
+              <div class="fg"><label>Charge type</label><select id="chg_type" onchange="chgTypeChange()"><option>Late fee</option><option>Overdue interest</option><option>Cheque bounce</option><option>Other</option></select></div>
+              <div class="fg"><label>Amount &#8377;</label><input id="chg_amt" type="number" min="0" placeholder="0"></div>
+              <div class="fg"><label>Date</label><input id="chg_date" type="date"></div>
+            </div>
+            <div class="pay-row" id="chg_chequeRow" style="display:none;">
+              <div class="fg" id="chg_chequeWrap"><label>Cheque no.</label><input id="chg_cheque" placeholder="Bounced cheque no."></div>
+            </div>
             <div class="fg full"><label>Note (optional)</label><input id="chg_note" placeholder="Reason / reference"></div>
+            <div><button class="btn btn-primary" id="chgRecordBtn" onclick="recordCharge()">＋ Record charge</button></div>
           </div>
-          <button class="btn btn-primary" id="chgRecordBtn" style="margin-top:14px;" onclick="recordCharge()">＋ Record charge</button>
-          <div id="chgList" style="margin-top:18px;"></div>
+
+          <div id="chgList" class="chg-list"></div>
         </div>
 
         <div class="panel">
           <h3>Payments Register</h3>
           <p class="ph-sub">Every cash, online &amp; cheque entry across all borrowers.</p>
           <div class="pay-tiles" id="payTiles"></div>
-          <div class="toolbar" style="margin:14px 0;">
-            <div class="search"><span class="si">&#9013;</span><input id="payRegSearch" placeholder="Search by borrower or cheque no&hellip;" oninput="renderPayReg()"></div>
-            <select class="filter" id="payRegFilter" onchange="renderPayReg()">
+          <div class="reg-toolbar">
+            <div class="reg-search"><span class="reg-si">&#128269;</span><input id="payRegSearch" placeholder="Search by borrower, A/C or cheque no&hellip;" oninput="renderPayReg()"></div>
+            <select class="reg-filter" id="payRegFilter" onchange="renderPayReg()">
               <option value="all">All payments</option>
               <option value="Cash">Cash only</option>
               <option value="Online">Online only</option>
@@ -730,8 +746,8 @@
               <option value="Cleared">Cleared only</option>
             </select>
           </div>
-          <div style="overflow-x:auto;">
-            <table class="data"><thead><tr><th>Date</th><th>Borrower</th><th>A/C No.</th><th>Mode</th><th>Cheque / Bank</th><th class="right">Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody id="payRegBody"></tbody></table>
+          <div class="reg-wrap">
+            <table class="data reg-table"><thead><tr><th>Date</th><th>Borrower</th><th>A/C No.</th><th>Mode</th><th>Cheque / Bank</th><th class="right">Amount</th><th>Status</th><th class="right">Actions</th></tr></thead><tbody id="payRegBody"></tbody></table>
           </div>
         </div>
       </section>

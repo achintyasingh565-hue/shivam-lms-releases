@@ -27,13 +27,20 @@
     var intPays=(l.payments||[]).filter(function(p){return p.status==='Cleared' && _isInt(p) && (Number(p.amount)||0)>0;}).slice().sort(function(a,b){return String(a.date||'').localeCompare(String(b.date||''));});
     var shift=intPays.length;
     var t=todayISO();
-    // Applied late-fee charges, mapped to the EMI month they were charged for (shown in the Late Fee column).
-    var lateByIdx={}, totalLate=0;
-    (l.charges||[]).forEach(function(c){ if(c && c.type==='Late fee'){ var amt=Number(c.amount)||0; totalLate+=amt; if(c.emiIdx) lateByIdx[c.emiIdx]=(lateByIdx[c.emiIdx]||0)+amt; } });
-    // ALL overdue charges (late fee + overdue interest) accrue into the running balance so the
-    // schedule's Balance After matches the loan's true outstanding.
-    var chgByIdx={}, totalChg=0;
-    (l.charges||[]).forEach(function(c){ if(c && (c.type==='Late fee'||c.type==='Overdue interest')){ var amt=Number(c.amount)||0; totalChg+=amt; if(c.emiIdx) chgByIdx[c.emiIdx]=(chgByIdx[c.emiIdx]||0)+amt; } });
+    var _mkE=function(iso){ return (typeof _ymKey==='function')?_ymKey(iso):(String(iso||'').slice(0,7)||null); };
+    // Charges are mapped to the CALENDAR MONTH they belong to (by their date, or the EMI month
+    // they were tagged with). This means a charge added by hand from the Payments page — a late
+    // fee on any date, even after the tenure — shows on the right month row and is carried in the
+    // balance, exactly like the one-click charges. Late fees also show in the Late Fee column;
+    // ALL charge types accrue into the running balance so it matches the loan's outstanding.
+    var lateByMonth={}, chgByMonth={}, totalLate=0, totalChg=0, latestChargeKey=null;
+    (l.charges||[]).forEach(function(c){
+      if(!c) return; var amt=Number(c.amount)||0; if(!amt) return;
+      var mk=_mkE(c.date);
+      if(!mk && c.emiIdx){ var dd=emiDueDate(l,c.emiIdx); if(dd&&shift) dd=repAddMonths(dd,shift); mk=_mkE(dd); }
+      if(c.type==='Late fee'){ totalLate+=amt; if(mk) lateByMonth[mk]=(lateByMonth[mk]||0)+amt; }
+      totalChg+=amt; if(mk){ chgByMonth[mk]=(chgByMonth[mk]||0)+amt; if(latestChargeKey==null||mk>latestChargeKey) latestChargeKey=mk; }
+    });
     // Each cleared payment is credited to the MONTH it was actually received (see
     // emiPaidByIndex) — so a skipped month stays unpaid instead of being back-filled from
     // the running total, and the schedule matches the payment register.
@@ -46,8 +53,9 @@
       // amount credited to THIS installment (date-matched), with a safe waterfall fallback
       var allocated = alloc ? Math.round(alloc[i]||0) : Math.max(0, Math.min(thisEmi, cleared-emi*(i-1)));
       cumAlloc += allocated;
-      var lf=lateByIdx[i]||0; cumLate+=lf;                       // late fee charged for this month (display column)
-      cumChg+=(chgByIdx[i]||0);                                 // all overdue charges (late fee + interest) accrue into balance
+      var rk=_mkE(dueD);
+      var lf=lateByMonth[rk]||0; cumLate+=lf;                    // late fee for this month (display column)
+      cumChg+=(chgByMonth[rk]||0);                              // ALL charges for this month accrue into balance
       var bal=Math.max(0, total-cumAlloc) + cumChg;            // balance reflects date-matched payments + accrued charges
       var st;
       if(allocated>=thisEmi && thisEmi>0){ st='Paid'; paidCount++; }
@@ -65,7 +73,7 @@
        "advance". Missed months during the tenure stay flagged above; a later payment never
        back-fills them. */
     var cumExt=0, extCount=0;
-    var _mk=function(iso){ return (typeof _ymKey==='function')?_ymKey(iso):(String(iso||'').slice(0,7)||null); };
+    var _mk=_mkE;
     var lastSchedD = n>0 ? (function(){ var d=emiDueDate(l,n); if(d&&shift) d=repAddMonths(d,shift); return d; })() : '';
     var lastSchedKey=_mk(lastSchedD), todayKey=_mk(t);
     // cleared (non-interest) payments received AFTER the last scheduled month, grouped by month
@@ -77,21 +85,23 @@
     });
     var owedAfterTenure=Math.max(0, total-cumAlloc);
     var hasPost=Object.keys(postByMonth).length>0;
-    var needExtend = n>0 && owedAfterTenure>0.5 && (hasPost || (lastSchedKey && todayKey && todayKey>lastSchedKey));
+    var hasChargeBeyond = latestChargeKey && lastSchedKey && latestChargeKey>lastSchedKey;   // a charge dated after the tenure
+    var needExtend = n>0 && (hasPost || hasChargeBeyond || (owedAfterTenure>0.5 && lastSchedKey && todayKey && todayKey>lastSchedKey));
     if(needExtend){
-      var horizonKey=todayKey; if(lastPostKey && lastPostKey>horizonKey) horizonKey=lastPostKey;
+      var horizonKey=todayKey; if(lastPostKey && lastPostKey>horizonKey) horizonKey=lastPostKey; if(latestChargeKey && latestChargeKey>horizonKey) horizonKey=latestChargeKey;
       var m=n;
       while(m-n<240){
         m++;
         var dD=emiDueDate(l,m); if(dD&&shift) dD=repAddMonths(dD,shift);
         var mKey=_mk(dD); if(mKey && horizonKey && mKey>horizonKey) break;
         var remOwed=Math.max(0, total-cumAlloc-cumExt);           // base payable still owed entering this month
-        if(remOwed<=0.5 && !(postByMonth[mKey]>0)) { if(mKey && horizonKey && mKey>=horizonKey) break; else continue; }
+        var chgThis=(chgByMonth[mKey]||0);
+        if(remOwed<=0.5 && !(postByMonth[mKey]>0) && !(chgThis>0)) { if(mKey && horizonKey && mKey>=horizonKey) break; else continue; }
         var expectE=Math.min(emi, remOwed);                       // ideal catch-up EMI for the month
         var gotE=Math.round(postByMonth[mKey]||0);                // received this month (post-tenure)
         var creditE=Math.min(gotE, remOwed);                      // portion that pays down the loan
         cumExt+=creditE;
-        var lfE=lateByIdx[m]||0; cumLate+=lfE; cumChg+=(chgByIdx[m]||0);
+        var lfE=lateByMonth[mKey]||0; cumLate+=lfE; cumChg+=chgThis;
         var balE=Math.max(0, total-cumAlloc-cumExt)+cumChg;
         var stE;
         if(expectE<=0.5){ stE='Paid'; }
@@ -109,6 +119,10 @@
     var intIncome=0;
     intPays.forEach(function(p){ var a=Number(p.amount)||0; intIncome+=a; rows.push({i:'',due:(p.date||''),emi:a,paid:a,lateFee:0,bal:null,st:'Interest',isInt:true}); });
     if(shift) rows.sort(function(a,b){ return String(a.due||'').localeCompare(String(b.due||'')); });
+    // Safety: fold any charge that didn't land on a visible month row (e.g. an odd date) into the
+    // final balance so the schedule's last Balance After always equals the loan's outstanding.
+    var _lostChg=Math.round(totalChg-cumChg);
+    if(_lostChg>0){ for(var zi=rows.length-1; zi>=0; zi--){ if(!rows[zi].isInt){ rows[zi].bal=(Number(rows[zi].bal)||0)+_lostChg; break; } } cumChg+=_lostChg; }
     // Any cleared money still not tied to a scheduled OR extension month (a true advance /
     // overpayment beyond the whole payable) — shown separately, never merged into a past-due row.
     var advance=Math.max(0, Math.round(cleared - cumAlloc - cumExt));

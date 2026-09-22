@@ -84,5 +84,64 @@ html:not(.dark) .table-wrap table.data th:last-child{ background:var(--bcream) !
 #sec-pay .pay-intonly{ display:flex; gap:10px; align-items:flex-start; cursor:pointer; font-size:13px; border:1px solid var(--line,#e6e9f0); background:#f8fafc; border-radius:10px; padding:12px 14px; margin-bottom:16px; }
 #sec-pay .pay-intonly input{ margin-top:3px; width:auto !important; }
 html.dark #sec-pay .pay-intonly{ background:rgba(255,255,255,.03); border-color:rgba(255,255,255,.08); }
-/* late-fee assist — refined brand tone instead of the bright yellow strip */
-#sec-pay .latefee-assist{ border:1px solid #e6d6a4 !important; background:linear-gradient(0deg,#fffdf7,#fbf6e8) !important; border-radius:11px !important; }
+
+/* ---------- CHARGES & LATE FEES — one unified panel ---------- */
+#sec-pay .chg-panel .chg-borrower{ max-width:520px; margin:2px 0 16px; }
+#sec-pay .chg-panel .chg-borrower > label{ display:block; font-size:11.5px; font-weight:600; color:var(--muted,#64748b); margin-bottom:5px; }
+#sec-pay .chg-panel .chg-borrower select{ width:100%; }
+#sec-pay .chg-card{ border:1px solid var(--line,#e6e9f0); border-radius:12px; padding:16px 16px 18px; margin-bottom:14px; background:#fff; }
+html:not(.dark) #sec-pay .chg-card{ background:linear-gradient(180deg,#ffffff,#fcfbf6); }
+html.dark #sec-pay .chg-card{ background:rgba(255,255,255,.02); border-color:rgba(255,255,255,.08); }
+#sec-pay .chg-card-h{ display:flex; align-items:center; gap:9px; font-family:Georgia,"Times New Roman",serif; font-weight:bold; font-size:15px; color:var(--bnavy); }
+html.dark #sec-pay .chg-card-h{ color:#e6cd7a; }
+#sec-pay .chg-step{ display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--bnavy); color:#fff; font-family:system-ui,sans-serif; font-size:12px; font-weight:700; }
+html.dark #sec-pay .chg-step{ background:var(--bgold); color:#1a1408; }
+#sec-pay .chg-card-p{ font-size:12.5px; color:var(--muted,#64748b); margin:6px 0 12px; max-width:720px; }
+#sec-pay .chg-auto-row{ display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; }
+#sec-pay .chg-inp{ display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:600; color:var(--muted,#64748b); }
+#sec-pay .chg-inp input{ width:120px; }
+#sec-pay .btn-ghost{ background:#fff !important; color:var(--bnavy) !important; border:1px solid #d9b45a !important; box-shadow:none !important; }
+html.dark #sec-pay .btn-ghost{ background:transparent !important; color:#e6cd7a !important; }
+#sec-pay .chg-hint{ margin-top:10px; font-size:12.5px; color:#6b5413; }
+html.dark #sec-pay .chg-hint{ color:#e6cd7a; }
+#sec-pay .chg-card .pay-row{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:12px; }
+#sec-pay .chg-card .pay-row .fg{ flex:1; min-width:150px; margin:0; }
+#sec-pay .chg-card .fg.full{ margin:0 0 12px; }
+#sec-pay .chg-card .fg > label{ display:block; font-size:11.5px; font-weight:600; color:var(--muted,#64748b); margin-bottom:5px; }
+#sec-pay .chg-card input, #sec-pay .chg-card select{ width:100%; }
+
+/* recorded-charges + payments register — premium table look */
+#sec-pay .chg-list-h{ display:flex; align-items:baseline; gap:10px; font-family:Georgia,"Times New Roman",serif; font-weight:bold; font-size:15px; color:var(--bnavy); margin:18px 2px 8px; }
+html.dark #sec-pay .chg-list-h{ color:#e6cd7a; }
+#sec-pay .chg-list-sum{ font-family:system-ui,sans-serif; font-size:12px; font-weight:600; color:var(--muted,#64748b); }
+#sec-pay .chg-badge{ display:inline-block; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:700; letter-spacing:.2px; white-space:nowrap; }
+#sec-pay .chg-badge.clate{ background:#fdf0d8; color:#8a5a00; }
+#sec-pay .chg-badge.cint{ background:#eef0fb; color:#3f3d8f; }
+#sec-pay .chg-badge.cbounce{ background:#fde5e2; color:#b42318; }
+#sec-pay .chg-badge.cother{ background:#eef1f5; color:#475467; }
+#sec-pay .chg-sub{ font-size:11.5px; color:var(--muted,#8a93a6); margin-top:2px; }
+#sec-pay .chg-date{ color:var(--muted,#64748b); font-size:12.5px; white-space:nowrap; }
+
+#sec-pay .reg-toolbar{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:14px 0; }
+#sec-pay .reg-search{ position:relative; flex:1; min-width:240px; }
+#sec-pay .reg-search .reg-si{ position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:13px; opacity:.55; }
+#sec-pay .reg-search input{ width:100%; padding:10px 12px 10px 34px; border:1px solid var(--line,#e6e9f0); border-radius:10px; font-size:13.5px; background:#fff; }
+#sec-pay .reg-search input:focus{ outline:none; border-color:var(--bnavy); box-shadow:0 0 0 3px rgba(11,31,75,.10); }
+#sec-pay .reg-filter{ padding:10px 12px; border:1px solid var(--line,#e6e9f0); border-radius:10px; font-size:13.5px; background:#fff; min-width:160px; }
+html.dark #sec-pay .reg-search input, html.dark #sec-pay .reg-filter{ background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.10); color:#e8edf5; }
+#sec-pay .reg-wrap{ border:1px solid var(--line,#e9ecf2); border-radius:12px; overflow:hidden; overflow-x:auto; }
+#sec-pay .reg-table{ width:100%; border-collapse:collapse; }
+#sec-pay .reg-table th{ position:sticky; top:0; }
+#sec-pay .reg-table td{ padding:11px 14px; border-bottom:1px solid #f0f2f6; font-size:13px; vertical-align:middle; }
+html.dark #sec-pay .reg-table td{ border-bottom-color:rgba(255,255,255,.06); }
+#sec-pay .reg-table tbody tr:last-child td{ border-bottom:none; }
+html:not(.dark) #sec-pay .reg-table tbody tr:nth-child(even){ background:#fcfbf7; }
+html:not(.dark) #sec-pay .reg-table tbody tr:hover{ background:#f6f1e2; }
+#sec-pay .reg-table td .name{ font-weight:600; color:var(--bnavy); }
+html.dark #sec-pay .reg-table td .name{ color:#e8edf5; }
+#sec-pay .reg-table td.num, #sec-pay .reg-table td.right{ font-variant-numeric:tabular-nums; }
+#sec-pay .reg-table .lnk{ background:none; border:none; padding:0; cursor:pointer; font-size:12.5px; font-weight:600; color:#2563EB; }
+#sec-pay .reg-table .lnk.del{ color:#b42318; }
+#sec-pay .reg-table .pp{ display:inline-block; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:700; }
+#sec-pay .reg-table .pp.ok{ background:#e6f6ec; color:#0b7a4b; }
+#sec-pay .reg-table .pp.pend{ background:#fdf0d8; color:#8a5a00; }

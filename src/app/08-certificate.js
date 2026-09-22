@@ -461,7 +461,7 @@
     return out;
   }
   window.overdueEmiIdxs=overdueEmiIdxs;
-  function chgTypeChange(){ var t=($('chg_type')||{}).value; if($('chg_chequeWrap')) $('chg_chequeWrap').style.display=(t==='Cheque bounce')?'block':'none'; chgUpdateHint(); }
+  function chgTypeChange(){ var t=($('chg_type')||{}).value; var row=$('chg_chequeRow')||$('chg_chequeWrap'); if(row) row.style.display=(t==='Cheque bounce')?'flex':'none'; chgUpdateHint(); }
   function chgUpdateHint(){
     if($('lateFeeRate') && document.activeElement!==$('lateFeeRate')) $('lateFeeRate').value=getLateFeeRate();
     var hint=$('lateFeeHint'); if(!hint) return;
@@ -643,11 +643,12 @@
       if(ec){
         ec.date=date; ec.type=type; ec.amount=amt; ec.cheque=cheque; ec.note=note;
         if(el.id!==l.id){ el.charges=el.charges.filter(function(x){return x.id!==ec.id;}); if(!Array.isArray(l.charges)) l.charges=[]; l.charges.unshift(ec); }
+        try{ recomputeLoan(l); if(el&&el.id!==l.id) recomputeLoan(el); }catch(e){}
         save();
         logAudit('Charge Edited', type+' '+inr(amt)+' \u2014 '+(l.name||'')+' ('+(l.acno||'')+')');
         _editCharge=null; clearChargeForm();
-        renderChargeList();
-        toast('Charge updated');
+        renderChargeList(); try{ if(typeof renderLoans==='function') renderLoans(); }catch(e){}
+        toast('Charge updated \u2014 balance & schedule updated');
         return;
       }
       _editCharge=null;
@@ -655,11 +656,12 @@
     var charge={ id:'C'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), date:date, type:type, amount:amt, cheque:cheque, note:note };
     if(!Array.isArray(l.charges)) l.charges=[];
     l.charges.unshift(charge);
+    try{ recomputeLoan(l); }catch(e){}
     save();
     logAudit('Charge Recorded', type+' '+inr(amt)+' \u2014 '+(l.name||'')+' ('+(l.acno||'')+')'+(charge.cheque?(' cheque '+charge.cheque):''));
     clearChargeForm();
-    renderChargeList();
-    toast(type+' of '+inr(amt)+' recorded');
+    renderChargeList(); try{ if(typeof renderLoans==='function') renderLoans(); }catch(e){}
+    toast(type+' of '+inr(amt)+' recorded \u2014 added to balance & schedule');
   }
   function clearChargeForm(){
     if($('chg_amt'))$('chg_amt').value=''; if($('chg_cheque'))$('chg_cheque').value=''; if($('chg_note'))$('chg_note').value='';
@@ -677,22 +679,33 @@
     var rows=[];
     loans.forEach(function(l){ (l.charges||[]).forEach(function(c){ if(!c.id) c.id='C'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); rows.push({loanId:l.id, name:l.name, acno:l.acno, c:c}); }); });
     rows.sort(function(a,b){ return (b.c.date||'').localeCompare(a.c.date||''); });
-    if(!rows.length){ host.innerHTML='<p style="color:var(--muted);font-size:13px;">No charges recorded yet.</p>'; return; }
-    host.innerHTML='<div style="font-weight:600;font-size:13px;margin-bottom:6px;">Recent charges</div>'+rows.slice(0,30).map(function(r){
-      var col=r.c.type==='Cheque bounce'?'#b42318':(r.c.type==='Late fee'?'#b26a00':'#475467');
-      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:13px;"><span><b style="color:'+col+';">'+esc(r.c.type)+'</b> '+inr(r.c.amount)+' \u2014 '+esc(r.name||'')+' ('+esc(r.acno||'')+')'+(r.c.cheque?(' \u00b7 chq '+esc(r.c.cheque)):'')+(r.c.note?(' \u00b7 '+esc(r.c.note)):'')+'</span><span style="display:flex;align-items:center;gap:12px;white-space:nowrap;"><span style="color:var(--muted);">'+fmtDate(r.c.date)+'</span><a href="#" onclick="editCharge(\''+r.loanId+'\',\''+r.c.id+'\');return false;" style="color:#2563EB;text-decoration:none;font-weight:600;">Edit</a><a href="#" onclick="deleteCharge(\''+r.loanId+'\',\''+r.c.id+'\');return false;" style="color:#b42318;text-decoration:none;font-weight:600;">Delete</a></span></div>';
+    if(!rows.length){ host.innerHTML='<div class="chg-list-h">Recorded charges</div><p style="color:var(--muted);font-size:13px;margin:4px 2px;">No charges recorded yet.</p>'; return; }
+    var total=rows.reduce(function(a,r){return a+(Number(r.c.amount)||0);},0);
+    var badgeClass=function(t){ return t==='Cheque bounce'?'cbounce':(t==='Late fee'?'clate':(t==='Overdue interest'?'cint':'cother')); };
+    var body=rows.slice(0,60).map(function(r){
+      var meta=[]; if(r.c.cheque) meta.push('chq '+esc(r.c.cheque)); if(r.c.note) meta.push(esc(r.c.note));
+      return '<tr>'
+        +'<td><span class="chg-badge '+badgeClass(r.c.type)+'">'+esc(r.c.type)+'</span></td>'
+        +'<td><div class="name">'+esc(r.name||'')+'</div><div class="chg-sub">'+esc(r.acno||'')+(meta.length?(' &middot; '+meta.join(' &middot; ')):'')+'</div></td>'
+        +'<td class="right num">'+inr(r.c.amount)+'</td>'
+        +'<td class="chg-date">'+fmtDate(r.c.date)+'</td>'
+        +'<td class="right"><div class="rowact" style="gap:12px;justify-content:flex-end;"><button class="lnk" onclick="editCharge(\''+r.loanId+'\',\''+r.c.id+'\')">edit</button><button class="lnk del" onclick="deleteCharge(\''+r.loanId+'\',\''+r.c.id+'\')">delete</button></div></td>'
+        +'</tr>';
     }).join('');
+    host.innerHTML='<div class="chg-list-h">Recorded charges <span class="chg-list-sum">'+rows.length+' &middot; '+inr(total)+' total</span></div>'
+      +'<div class="reg-wrap"><table class="data reg-table chg-table"><thead><tr><th>Type</th><th>Borrower</th><th class="right">Amount</th><th>Date</th><th class="right">Actions</th></tr></thead><tbody>'+body+'</tbody></table></div>';
   }
   function deleteCharge(loanId, chargeId){
     var l=loans.find(function(x){return x.id===loanId;}); if(!l||!Array.isArray(l.charges)) return;
     var c=l.charges.find(function(x){return x.id===chargeId;}); if(!c) return;
     if(!confirm('Delete this '+(c.type||'charge')+' of '+inr(c.amount)+' for '+(l.name||'')+'?')) return;
     l.charges=l.charges.filter(function(x){return x.id!==chargeId;});
+    try{ recomputeLoan(l); }catch(e){}
     save();
     logAudit('Charge Deleted', (c.type||'')+' '+inr(c.amount)+' \u2014 '+(l.name||'')+' ('+(l.acno||'')+')');
     if(_editCharge&&_editCharge.chargeId===chargeId){ _editCharge=null; clearChargeForm(); }
-    renderChargeList();
-    toast('Charge deleted');
+    renderChargeList(); try{ if(typeof renderLoans==='function') renderLoans(); }catch(e){}
+    toast('Charge deleted \u2014 balance & schedule updated');
   }
   function editCharge(loanId, chargeId){
     var l=loans.find(function(x){return x.id===loanId;}); if(!l) return;
