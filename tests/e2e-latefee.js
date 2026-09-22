@@ -53,7 +53,8 @@ const path = require('path');
     // ---- EMI schedule reflects it ----
     const D = repScheduleData(l);
     const lastBal = D.rows.length ? D.rows[D.rows.length - 1].bal : 0;
-    const anOverdueRowHasFee = D.rows.some(r => r.st === 'Overdue' && r.lateFee === RATE);
+    // a late-charged month shows the fee — it may be an Overdue installment or a Deferred month
+    const anOverdueRowHasFee = D.rows.some(r => (r.st === 'Overdue' || r.missed || r.st === 'Deferred') && r.lateFee === RATE);
 
     // ---- demand notice shows the higher arrears/outstanding ----
     $('grType').value = 'demandnotice'; $('grWho').value = 'all'; $('grOccasion').value = ''; $('grDate').value = '';

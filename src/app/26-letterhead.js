@@ -41,20 +41,28 @@
       + '@page{size:A4;margin:10mm;} html,body{margin:0;padding:0;} body{font-family:Georgia,"Times New Roman",serif;color:#1b1b1b;position:relative;box-sizing:border-box;min-height:0 !important;}'
       + '@media print{body{min-height:0 !important;}}'
       + '#lhpage{overflow:hidden;} #lhsheet{transform-origin:top left;}'
-      + '.lhn{text-align:center;font-size:23px;font-weight:bold;letter-spacing:1px;color:#0b1f4b;font-family:Georgia,"Times New Roman",serif;}'
-      + '.lha{text-align:center;font-size:10.5px;color:#555;margin-top:4px;line-height:1.5;font-family:-apple-system,"Segoe UI",Arial,sans-serif;}'
-      + '.lhr{border-bottom:2px solid #c8a02a;margin:7px 0 10px;}'
-      + '.lhref{display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;color:#1b1b1b;margin-bottom:10px;font-family:-apple-system,"Segoe UI",Arial,sans-serif;}'
+      + '.lhhead{text-align:center;padding-top:2px;}'
+      + '.lhseal{width:46px;height:46px;margin:0 auto 8px;border:1.5px solid #c8a02a;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Georgia,"Times New Roman",serif;font-weight:bold;font-size:19px;letter-spacing:1px;color:#0b1f4b;}'
+      + '.lhn{text-align:center;font-size:25px;font-weight:bold;letter-spacing:3px;color:#0b1f4b;font-family:Georgia,"Times New Roman",serif;text-transform:uppercase;}'
+      + '.lha{text-align:center;font-size:10.5px;color:#555;margin-top:5px;line-height:1.55;font-family:-apple-system,"Segoe UI",Arial,sans-serif;}'
+      + '.lhrule{margin:9px 0 12px;}'
+      + '.lhrule>span{display:block;background:#c8a02a;}'
+      + '.lhrule>span:first-child{height:2.5px;}'
+      + '.lhrule>span:last-child{height:1px;margin-top:2px;opacity:.55;}'
+      + '.lhref{display:flex;justify-content:space-between;font-size:12px;font-weight:600;color:#0b1f4b;margin-bottom:12px;padding:6px 12px;background:#faf7ef;border:1px solid #efe4c6;border-radius:6px;font-family:-apple-system,"Segoe UI",Arial,sans-serif;}'
       + '.lhbody{font-size:12px;line-height:1.4;text-align:left;}'
       + '.lhbody ul,.lhbody ol{margin:4px 0 4px 22px;} .lhbody p{margin:3px 0;} .lhbody div{margin:1px 0;}'
       + '.lhfoot{border-top:1.5px solid #c8a02a;margin-top:16px;padding-top:5px;text-align:center;font-size:9px;color:#555;font-family:-apple-system,"Segoe UI",Arial,sans-serif;}'
       + '</style></head><body>'
       + _brand()
       + '<div id="lhpage"><div id="lhsheet">'
+      + '<div class="lhhead">'
+      + '<div class="lhseal">SE</div>'
       + '<div class="lhn">' + esc(f.name) + '</div>'
       + '<div class="lha">' + esc(firmAddrLine()) + '<br>' + esc(firmRegLine()) + '</div>'
-      + '<div class="lhr"></div>'
-      + '<div class="lhref"><div>Ref. No.: ' + esc(ref || '') + '</div><div>Date: ' + esc(date || '') + '</div></div>'
+      + '</div>'
+      + '<div class="lhrule"><span></span><span></span></div>'
+      + '<div class="lhref"><div>Ref. No.: ' + esc(ref || '—') + '</div><div>Date: ' + esc(date || '') + '</div></div>'
       + '<div class="lhbody">' + (bodyHTML || '') + '</div>'
       + '<div class="lhfoot">Proprietor: Achintya Kumar &bull; ' + esc(f.address) + ' &bull; ' + esc(f.phones) + (f.udyam ? (' &bull; Udyam Reg. No.: ' + esc(f.udyam)) : '') + '</div>'
       + '</div></div>'
@@ -175,7 +183,7 @@
         + '<div style="padding:16px 18px;">'
         + '<div style="display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap;">'
         + '<label style="font-size:13px;color:#334155;">Ref. No. <input id="blRef" oninput="blSaveDraft()" style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 8px;font-size:13px;width:150px;"></label>'
-        + '<label style="font-size:13px;color:#334155;">Date <input id="blDate" oninput="blSaveDraft()" value="' + esc(_today()) + '" style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 8px;font-size:13px;width:170px;"></label>'
+        + '<label style="font-size:13px;color:#334155;">Date <input id="blDate" type="date" oninput="blSaveDraft()" value="' + (typeof todayISO === 'function' ? todayISO() : '') + '" style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 8px;font-size:13px;width:170px;"></label>'
         + '</div>'
         + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center;">' + toolbar + '</div>'
         + '<div id="blBody" contenteditable="true" spellcheck="true" style="min-height:380px;max-height:58vh;overflow:auto;border:1px solid #cbd5e1;border-radius:8px;padding:16px;font-size:14px;line-height:1.7;outline:none;background:#fff;color:#111;font-family:Georgia,\'Times New Roman\',serif;"></div>'
@@ -187,13 +195,16 @@
         try {
           document.getElementById('blBody').innerHTML = draft.html || '';
           if (draft.ref) document.getElementById('blRef').value = draft.ref;
-          if (draft.date) document.getElementById('blDate').value = draft.date;
+          // NOTE: the date is intentionally NOT restored from the draft — it always defaults to
+          // today so it never stays stuck on an old date. The user can still change it by hand.
         } catch (e) {}
       }
       var body = document.getElementById('blBody');
       body.addEventListener('input', _saveDraft);
       body.addEventListener('paste', _onPaste);
     }
+    // Always sync the date to today each time the composer opens (unless the user picks another).
+    try { var _dt = document.getElementById('blDate'); if (_dt && typeof todayISO === 'function') _dt.value = todayISO(); } catch (e) {}
     ov.style.display = 'flex';
     setTimeout(function () { var b = document.getElementById('blBody'); if (b) b.focus(); }, 60);
     try { logAudit('Letterhead Composer Opened', ''); } catch (e) {}
@@ -248,7 +259,8 @@
     var inner = (body.innerHTML || '').trim();
     if (!inner || inner === '<br>') { toast('Please type the letter first'); return; }
     var ref = (document.getElementById('blRef') || {}).value || '';
-    var date = (document.getElementById('blDate') || {}).value || '';
+    var dateISO = (document.getElementById('blDate') || {}).value || '';
+    var date = dateISO ? ((typeof fmtDate === 'function' && fmtDate(dateISO)) ? fmtDate(dateISO) : dateISO) : _today();
     var html = _doc(inner, ref, date);
     var f = document.createElement('iframe');
     f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';

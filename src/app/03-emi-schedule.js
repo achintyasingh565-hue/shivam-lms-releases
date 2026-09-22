@@ -58,92 +58,91 @@
     var lateAt=function(i,mk){ return (lateByIdx[i]||0)+(mk?(lateByMonth[mk]||0):0); };
     var intAt=function(i,mk){ return (intByIdx[i]||0)+(mk?(intByMonth[mk]||0):0); };
     var chgAt=function(i,mk){ return (chgByIdx[i]||0)+(mk?(chgByMonth[mk]||0):0); };
-    // Each cleared payment is credited to the MONTH it was actually received (see
-    // emiPaidByIndex) — so a skipped month stays unpaid instead of being back-filled from
-    // the running total, and the schedule matches the payment register.
-    var alloc=(typeof emiPaidByIndex==='function')?emiPaidByIndex(l):null;
-    var rows=[]; var paidCount=0; var cumLate=0; var cumChg=0; var cumAlloc=0;
-    for(var i=1;i<=n;i++){
-      var dueD = emiDueDate(l,i); if(dueD && shift) dueD=repAddMonths(dueD, shift);   // interest months defer the schedule
-      // last installment absorbs any rounding so the schedule sums exactly to the payable
-      var thisEmi = (i<n) ? emi : Math.max(0, total-emi*(n-1));
-      // amount credited to THIS installment (date-matched), with a safe waterfall fallback
-      var allocated = alloc ? Math.round(alloc[i]||0) : Math.max(0, Math.min(thisEmi, cleared-emi*(i-1)));
-      cumAlloc += allocated;
-      var rk=_mkE(dueD);
-      var lf=lateAt(i,rk); cumLate+=lf;                          // late fee for this installment (display)
-      cumChg+=chgAt(i,rk);                                       // ALL charges for this installment accrue into balance
-      var bal=Math.max(0, total-cumAlloc) + cumChg;            // balance reflects date-matched payments + accrued charges
-      var st;
-      if(allocated>=thisEmi && thisEmi>0){ st='Paid'; paidCount++; }
-      else if(allocated>0){ st='Partial'; }
-      else if(dueD && dueD<t){ st='Overdue'; }
-      else if(dueD && repDaysBetween(t,dueD)<=7){ st='Due soon'; }
-      else { st='Upcoming'; }
-      var dueAmt=Math.max(0, thisEmi-allocated);   // shortfall still owed for THIS installment
-      rows.push({i:i,due:dueD,emi:thisEmi,paid:allocated,lateFee:lf,intFee:intAt(i,rk),charge:chgAt(i,rk),bal:bal,st:st,dueAmt:dueAmt});
+    var _mk=_mkE, todayKey=_mkE(t);
+    var grace=(typeof getLateGraceDays==='function')?getLateGraceDays():7;
+    var _dl=function(iso){ return (typeof _lfAddDays==='function')?_lfAddDays(iso,grace):iso; };
+    var rows=[]; var paidCount=0; var intIncome=0; var cumPaid=0; var cumChg=0; var carry=0; var extCount=0; var emisPlaced=0;
+
+    /* Restructured loans (a reset baseline) keep the simple in-place schedule — no auto-defer. */
+    if(paidBase>0){
+      var allocR=(typeof emiPaidByIndex==='function')?emiPaidByIndex(l):null;
+      for(var ri=1;ri<=n;ri++){
+        var dR=emiDueDate(l,ri); if(dR&&shift) dR=repAddMonths(dR,shift);
+        var teR=(ri<n)?emi:Math.max(0,total-emi*(n-1));
+        var alR=allocR?Math.round(allocR[ri]||0):0; cumPaid+=alR;
+        var rkR=_mk(dR); cumChg+=chgAt(ri,rkR);
+        var stR=(alR>=teR-0.5&&teR>0)?'Paid':(alR>0?'Partial':(dR&&dR<t?'Overdue':(dR&&repDaysBetween(t,dR)<=7?'Due soon':'Upcoming')));
+        if(stR==='Paid') paidCount++;
+        rows.push({i:ri,due:dR,emi:teR,paid:alR,lateFee:lateAt(ri,rkR),intFee:intAt(ri,rkR),charge:chgAt(ri,rkR),bal:Math.max(0,total-cumPaid)+cumChg,st:stR,dueAmt:Math.max(0,teR-alR)});
+      }
+      intPays.forEach(function(p){ var a=Number(p.amount)||0; intIncome+=a; rows.push({i:'',due:(p.date||''),emi:a,paid:a,lateFee:0,intFee:0,charge:0,bal:null,st:'Interest',isInt:true}); });
+      if(shift) rows.sort(function(a,b){return String(a.due||'').localeCompare(String(b.due||''));});
+      var advR=Math.max(0,Math.round(cleared-cumPaid));
+      return {rows:rows,emi:emi,n:n,total:total,cleared:cleared,paidCount:paidCount,totalLate:totalLate,totalInt:totalInt,totalChg:totalChg,intCount:intPays.length,intIncome:intIncome,advance:advR,extCount:0};
     }
-    /* ---- EXTENSION MONTHS (loan still running after its tenure) ----
-       If the loan hasn't been fully repaid by the last scheduled EMI, keep the schedule going
-       month-by-month so that (a) the overrun is visible and (b) a payment made AFTER the tenure
-       lands on its OWN month row and reduces the balance — instead of disappearing into an
-       "advance". Missed months during the tenure stay flagged above; a later payment never
-       back-fills them. */
-    var cumExt=0, extCount=0;
-    var _mk=_mkE;
-    var lastSchedD = n>0 ? (function(){ var d=emiDueDate(l,n); if(d&&shift) d=repAddMonths(d,shift); return d; })() : '';
-    var lastSchedKey=_mk(lastSchedD), todayKey=_mk(t);
-    // cleared (non-interest) payments received AFTER the last scheduled month, grouped by month
-    var postByMonth={}, lastPostKey=null;
-    (l.payments||[]).forEach(function(p){
-      if(!p || p.status!=='Cleared' || _isInt(p)) return; var a=Number(p.amount)||0; if(a<=0) return;
-      var pk=_mk(p.date); if(!pk || !lastSchedKey || pk<=lastSchedKey) return;
-      postByMonth[pk]=(postByMonth[pk]||0)+a; if(lastPostKey==null||pk>lastPostKey) lastPostKey=pk;
-    });
-    var owedAfterTenure=Math.max(0, total-cumAlloc);
-    var hasPost=Object.keys(postByMonth).length>0;
-    var hasChargeBeyond = (latestChargeKey && lastSchedKey && latestChargeKey>lastSchedKey) || (latestChargeIdx>n);   // a charge after the tenure
-    var needExtend = n>0 && (hasPost || hasChargeBeyond || (owedAfterTenure>0.5 && lastSchedKey && todayKey && todayKey>lastSchedKey));
-    if(needExtend){
-      var horizonKey=todayKey; if(lastPostKey && lastPostKey>horizonKey) horizonKey=lastPostKey; if(latestChargeKey && latestChargeKey>horizonKey) horizonKey=latestChargeKey;
-      var m=n;
-      while(m-n<240){
-        m++;
-        var dD=emiDueDate(l,m); if(dD&&shift) dD=repAddMonths(dD,shift);
-        var mKey=_mk(dD); if(mKey && horizonKey && mKey>horizonKey && m>latestChargeIdx) break;
-        var remOwed=Math.max(0, total-cumAlloc-cumExt);           // base payable still owed entering this month
-        var chgThis=chgAt(m,mKey);
-        if(remOwed<=0.5 && !(postByMonth[mKey]>0) && !(chgThis>0)) { if(mKey && horizonKey && mKey>=horizonKey && m>=latestChargeIdx) break; else continue; }
-        var expectE=Math.min(emi, remOwed);                       // ideal catch-up EMI for the month
-        var gotE=Math.round(postByMonth[mKey]||0);                // received this month (post-tenure)
-        var creditE=Math.min(gotE, remOwed);                      // portion that pays down the loan
-        cumExt+=creditE;
-        var lfE=lateAt(m,mKey); cumLate+=lfE; cumChg+=chgThis;
-        var balE=Math.max(0, total-cumAlloc-cumExt)+cumChg;
-        var stE;
-        if(expectE<=0.5){ stE='Paid'; }
-        else if(creditE>=expectE-0.5){ stE='Paid'; }
-        else if(gotE>0){ stE='Partial'; }
-        else if(dD && dD<t){ stE='Overdue'; }
-        else { stE='Upcoming'; }
-        var dueAmtE=Math.max(0, Math.round(expectE-creditE));
-        rows.push({i:m,due:dD,emi:Math.round(expectE),paid:gotE,lateFee:lfE,intFee:intAt(m,mKey),charge:chgThis,bal:balE,st:stE,dueAmt:dueAmtE,ext:true});
-        extCount++;
-        if(mKey && horizonKey && mKey>=horizonKey && m>=latestChargeIdx) break;
+
+    /* ---- MONTH-BY-MONTH SIMULATION (the lender's deferral model) ----
+       Walk the calendar from disbursement. Each month is exactly ONE row:
+        • EMI paid (full/partial)      -> an installment is consumed (Paid / Partial).
+        • interest-only paid           -> DEFERRED: interest is income, the EMI moves forward.
+        • nothing paid & past grace    -> DEFERRED: only interest + late fee are charged, EMI moves forward.
+        • a future month with nothing  -> the next installment falls due here (Upcoming / Due soon).
+       So there are always exactly `tenure` EMIs; deferrals simply push them to later months, and the
+       tenure visibly extends by the number of deferred months. Once all EMIs are placed, any further
+       months accrue interest only until the balance is cleared. */
+    var emiPayByMonth={}, intOnlyByMonth={};
+    (l.payments||[]).forEach(function(p){ if(!p||p.status!=='Cleared')return; var a=Number(p.amount)||0; if(a<=0)return; var k=_mk(p.date); if(!k)return; if(_isInt(p)) intOnlyByMonth[k]=(intOnlyByMonth[k]||0)+a; else emiPayByMonth[k]=(emiPayByMonth[k]||0)+a; });
+    var kk=0, SAFETY=n+480;
+    // Phase 1 — place all n EMIs (deferrals push them forward).
+    while(emisPlaced<n && kk<SAFETY){
+      kk++;
+      var dueD=emiDueDate(l,kk); var key=_mk(dueD);
+      var io=intOnlyByMonth[key]||0, ep=emiPayByMonth[key]||0;
+      var chgM=chgAt(kk,key), lfM=lateAt(kk,key), intM=intAt(kk,key);
+      if(io>0){ intIncome+=io; cumChg+=chgM; rows.push({i:'',due:dueD,emi:io,paid:io,lateFee:lfM,intFee:intM,charge:chgM,bal:Math.max(0,total-cumPaid)+cumChg,st:'Interest',isInt:true,defer:true}); continue; }
+      var future=( _dl(dueD) >= t );
+      if(ep>0.5 || future){
+        emisPlaced++;
+        var te=(emisPlaced<n)?emi:Math.max(0,total-emi*(n-1));
+        var avail=ep+carry; var al=Math.min(te,avail); carry=Math.max(0,avail-te);
+        cumPaid+=al; cumChg+=chgM;
+        var st=(al>=te-0.5&&te>0)?'Paid':(al>0?'Partial':(dueD&&dueD<t?'Overdue':(dueD&&repDaysBetween(t,dueD)<=7?'Due soon':'Upcoming')));
+        if(st==='Paid') paidCount++;
+        rows.push({i:emisPlaced,due:dueD,emi:te,paid:al,lateFee:lfM,intFee:intM,charge:chgM,bal:Math.max(0,total-cumPaid)+cumChg,st:st,dueAmt:Math.max(0,te-al)});
+      } else {
+        // missed & past grace → deferral (interest + late fee only), EMI pushed forward
+        cumChg+=chgM;
+        rows.push({i:'',due:dueD,emi:0,paid:0,lateFee:lfM,intFee:intM,charge:chgM,bal:Math.max(0,total-cumPaid)+cumChg,st:'Deferred',defer:true,missed:true,dueAmt:Math.max(0,Math.round(chgM))});
       }
     }
-    // interest-only months, interleaved by date
-    var intIncome=0;
-    intPays.forEach(function(p){ var a=Number(p.amount)||0; intIncome+=a; rows.push({i:'',due:(p.date||''),emi:a,paid:a,lateFee:0,bal:null,st:'Interest',isInt:true}); });
-    if(shift) rows.sort(function(a,b){ return String(a.due||'').localeCompare(String(b.due||'')); });
-    // Safety: fold any charge that didn't land on a visible month row (e.g. an odd date) into the
-    // final balance so the schedule's last Balance After always equals the loan's outstanding.
+    // Phase 2 — interest-accrual months after the last EMI, up to today / last payment / last charge.
+    var horizonKey=todayKey;
+    Object.keys(emiPayByMonth).forEach(function(k){ if(k>horizonKey) horizonKey=k; });
+    Object.keys(intOnlyByMonth).forEach(function(k){ if(k>horizonKey) horizonKey=k; });
+    if(latestChargeKey && latestChargeKey>horizonKey) horizonKey=latestChargeKey;
+    while(kk<SAFETY){
+      kk++;
+      var dD=emiDueDate(l,kk); var mKey=_mk(dD);
+      if(mKey && horizonKey && mKey>horizonKey && kk>latestChargeIdx) break;
+      var io2=intOnlyByMonth[mKey]||0, ep2=emiPayByMonth[mKey]||0;
+      var chg2=chgAt(kk,mKey), lf2=lateAt(kk,mKey), int2=intAt(kk,mKey);
+      var owedNow=Math.max(0,total-cumPaid);
+      if(owedNow<=0.5 && !(io2>0) && !(ep2>0) && !(chg2>0)){ if(mKey&&horizonKey&&mKey>=horizonKey&&kk>=latestChargeIdx) break; else continue; }
+      if(io2>0){ intIncome+=io2; cumChg+=chg2; rows.push({i:'',due:dD,emi:io2,paid:io2,lateFee:lf2,intFee:int2,charge:chg2,bal:Math.max(0,total-cumPaid)+cumChg,st:'Interest',isInt:true,defer:true}); extCount++; continue; }
+      var got=ep2+carry; var cr=Math.min(got,owedNow); carry=Math.max(0,got-owedNow);
+      cumPaid+=cr; cumChg+=chg2;
+      var bal2=Math.max(0,total-cumPaid)+cumChg;
+      var st2=bal2<=0.5?'Paid':(ep2>0?'Partial':(chg2>0?'Overdue':(dD&&dD<t?'Overdue':'Upcoming')));
+      rows.push({i:kk,due:dD,emi:0,paid:ep2,lateFee:lf2,intFee:int2,charge:chg2,bal:bal2,st:st2,dueAmt:Math.max(0,Math.round(chg2-ep2)),ext:true,accrual:true});
+      extCount++;
+      if(mKey&&horizonKey&&mKey>=horizonKey&&kk>=latestChargeIdx) break;
+    }
+    // Safety: fold any charge that never landed on a row into the final balance so it reconciles.
     var _lostChg=Math.round(totalChg-cumChg);
     if(_lostChg>0){ for(var zi=rows.length-1; zi>=0; zi--){ if(!rows[zi].isInt){ rows[zi].bal=(Number(rows[zi].bal)||0)+_lostChg; break; } } cumChg+=_lostChg; }
-    // Any cleared money still not tied to a scheduled OR extension month (a true advance /
-    // overpayment beyond the whole payable) — shown separately, never merged into a past-due row.
-    var advance=Math.max(0, Math.round(cleared - cumAlloc - cumExt));
-    return {rows:rows,emi:emi,n:n,total:total,cleared:cleared,paidCount:paidCount,totalLate:totalLate,totalInt:totalInt,totalChg:totalChg,intCount:shift,intIncome:intIncome,advance:advance,extCount:extCount};
+    var advance=Math.max(0, Math.round(carry));
+    var deferCount=rows.filter(function(r){return r.missed;}).length;
+    return {rows:rows,emi:emi,n:n,total:total,cleared:cleared,paidCount:paidCount,totalLate:totalLate,totalInt:totalInt,totalChg:totalChg,intCount:intPays.length,intIncome:intIncome,advance:advance,extCount:extCount,deferCount:deferCount};
   }
   function repScheduleFill(){
     var l=repScheduleLoan(); var host=$('scBody'); if(!host) return;
@@ -168,13 +167,14 @@
       return '<span title="'+tip+'">+'+inr(r.charge)+'</span>';
     };
     var body=D.rows.map(function(r){
-      if(r.isInt) return '<tr><td>·</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">'+inr(r.emi)+'</td><td class="right">'+inr(r.emi)+'</td><td class="right">&mdash;</td><td class="right" style="color:#9aa3b2;">&mdash;</td><td style="color:#4338ca;font-weight:600;">Interest paid</td></tr>';
+      if(r.isInt) return '<tr><td>·</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">'+inr(r.emi)+'</td><td class="right">'+inr(r.emi)+'</td><td class="right">'+(r.charge>0?chgCell(r):'&mdash;')+'</td><td class="right" style="color:#9aa3b2;">'+inr(r.bal)+'</td><td style="color:#4338ca;font-weight:600;">Interest paid &middot; EMI deferred</td></tr>';
+      if(r.missed) return '<tr style="background:#fff7ed;"><td>·</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">&mdash;</td><td class="right">&mdash;</td><td class="right" style="color:'+(r.charge>0?'#b26a00':'inherit')+';">'+chgCell(r)+'</td><td class="right">'+inr(r.bal)+'</td><td style="color:#b26a00;font-weight:600;white-space:nowrap;">Deferred &middot; EMI moved forward</td></tr>';
       var stTxt=r.st+(((r.st==='Partial'||r.st==='Overdue') && r.dueAmt>0)?(' &middot; <span style="font-weight:600;">'+inr(r.dueAmt)+' due</span>'):'');
       var numCell=r.ext?(r.i+' <span style="font-size:10px;color:#b26a00;font-weight:600;">ext</span>'):r.i;
       var rowStyle=r.ext?' style="background:#fbf6e8;"':'';
       return '<tr'+rowStyle+'><td>'+numCell+'</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">'+(r.emi>0?inr(r.emi):'&mdash;')+'</td><td class="right">'+(r.paid>0?inr(r.paid):'&mdash;')+'</td><td class="right" style="color:'+(r.charge>0?'#b26a00':'inherit')+';">'+chgCell(r)+'</td><td class="right">'+inr(r.bal)+'</td><td style="color:'+repStColor(r.st)+';font-weight:600;white-space:nowrap;">'+stTxt+'</td></tr>';
     }).join('');
-    var extNote=(D.extCount>0)?'<p class="ph-sub" style="margin:10px 2px 0;">Rows marked <b style="color:#b26a00;">ext</b> are months beyond the original '+D.n+'-month tenure — the loan is still running. Payments made after the tenure appear on their own month here and reduce the balance; missed months inside the tenure stay flagged above. The <b>Charges</b> column shows that month&rsquo;s late fee (LF) and overdue interest (Int) combined.</p>':'<p class="ph-sub" style="margin:10px 2px 0;">The <b>Charges</b> column shows each month&rsquo;s late fee (LF) and overdue interest (Int) added to the balance.</p>';
+    var extNote=(D.extCount>0)?'<p class="ph-sub" style="margin:10px 2px 0;">Rows marked <b style="color:#b26a00;">ext</b> are months beyond the original '+D.n+'-month tenure. There are only '+D.n+' EMIs — past the tenure <b>no new EMI is added</b>; only <b>interest (byaj) accrues each month</b> until the balance is cleared. Payments made after the tenure appear on their own month here and reduce the balance; missed months inside the tenure stay flagged above. The <b>Charges</b> column shows that month&rsquo;s late fee (LF) and overdue interest (Int).</p>':'<p class="ph-sub" style="margin:10px 2px 0;">The <b>Charges</b> column shows each month&rsquo;s late fee (LF) and overdue interest (Int) added to the balance.</p>';
     var coName=(l.gname||l.coborrower||'').toString().trim();
     var coLine=coName?('<div style="font-size:12.5px;color:var(--muted,#64748b);margin:-4px 0 8px;">Co-applicant / Guarantor: <b style="color:var(--bnavy,#0b1f4b);">'+esc(coName)+'</b></div>'):'';
     host.innerHTML = '<div style="font-weight:600; margin-bottom:8px;">'+esc(l.name)+' &mdash; A/C '+esc(l.acno||'')+'</div>'+coLine+tiles
@@ -191,9 +191,10 @@
     var l=repScheduleLoan(); if(!l){ toast('Select a borrower first'); return; }
     var D=repScheduleData(l); if(!D.n){ toast('No tenure set'); return; }
     var t='<table class="sched-tbl"><thead><tr><th>#</th><th>Due Date</th><th class="r">EMI</th><th class="r">Paid</th><th class="r">Late Fee</th><th class="r">Interest</th><th class="r">Due</th><th class="r">Balance</th><th>Status</th></tr></thead><tbody>'
-      + D.rows.map(function(r){ return r.isInt
-          ? '<tr><td>&middot;</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+inr(r.emi)+'</td><td class="r">'+inr(r.emi)+'</td><td class="r">&mdash;</td><td class="r">&mdash;</td><td class="r">&mdash;</td><td class="r">&mdash;</td><td>Interest paid</td></tr>'
-          : '<tr><td>'+r.i+(r.ext?'e':'')+'</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+(r.emi>0?inr(r.emi):'-')+'</td><td class="r">'+(r.paid>0?inr(r.paid):'-')+'</td><td class="r">'+((r.lateFee>0)?('+'+inr(r.lateFee)):'-')+'</td><td class="r">'+((r.intFee>0)?('+'+inr(r.intFee)):'-')+'</td><td class="r">'+((r.dueAmt>0)?inr(r.dueAmt):'-')+'</td><td class="r">'+inr(r.bal)+'</td><td>'+r.st+((r.dueAmt>0&&(r.st==="Partial"||r.st==="Overdue"))?(' ('+inr(r.dueAmt)+' due)'):'')+'</td></tr>'; }).join('')
+      + D.rows.map(function(r){
+          if(r.isInt) return '<tr><td>&middot;</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+inr(r.emi)+'</td><td class="r">'+inr(r.emi)+'</td><td class="r">&mdash;</td><td class="r">&mdash;</td><td class="r">&mdash;</td><td class="r">'+inr(r.bal)+'</td><td>Interest paid &middot; EMI deferred</td></tr>';
+          if(r.missed) return '<tr><td>&middot;</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">&mdash;</td><td class="r">&mdash;</td><td class="r">'+((r.lateFee>0)?('+'+inr(r.lateFee)):'-')+'</td><td class="r">'+((r.intFee>0)?('+'+inr(r.intFee)):'-')+'</td><td class="r">&mdash;</td><td class="r">'+inr(r.bal)+'</td><td>Deferred &middot; EMI moved forward</td></tr>';
+          return '<tr><td>'+r.i+(r.ext?'e':'')+'</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+(r.emi>0?inr(r.emi):'-')+'</td><td class="r">'+(r.paid>0?inr(r.paid):'-')+'</td><td class="r">'+((r.lateFee>0)?('+'+inr(r.lateFee)):'-')+'</td><td class="r">'+((r.intFee>0)?('+'+inr(r.intFee)):'-')+'</td><td class="r">'+((r.dueAmt>0)?inr(r.dueAmt):'-')+'</td><td class="r">'+inr(r.bal)+'</td><td>'+r.st+((r.dueAmt>0&&(r.st==="Partial"||r.st==="Overdue"))?(' ('+inr(r.dueAmt)+' due)'):'')+'</td></tr>'; }).join('')
       + '</tbody></table>';
     // Fit everything on ONE page: shrink the table's type & row padding as the number of rows grows.
     var nRows=D.rows.length;
@@ -205,15 +206,15 @@
     else { fs='6.4px'; pad='1.5px 4px'; }
     var fit='<style>#reportPrint .sched-tbl{table-layout:fixed;width:100%;}'
       +'#reportPrint .sched-tbl th,#reportPrint .sched-tbl td{font-size:'+fs+'!important;padding:'+pad+'!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
-      +'#reportPrint .sched-tbl td:nth-child(1),#reportPrint .sched-tbl th:nth-child(1){width:5%;}'
-      +'#reportPrint .sched-tbl td:nth-child(2),#reportPrint .sched-tbl th:nth-child(2){width:10%;}'
+      +'#reportPrint .sched-tbl td:nth-child(1),#reportPrint .sched-tbl th:nth-child(1){width:7%;}'
+      +'#reportPrint .sched-tbl td:nth-child(2),#reportPrint .sched-tbl th:nth-child(2){width:12%;}'
       +'#reportPrint .sched-tbl td:nth-child(3),#reportPrint .sched-tbl th:nth-child(3){width:10%;}'
       +'#reportPrint .sched-tbl td:nth-child(4),#reportPrint .sched-tbl th:nth-child(4){width:10%;}'
       +'#reportPrint .sched-tbl td:nth-child(5),#reportPrint .sched-tbl th:nth-child(5){width:10%;}'
       +'#reportPrint .sched-tbl td:nth-child(6),#reportPrint .sched-tbl th:nth-child(6){width:10%;}'
       +'#reportPrint .sched-tbl td:nth-child(7),#reportPrint .sched-tbl th:nth-child(7){width:10%;}'
-      +'#reportPrint .sched-tbl td:nth-child(8),#reportPrint .sched-tbl th:nth-child(8){width:13%;}'
-      +'#reportPrint .sched-tbl td:nth-child(9),#reportPrint .sched-tbl th:nth-child(9){width:22%;white-space:normal;}'
+      +'#reportPrint .sched-tbl td:nth-child(8),#reportPrint .sched-tbl th:nth-child(8){width:12%;}'
+      +'#reportPrint .sched-tbl td:nth-child(9),#reportPrint .sched-tbl th:nth-child(9){width:19%;white-space:normal;}'
       +'@page{size:A4 portrait;margin:0;}</style>';
     var paidCount=D.paidCount;
     var coName=(l.gname||l.coborrower||'').toString().trim();

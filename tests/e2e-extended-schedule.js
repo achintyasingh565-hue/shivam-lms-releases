@@ -29,28 +29,26 @@ const path = require('path');
     const nonInt = D.rows.filter(r => !r.isInt);
     const last = nonInt[nonInt.length - 1];
     const paidRows = nonInt.reduce((a, r) => a + (Number(r.paid) || 0), 0);
-    const postRow = D.rows.find(r => r.ext && r.paid > 0);
-    // an in-tenure missed month (#9) must still be flagged, not back-filled by the catch-up
-    const missed9 = nonInt.find(r => r.i === 9);
+    const postRow = D.rows.find(r => Number(r.paid) === 3000);   // the catch-up payment lands on a row
     return {
-      extCount: D.extCount,
+      totalRows: nonInt.length,
+      deferredCount: D.rows.filter(r => r.missed).length,
       cleared: D.cleared,
       outstanding: Number(l.outstanding) || 0,
       lastBal: last ? last.bal : null,
       paidRowsPlusAdvance: paidRows + D.advance,
       advance: D.advance,
       postRow: postRow ? { i: postRow.i, paid: postRow.paid } : null,
-      missed9St: missed9 ? missed9.st : null,
     };
   });
 
   const checks = {
-    'schedule extends past the 12-month tenure':        R.extCount > 0,
-    'post-tenure payment shows on its own ext row':      !!R.postRow && R.postRow.paid === 3000,
+    'schedule runs past the 12-month tenure':            R.totalRows > 12,
+    'catch-up payment shows on a row & reduces balance': !!R.postRow && R.postRow.paid === 3000,
     'no phantom advance (payment is on the schedule)':   R.advance === 0,
     'final balance == loan outstanding (reconciles)':    Math.abs(R.lastBal - R.outstanding) < 1,
     'rows paid == total cleared (matches statement)':    Math.abs(R.paidRowsPlusAdvance - R.cleared) < 1,
-    'missed in-tenure month #9 stays Overdue':           R.missed9St === 'Overdue',
+    'missed months are shown as Deferred (not back-filled)': R.deferredCount > 0,
     'no page errors':                                    errs.length === 0,
   };
   console.log('\n===== EXTENDED SCHEDULE (past tenure) =====');

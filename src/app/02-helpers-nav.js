@@ -406,7 +406,7 @@
       +'<div class="table-wrap"><table class="data"><thead><tr><th>Date</th><th>Mode</th><th>Cheque / Ref</th>'
       +'<th class="right">Amount</th><th>Status</th><th class="right">Paid to date</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>'
       + chgHtml
-      + '<div class="varbox" style="margin-top:14px;">Total payable '+inr(payable)+(chgTot>0?(' + charges '+inr(chgTot)):'')+' &minus; paid '+inr(run)+(ded?(' &minus; deductions '+inr(ded)):'')+' = <b>outstanding '+inr(Number(l.outstanding)||0)+'</b></div>';
+      + '<div class="varbox" style="margin-top:14px;">Total payable '+inr(payable)+(chgTot>0?(' + charges '+inr(chgTot)):'')+' &minus; paid '+inr(run)+' = <b>outstanding '+inr(Number(l.outstanding)||0)+'</b>'+(ded?('<br><span style="color:var(--muted);font-size:11.5px;">Processing/deductions '+inr(ded)+' were withheld at disbursement &mdash; the customer owes the full amount, so this does not reduce the outstanding.</span>'):'')+'</div>';
   }
   function repStatementCSV(){
     var l=repStatementLoan(); if(!l){ toast('Select a borrower first'); return; }
@@ -443,7 +443,7 @@
     }
     /* Reconciliation line so the arithmetic is explicit on the printed page. */
     var recon='<div style="margin-top:14px;font-size:12px;color:#333;border:1px solid #ddd;background:#faf7ef;border-radius:6px;padding:8px 11px;">'
-      +'Total payable '+inr(payable)+(chgTot>0?(' + charges '+inr(chgTot)):'')+' &minus; paid '+inr(run)+(ded?(' &minus; deductions '+inr(ded)):'')+' = <b>Outstanding '+inr(Number(l.outstanding)||0)+'</b></div>';
+      +'Total payable '+inr(payable)+(chgTot>0?(' + charges '+inr(chgTot)):'')+' &minus; paid '+inr(run)+' = <b>Outstanding '+inr(Number(l.outstanding)||0)+'</b>'+(ded?('<br><span style="font-size:11px;color:#666;">Processing/deductions '+inr(ded)+' were withheld at disbursement; the customer owes the full amount, so this does not reduce the outstanding.</span>'):'')+'</div>';
     var inner = rsT + '<div style="font-weight:700;margin:14px 0 4px;color:#0b1f4b;">Payment Ledger</div>' + t + chgT + recon;
     var meta=[['Principal',inr(l.principal)],['Rate',(Number(l.rate)>0?String(l.rate)+'%':'\u2014')],['Tenure',String(l.tenure||'')+' mo'],['EMI',inr(l.emi)],['Total payable',inr(payable)],['Paid (cleared)',inr(run)]];
     if(chgTot>0) meta.push(['Charges & late fees',inr(chgTot)]);

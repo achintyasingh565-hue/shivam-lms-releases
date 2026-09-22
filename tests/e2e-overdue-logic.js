@@ -29,28 +29,31 @@ const path = require('path');
     const l = loans[0];
     const chg = t => (l.charges || []).filter(c => c.type === t);
     const D = repScheduleData(l);
-    const byIdx = {}; D.rows.forEach(r => { if (!r.isInt) byIdx[r.i] = r; });
-    // installment indices for the three special months (7,8,9 by original schedule)
-    const nothing = byIdx[7], intOnly = byIdx[8], partial = byIdx[9];
+    // Rows are keyed by CALENDAR MONTH now (deferrals push installments forward), so find each
+    // special month by its date rather than by an installment number.
+    const mkey = (i) => addM(disb, i).slice(0, 7);
+    const rowInMonth = (i) => D.rows.find(r => r.due && String(r.due).slice(0, 7) === mkey(i) && !r.isInt);
+    const intRowInMonth = (i) => D.rows.find(r => r.due && String(r.due).slice(0, 7) === mkey(i) && r.isInt);
+    const nothing = rowInMonth(7) || {};      // fully-missed month → Deferred row
+    const intOnly = intRowInMonth(8) || {};   // interest-only month → its own interest row
+    const partial = rowInMonth(9) || {};      // partial payment month
     return {
       monthInt,
       lateCount: chg('Late fee').length,
       intCount: chg('Overdue interest').length,
-      // the fully-missed month gets BOTH
+      nothing_isMissed: !!nothing.missed,
       nothing_lateFee: nothing.lateFee, nothing_intFee: nothing.intFee,
-      // the interest-only month gets NEITHER
-      intOnly_lateFee: intOnly.lateFee, intOnly_intFee: intOnly.intFee,
-      // the partial month gets a late fee but NO overdue interest, and shows remainder pending
+      intOnly_found: !!intRowInMonth(8),
+      intOnly_lateFee: intOnly.lateFee || 0, intOnly_intFee: intOnly.intFee || 0,
       partial_lateFee: partial.lateFee, partial_intFee: partial.intFee, partial_due: partial.dueAmt, partial_paid: partial.paid,
-      // schedule still reconciles with the loan outstanding
       lastBal: D.rows.filter(r => !r.isInt).slice(-1)[0].bal, outstanding: Number(l.outstanding) || 0,
       hasInterestRow: D.rows.some(r => r.isInt),
     };
   });
 
   const checks = {
-    'missed month: late fee + overdue interest':   R.nothing_lateFee === 500 && R.nothing_intFee === R.monthInt,
-    'interest-only month: no late fee, no interest': R.intOnly_lateFee === 0 && R.intOnly_intFee === 0,
+    'missed month: Deferred with late fee + interest': R.nothing_isMissed === true && R.nothing_lateFee === 500 && R.nothing_intFee === R.monthInt,
+    'interest-only month: no late fee, no interest': R.intOnly_found === true && R.intOnly_lateFee === 0 && R.intOnly_intFee === 0,
     'interest-only shows as its own row':           R.hasInterestRow === true,
     'partial month: late fee but NO overdue interest': R.partial_lateFee === 500 && R.partial_intFee === 0,
     'partial month: remainder left pending':        R.partial_paid === 2000 && R.partial_due === 3416,

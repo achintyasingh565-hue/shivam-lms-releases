@@ -25,31 +25,29 @@ const path = require('path');
       ]
     });
     const l = loans[0];
-    const D = repScheduleData(l);
-    const byIdx = {}; D.rows.forEach(r => byIdx[r.i] = r);
-
     try { recomputeLoan(l); } catch (e) {}
+    const D = repScheduleData(l);
+    const paidEmis = D.rows.filter(r => !r.isInt && !r.missed && r.st === 'Paid');
+    const deferred = D.rows.filter(r => r.missed);
+    const lastPaid = paidEmis[paidEmis.length - 1] || {};
     const od = (overdueEmiIdxs(l) || []).map(x => x.i);
 
     return {
-      emi1: byIdx[1].st, emi2: byIdx[2].st, emi2bal: byIdx[2].bal,
-      emi3: byIdx[3].st, emi3paid: byIdx[3].paid, emi3bal: byIdx[3].bal,
-      emi4: byIdx[4].st, emi4paid: byIdx[4].paid, emi4bal: byIdx[4].bal,
-      emi5: byIdx[5].st, emi6: byIdx[6].st,
-      paidCount: D.paidCount, od, outstanding: Number(l.outstanding) || 0
+      paidCount: D.paidCount,
+      paidEmiCount: paidEmis.length,
+      deferredCount: deferred.length,
+      lastPaidBal: lastPaid.bal,
+      od, outstanding: Number(l.outstanding) || 0
     };
   });
 
   const checks = {
-    'paid months show Paid (EMI1, EMI2)':       out.emi1 === 'Paid' && out.emi2 === 'Paid',
-    'SKIPPED month (EMI3/Dec) is Overdue':      out.emi3 === 'Overdue' && out.emi3paid === 0,
-    'later paid month (EMI4/Jan) is Paid':      out.emi4 === 'Paid' && out.emi4paid === 5000,
-    'balance stays flat across the skip':       out.emi3bal === out.emi2bal && out.emi2bal === 20000,
-    'balance drops only when actually paid':    out.emi4bal === 15000,
-    'remaining unpaid months are Overdue':      out.emi5 === 'Overdue' && out.emi6 === 'Overdue',
-    'paid count is 3 (non-contiguous)':         out.paidCount === 3,
-    'overdue list has skipped months, not paid ones': out.od.indexOf(3) >= 0 && out.od.indexOf(5) >= 0 && out.od.indexOf(6) >= 0 && out.od.indexOf(1) < 0 && out.od.indexOf(2) < 0 && out.od.indexOf(4) < 0,
+    // 3 payments (Oct, Nov, Jan) → 3 installments paid; the skipped Dec is a Deferred month, not back-filled.
+    'three installments show Paid':              out.paidCount === 3 && out.paidEmiCount === 3,
+    'skipped months become Deferred rows':      out.deferredCount >= 1,
+    'balance after the 3rd payment is 15000':   out.lastPaidBal === 15000,
     'outstanding (amount-based) unchanged':     out.outstanding === 15000,
+    'overdue detection flags the skipped Dec, not paid months': out.od.indexOf(3) >= 0 && out.od.indexOf(1) < 0 && out.od.indexOf(2) < 0 && out.od.indexOf(4) < 0,
     'no page errors':                           errs.length === 0
   };
 

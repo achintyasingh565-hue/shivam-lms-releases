@@ -49,6 +49,27 @@ function createWindow() {
   mainWindow.webContents.on('will-navigate', (e, url) => {
     if (url !== mainWindow.webContents.getURL()) e.preventDefault();
   });
+
+  // Right-click context menu — Cut / Copy / Paste / Select All (plus spelling suggestions in
+  // editable fields). Enabled state follows what the OS reports is possible for the click target.
+  mainWindow.webContents.on('context-menu', (event, params) => {
+    try {
+      const ef = params.editFlags || {};
+      const hasSel = !!(params.selectionText && params.selectionText.trim());
+      const template = [];
+      if (params.isEditable && params.misspelledWord && Array.isArray(params.dictionarySuggestions) && params.dictionarySuggestions.length) {
+        params.dictionarySuggestions.slice(0, 5).forEach((s) => template.push({ label: s, click: () => mainWindow.webContents.replaceMisspelling(s) }));
+        template.push({ type: 'separator' });
+      }
+      template.push(
+        { label: 'Cut', role: 'cut', enabled: !!(params.isEditable && ef.canCut) },
+        { label: 'Copy', role: 'copy', enabled: !!(ef.canCopy || hasSel) },
+        { label: 'Paste', role: 'paste', enabled: !!(params.isEditable && ef.canPaste) }
+      );
+      if (params.isEditable) template.push({ type: 'separator' }, { label: 'Select All', role: 'selectAll' });
+      Menu.buildFromTemplate(template).popup({ window: mainWindow });
+    } catch (e) {}
+  });
 }
 
 // When the user saves a Backup/CSV, show a normal "Save As" dialog
