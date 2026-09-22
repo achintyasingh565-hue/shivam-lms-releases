@@ -150,26 +150,53 @@
       return '<tr'+rowStyle+'><td>'+numCell+'</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">'+(r.emi>0?inr(r.emi):'&mdash;')+'</td><td class="right">'+(r.paid>0?inr(r.paid):'&mdash;')+'</td><td class="right" style="color:'+(r.lateFee>0?'#b26a00':'inherit')+';">'+(r.lateFee>0?('+'+inr(r.lateFee)):'&mdash;')+'</td><td class="right">'+inr(r.bal)+'</td><td style="color:'+repStColor(r.st)+';font-weight:600;white-space:nowrap;">'+stTxt+'</td></tr>';
     }).join('');
     var extNote=(D.extCount>0)?'<p class="ph-sub" style="margin:10px 2px 0;">Rows marked <b style="color:#b26a00;">ext</b> are months beyond the original '+D.n+'-month tenure — the loan is still running. Payments made after the tenure appear on their own month here and reduce the balance; missed months inside the tenure stay flagged above.</p>':'';
-    host.innerHTML = '<div style="font-weight:600; margin-bottom:8px;">'+esc(l.name)+' &mdash; A/C '+esc(l.acno||'')+'</div>'+tiles
+    var coName=(l.gname||l.coborrower||'').toString().trim();
+    var coLine=coName?('<div style="font-size:12.5px;color:var(--muted,#64748b);margin:-4px 0 8px;">Co-borrower / Guarantor: <b style="color:var(--bnavy,#0b1f4b);">'+esc(coName)+'</b></div>'):'';
+    host.innerHTML = '<div style="font-weight:600; margin-bottom:8px;">'+esc(l.name)+' &mdash; A/C '+esc(l.acno||'')+'</div>'+coLine+tiles
       +'<div class="table-wrap"><table class="data"><thead><tr><th>#</th><th>Due Date</th>'
       +'<th class="right">EMI</th><th class="right">Paid</th><th class="right">Late Fee</th><th class="right">Balance After</th><th>Status</th></tr></thead><tbody>'+body+'</tbody></table></div>'+extNote;
   }
   function repScheduleCSV(){
     var l=repScheduleLoan(); if(!l){ toast('Select a borrower first'); return; }
     var D=repScheduleData(l); if(!D.n){ toast('No tenure set'); return; }
-    var data=D.rows.map(r=>[r.isInt?'·':r.i,fmtDate(r.due),r.emi,(r.isInt?0:r.paid),(r.isInt?'—':(r.dueAmt||0)),(r.isInt?'—':r.bal),r.isInt?'Interest paid':r.st]);
-    repCSV('EMI_Schedule_'+(l.acno||l.name||'loan')+'.csv', ['Installment','Due Date','EMI','Paid','Due','Balance After','Status'], data);
+    var data=D.rows.map(r=>[r.isInt?'·':(r.i+(r.ext?' (ext)':'')),fmtDate(r.due),r.emi,(r.isInt?0:r.paid),(r.isInt?0:(r.lateFee||0)),(r.isInt?'—':(r.dueAmt||0)),(r.isInt?'—':r.bal),r.isInt?'Interest paid':r.st]);
+    repCSV('EMI_Schedule_'+(l.acno||l.name||'loan')+'.csv', ['Installment','Due Date','EMI','Paid','Late Fee','Due','Balance After','Status'], data);
   }
   function repSchedulePrint(){
     var l=repScheduleLoan(); if(!l){ toast('Select a borrower first'); return; }
     var D=repScheduleData(l); if(!D.n){ toast('No tenure set'); return; }
-    var t='<table><thead><tr><th>#</th><th>Due Date</th><th class="r">EMI</th><th class="r">Paid</th><th class="r">Due</th><th class="r">Balance After</th><th>Status</th></tr></thead><tbody>'
-      + D.rows.map(r=> r.isInt
-          ? '<tr><td>&middot;</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+inr(r.emi)+'</td><td class="r">'+inr(r.emi)+'</td><td class="r">&mdash;</td><td class="r">&mdash;</td><td>Interest paid</td></tr>'
-          : '<tr><td>'+r.i+(r.ext?' (ext)':'')+'</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+(r.emi>0?inr(r.emi):'-')+'</td><td class="r">'+(r.paid>0?inr(r.paid):'-')+'</td><td class="r">'+((r.dueAmt>0)?inr(r.dueAmt):'-')+'</td><td class="r">'+inr(r.bal)+'</td><td>'+r.st+((r.dueAmt>0&&(r.st==="Partial"||r.st==="Overdue"))?(' ('+inr(r.dueAmt)+' due)'):'')+'</td></tr>').join('')
+    var t='<table class="sched-tbl"><thead><tr><th>#</th><th>Due Date</th><th class="r">EMI</th><th class="r">Paid</th><th class="r">Late Fee</th><th class="r">Due</th><th class="r">Balance</th><th>Status</th></tr></thead><tbody>'
+      + D.rows.map(function(r){ return r.isInt
+          ? '<tr><td>&middot;</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+inr(r.emi)+'</td><td class="r">'+inr(r.emi)+'</td><td class="r">&mdash;</td><td class="r">&mdash;</td><td class="r">&mdash;</td><td>Interest paid</td></tr>'
+          : '<tr><td>'+r.i+(r.ext?'e':'')+'</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+(r.emi>0?inr(r.emi):'-')+'</td><td class="r">'+(r.paid>0?inr(r.paid):'-')+'</td><td class="r">'+((r.lateFee>0)?('+'+inr(r.lateFee)):'-')+'</td><td class="r">'+((r.dueAmt>0)?inr(r.dueAmt):'-')+'</td><td class="r">'+inr(r.bal)+'</td><td>'+r.st+((r.dueAmt>0&&(r.st==="Partial"||r.st==="Overdue"))?(' ('+inr(r.dueAmt)+' due)'):'')+'</td></tr>'; }).join('')
       + '</tbody></table>';
+    // Fit everything on ONE page: shrink the table's type & row padding as the number of rows grows.
+    var nRows=D.rows.length;
+    var fs, pad;
+    if(nRows<=22){ fs='12px'; pad='6px 9px'; }
+    else if(nRows<=30){ fs='10px'; pad='4px 7px'; }
+    else if(nRows<=40){ fs='8.6px'; pad='3px 6px'; }
+    else if(nRows<=52){ fs='7.4px'; pad='2px 5px'; }
+    else { fs='6.4px'; pad='1.5px 4px'; }
+    var fit='<style>#reportPrint .sched-tbl{table-layout:fixed;width:100%;}'
+      +'#reportPrint .sched-tbl th,#reportPrint .sched-tbl td{font-size:'+fs+'!important;padding:'+pad+'!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
+      +'#reportPrint .sched-tbl td:nth-child(1),#reportPrint .sched-tbl th:nth-child(1){width:6%;}'
+      +'#reportPrint .sched-tbl td:nth-child(2),#reportPrint .sched-tbl th:nth-child(2){width:11%;}'
+      +'#reportPrint .sched-tbl td:nth-child(3),#reportPrint .sched-tbl th:nth-child(3){width:11%;}'
+      +'#reportPrint .sched-tbl td:nth-child(4),#reportPrint .sched-tbl th:nth-child(4){width:11%;}'
+      +'#reportPrint .sched-tbl td:nth-child(5),#reportPrint .sched-tbl th:nth-child(5){width:11%;}'
+      +'#reportPrint .sched-tbl td:nth-child(6),#reportPrint .sched-tbl th:nth-child(6){width:11%;}'
+      +'#reportPrint .sched-tbl td:nth-child(7),#reportPrint .sched-tbl th:nth-child(7){width:15%;}'
+      +'#reportPrint .sched-tbl td:nth-child(8),#reportPrint .sched-tbl th:nth-child(8){width:24%;white-space:normal;}'
+      +'@page{size:A4 portrait;margin:0;}</style>';
     var paidCount=D.paidCount;
-    printReport('EMI Schedule', l.name+'  (A/C '+(l.acno||'')+')',
-      [['EMI',inr(D.emi)],['Tenure',D.n+' months'],['Total of installments',inr(D.total)],['Paid / scheduled',paidCount+' / '+D.n],['Outstanding',inr(Number(l.outstanding)||0)]], t, _docFileName(l.name,l.acno,'EMI_Schedule'))
+    var coName=(l.gname||l.coborrower||'').toString().trim();
+    var meta=[];
+    if(coName) meta.push(['Co-borrower / Guarantor',coName]);
+    meta.push(['EMI',inr(D.emi)],['Tenure',D.n+' months'],['Total of installments',inr(D.total)],['Paid / scheduled',paidCount+' / '+D.n]);
+    if(D.totalLate>0) meta.push(['Late fees',inr(D.totalLate)]);
+    if(D.extCount>0) meta.push(['Beyond tenure',D.extCount+' mo']);
+    meta.push(['Outstanding',inr(Number(l.outstanding)||0)]);
+    printReport('EMI Schedule', l.name+'  (A/C '+(l.acno||'')+')', meta, fit+t, _docFileName(l.name,l.acno,'EMI_Schedule'));
   }
 

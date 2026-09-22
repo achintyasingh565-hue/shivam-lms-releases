@@ -379,10 +379,19 @@
       +'<div class="table-wrap" style="margin-bottom:14px;"><table class="data"><thead><tr><th>Date</th><th class="right">Prepayment</th><th class="right">Outstanding (before → after)</th><th class="right">EMI (before → after)</th><th>Tenure (before → after)</th></tr></thead><tbody>'
       + rs.map(function(r){ var rateChg=(r.newRate!=null && r.oldRate!=null && Number(r.newRate)!==Number(r.oldRate))?('<br><span style="color:var(--muted);font-size:11px;">rate '+r.oldRate+'% → '+r.newRate+'% p.m.</span>'):''; return '<tr><td>'+fmtDate(r.date)+'</td><td class="right">'+((Number(r.lump)||0)>0?inr(r.lump):'—')+'</td><td class="right">'+inr(r.oldOut)+' → '+inr(r.newOut)+'</td><td class="right">'+inr(r.oldEmi)+' → '+inr(r.newEmi)+rateChg+'</td><td>'+(r.oldTenure||'—')+' → '+(r.newTenure||'—')+' mo</td></tr>'; }).join('')
       + '</tbody></table></div>') : '';
+    // Charges (late fees, overdue interest, cheque-bounce, etc.) — listed and added to the balance.
+    var _chgs=(Array.isArray(l.charges)?l.charges.slice():[]).sort(function(a,b){ return String(a.date||'').localeCompare(String(b.date||'')); });
+    var chgTot=_chgs.reduce(function(a,c){ return a+(Number(c&&c.amount)||0); },0);
+    var chgHtml = _chgs.length ? ('<div style="font-weight:650;font-size:13px;margin:4px 0 6px;">Charges &amp; Late Fees</div>'
+      +'<div class="table-wrap" style="margin-bottom:14px;"><table class="data"><thead><tr><th>Date</th><th>Type</th><th>Cheque / Note</th><th class="right">Amount</th></tr></thead><tbody>'
+      + _chgs.map(function(c){ var d=[]; if(c.cheque) d.push('chq '+esc(c.cheque)); if(c.note) d.push(esc(c.note)); return '<tr><td>'+fmtDate(c.date)+'</td><td>'+esc(c.type||'Charge')+'</td><td>'+(d.length?d.join(' &middot; '):'&mdash;')+'</td><td class="right">'+inr(Number(c.amount)||0)+'</td></tr>'; }).join('')
+      + '<tr class="tot"><td colspan="3" class="right"><b>Total charges</b></td><td class="right"><b>'+inr(chgTot)+'</b></td></tr>'
+      + '</tbody></table></div>') : '';
     var meta='<div class="pay-tiles" style="margin-bottom:14px;">'
       +repTile('Total payable',inr(payable))
       +repTile('Paid (cleared)',inr(run),'ok')
       +((Number(l.intIncome)||0)>0?repTile('Interest serviced',inr(l.intIncome)):'')
+      +(chgTot>0?repTile('Charges &amp; late fees',inr(chgTot),'bad'):'')
       +(ded?repTile('Processing/Deductions',inr(ded)):'')
       +repTile('Outstanding',inr(Number(l.outstanding)||0),'warn')+'</div>';
     var terms='<div class="table-wrap" style="margin-bottom:14px;"><table class="data"><tbody>'
@@ -395,7 +404,9 @@
     host.innerHTML = terms + meta + rsHtml
       +'<div style="font-weight:650;font-size:13px;margin:4px 0 6px;">Payment Ledger</div>'
       +'<div class="table-wrap"><table class="data"><thead><tr><th>Date</th><th>Mode</th><th>Cheque / Ref</th>'
-      +'<th class="right">Amount</th><th>Status</th><th class="right">Paid to date</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>';
+      +'<th class="right">Amount</th><th>Status</th><th class="right">Paid to date</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>'
+      + chgHtml
+      + '<div class="varbox" style="margin-top:14px;">Total payable '+inr(payable)+(chgTot>0?(' + charges '+inr(chgTot)):'')+' &minus; paid '+inr(run)+(ded?(' &minus; deductions '+inr(ded)):'')+' = <b>outstanding '+inr(Number(l.outstanding)||0)+'</b></div>';
   }
   function repStatementCSV(){
     var l=repStatementLoan(); if(!l){ toast('Select a borrower first'); return; }
@@ -419,8 +430,23 @@
         + rs.map(function(r){ var rateChg=(r.newRate!=null && r.oldRate!=null && Number(r.newRate)!==Number(r.oldRate))?(' &middot; rate '+r.oldRate+'%&rarr;'+r.newRate+'%'):''; return '<tr><td>'+fmtDate(r.date)+'</td><td class="r">'+((Number(r.lump)||0)>0?inr(r.lump):'&mdash;')+'</td><td class="r">'+inr(r.oldOut)+' &rarr; '+inr(r.newOut)+'</td><td class="r">'+inr(r.oldEmi)+' &rarr; '+inr(r.newEmi)+rateChg+'</td><td>'+(r.oldTenure||'&mdash;')+' &rarr; '+(r.newTenure||'&mdash;')+' mo</td></tr>'; }).join('')
         + '</tbody></table>';
     }
-    var inner = rsT + '<div style="font-weight:700;margin:14px 0 4px;color:#0b1f4b;">Payment Ledger</div>' + t;
+    /* Charges & late fees \u2014 listed and added to the outstanding, so the statement reconciles. */
+    var _chgs=(Array.isArray(l.charges)?l.charges.slice():[]).sort(function(a,b){ return String(a.date||'').localeCompare(String(b.date||'')); });
+    var chgTot=_chgs.reduce(function(a,c){ return a+(Number(c&&c.amount)||0); },0);
+    var chgT='';
+    if(_chgs.length){
+      chgT='<div style="font-weight:700;margin:14px 0 4px;color:#0b1f4b;">Charges &amp; Late Fees</div>'
+        +'<table><thead><tr><th>Date</th><th>Type</th><th>Cheque / Note</th><th class="r">Amount</th></tr></thead><tbody>'
+        + _chgs.map(function(c){ var d=[]; if(c.cheque) d.push('chq '+esc(c.cheque)); if(c.note) d.push(esc(c.note)); return '<tr><td>'+fmtDate(c.date)+'</td><td>'+esc(c.type||'Charge')+'</td><td>'+(d.length?d.join(' &middot; '):'&mdash;')+'</td><td class="r">'+inr(Number(c.amount)||0)+'</td></tr>'; }).join('')
+        + '<tr class="tot"><td colspan="3" class="r">Total charges</td><td class="r">'+inr(chgTot)+'</td></tr>'
+        + '</tbody></table>';
+    }
+    /* Reconciliation line so the arithmetic is explicit on the printed page. */
+    var recon='<div style="margin-top:14px;font-size:12px;color:#333;border:1px solid #ddd;background:#faf7ef;border-radius:6px;padding:8px 11px;">'
+      +'Total payable '+inr(payable)+(chgTot>0?(' + charges '+inr(chgTot)):'')+' &minus; paid '+inr(run)+(ded?(' &minus; deductions '+inr(ded)):'')+' = <b>Outstanding '+inr(Number(l.outstanding)||0)+'</b></div>';
+    var inner = rsT + '<div style="font-weight:700;margin:14px 0 4px;color:#0b1f4b;">Payment Ledger</div>' + t + chgT + recon;
     var meta=[['Principal',inr(l.principal)],['Rate',(Number(l.rate)>0?String(l.rate)+'%':'\u2014')],['Tenure',String(l.tenure||'')+' mo'],['EMI',inr(l.emi)],['Total payable',inr(payable)],['Paid (cleared)',inr(run)]];
+    if(chgTot>0) meta.push(['Charges & late fees',inr(chgTot)]);
     if(ded) meta.push(['Processing/Deductions',inr(ded)]);
     meta.push(['Outstanding',inr(Number(l.outstanding)||0)]);
     if(rs.length) meta.push(['Restructured',String(rs.length)+'\u00d7, last '+fmtDate(rs[rs.length-1].date)]);

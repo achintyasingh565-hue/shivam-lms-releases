@@ -427,19 +427,27 @@
     if(!l) return [];
     var n=Math.max(0,Math.round(Number(l.tenure)||0)), emi=Math.round(Number(l.emi)||0), t=todayISO();
     var total=(l.baseOut!=null)?Math.max(0,Number(l.baseOut)):((Number(l.tpay)>0)?Number(l.tpay):emi*n);
-    var emiOf=function(i){ return (i<n)?emi:Math.max(0,total-emi*(n-1)); };
     var grace=getLateGraceDays(), paidBase=Number(l.paidBase)||0;
+    // Does the loan still owe money today? If so, the schedule keeps running PAST the tenure and
+    // every unpaid month after it is also a late month — so late fees keep accruing until repaid.
+    var clearedNI=Math.max(0,(l.payments||[]).filter(function(p){return p&&p.status==='Cleared'&&!(p.intOnly||p.type==='Interest');}).reduce(function(a,p){return a+(Number(p.amount)||0);},0)-paidBase);
+    var stillOwes=(total-clearedNI)>0.5;
+    // Effective number of months to examine: the tenure, extended month-by-month up to TODAY while
+    // the loan is still unpaid (so overdue months after the tenure are detected too).
+    var nEff=n;
+    if(stillOwes && n>0){ for(var mm=n+1; mm-n<=240; mm++){ var dmm=emiDueDate(l,mm); if(!dmm) break; if(_lfAddDays(dmm,grace)>t) break; nEff=mm; } }
+    var emiOf=function(i){ return (i<n)?emi:(i===n?Math.max(0,total-emi*(n-1)):emi); };  // extension months expect a full catch-up EMI
     // Restructured loans reset the schedule baseline — keep the simple rule there.
     if(paidBase>0){
       var a=emiPaidByIndex(l), o=[]; for(var i0=1;i0<=n;i0++){ var d0=emiDueDate(l,i0); if(d0 && d0<t && a[i0]<emiOf(i0)-0.001) o.push({i:i0,due:d0}); } return o;
     }
     // Date-aware allocation (same forward-spill as emiPaidByIndex) that also records the DATE
     // each installment became fully covered, so we can tell if it was covered on time.
-    var alloc=[], cover=[]; for(var k=0;k<=n;k++){ alloc[k]=0; cover[k]=null; }
-    var keyToIdx={}; for(var i2=1;i2<=n;i2++){ var dk=_ymKey(emiDueDate(l,i2)); if(dk && keyToIdx[dk]==null) keyToIdx[dk]=i2; }
+    var alloc=[], cover=[]; for(var k=0;k<=nEff;k++){ alloc[k]=0; cover[k]=null; }
+    var keyToIdx={}; for(var i2=1;i2<=nEff;i2++){ var dk=_ymKey(emiDueDate(l,i2)); if(dk && keyToIdx[dk]==null) keyToIdx[dk]=i2; }
     var monthKeyOf=function(i){ return _ymKey(emiDueDate(l,i)); };
-    var fwdStartFor=function(pk){ if(pk==null) return 1; for(var j=1;j<=n;j++){ var mk=monthKeyOf(j); if(mk && mk>=pk) return j; } return n+1; };
-    var earliestUnfull=function(from){ for(var j=(from||1);j<=n;j++){ if(alloc[j] < emiOf(j)-0.001) return j; } return 0; };
+    var fwdStartFor=function(pk){ if(pk==null) return 1; for(var j=1;j<=nEff;j++){ var mk=monthKeyOf(j); if(mk && mk>=pk) return j; } return nEff+1; };
+    var earliestUnfull=function(from){ for(var j=(from||1);j<=nEff;j++){ if(alloc[j] < emiOf(j)-0.001) return j; } return 0; };
     var pays=(l.payments||[]).filter(function(p){ return p && p.status==='Cleared' && !(p.intOnly||p.type==='Interest') && (Number(p.amount)||0)>0; })
       .map(function(p){ return {date:String(p.date||''), amt:Number(p.amount)||0}; })
       .sort(function(a,b){ return a.date.localeCompare(b.date); });
@@ -448,15 +456,15 @@
       var fill=function(j){ if(j && alloc[j] < emiOf(j)-0.001){ var put=Math.min(emiOf(j)-alloc[j], remaining); alloc[j]+=put; remaining-=put; if(alloc[j] >= emiOf(j)-0.5 && !cover[j]) cover[j]=p.date; } };
       if(target!=null) fill(target);
       var start=(target!=null)?target:fwdStartFor(pk);   // forward-only; after-last payment is an advance
-      while(remaining>0.5 && start<=n){ var e=earliestUnfull(start); if(!e) break; fill(e); }
+      while(remaining>0.5 && start<=nEff){ var e=earliestUnfull(start); if(!e) break; fill(e); }
     });
     var out=[];
-    for(var i=1;i<=n;i++){
+    for(var i=1;i<=nEff;i++){
       var d=emiDueDate(l,i); if(!d) continue;
       var deadline=_lfAddDays(d, grace);
       if(deadline>t) continue;                            // grace window not elapsed yet — not late
       // late if never fully covered (missed/partial) OR only covered after the grace deadline
-      if(!cover[i] || cover[i] > deadline) out.push({i:i, due:d});
+      if(!cover[i] || cover[i] > deadline) out.push({i:i, due:d, ext:(i>n)});
     }
     return out;
   }

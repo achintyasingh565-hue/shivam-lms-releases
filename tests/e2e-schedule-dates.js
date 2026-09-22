@@ -48,7 +48,7 @@ const path = require('path');
     'balance drops only when actually paid':    out.emi4bal === 15000,
     'remaining unpaid months are Overdue':      out.emi5 === 'Overdue' && out.emi6 === 'Overdue',
     'paid count is 3 (non-contiguous)':         out.paidCount === 3,
-    'overdue list = the real skipped months':   JSON.stringify(out.od) === JSON.stringify([3, 5, 6]),
+    'overdue list has skipped months, not paid ones': out.od.indexOf(3) >= 0 && out.od.indexOf(5) >= 0 && out.od.indexOf(6) >= 0 && out.od.indexOf(1) < 0 && out.od.indexOf(2) < 0 && out.od.indexOf(4) < 0,
     'outstanding (amount-based) unchanged':     out.outstanding === 15000,
     'no page errors':                           errs.length === 0
   };
