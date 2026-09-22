@@ -101,14 +101,33 @@
       var chgM=chgAt(kk,key), lfM=lateAt(kk,key), intM=intAt(kk,key);
       if(io>0){ intIncome+=io; cumChg+=chgM; rows.push({i:'',due:dueD,emi:io,paid:io,lateFee:lfM,intFee:intM,charge:chgM,bal:Math.max(0,total-cumPaid)+cumChg,st:'Interest',isInt:true,defer:true}); continue; }
       var future=( _dl(dueD) >= t );
-      if(ep>0.5 || future){
+      if(ep>0.5){
+        // A payment received this month — it reduces the balance NOW and pays down as many
+        // installments as it covers (a lump sum clears several at once), all shown on this row.
+        var avail=ep+carry; carry=0;
+        var firstI=emisPlaced+1, teSum=0, lastShort=0;
+        do {
+          var te=(emisPlaced+1<n)?emi:Math.max(0,total-emi*(n-1));
+          if(te<=0){ emisPlaced++; break; }
+          var pay=Math.min(te,avail);
+          emisPlaced++; teSum+=te; cumPaid+=pay; avail-=pay; lastShort=te-pay;
+          if(pay < te-0.5) break;              // this installment only partly covered → stop here
+        } while(emisPlaced<n && avail>0.5);
+        carry=Math.max(0,avail);               // anything beyond all installments = advance/overpay
+        cumChg+=chgM;
+        var covered=emisPlaced-firstI+1, full=(lastShort<=0.5);
+        var stp=full?'Paid':'Partial';
+        paidCount += full?covered:Math.max(0,covered-1);
+        var iLbl=(covered>1)?(firstI+'–'+emisPlaced):String(firstI);
+        rows.push({i:iLbl,due:dueD,emi:teSum,paid:ep,lateFee:lfM,intFee:intM,charge:chgM,bal:Math.max(0,total-cumPaid)+cumChg,st:stp,dueAmt:Math.max(0,Math.round(lastShort)),multi:(covered>1)});
+      } else if(future){
+        // an upcoming installment (not yet due / within grace); apply any carried advance
         emisPlaced++;
-        var te=(emisPlaced<n)?emi:Math.max(0,total-emi*(n-1));
-        var avail=ep+carry; var al=Math.min(te,avail); carry=Math.max(0,avail-te);
-        cumPaid+=al; cumChg+=chgM;
-        var st=(al>=te-0.5&&te>0)?'Paid':(al>0?'Partial':(dueD&&dueD<t?'Overdue':(dueD&&repDaysBetween(t,dueD)<=7?'Due soon':'Upcoming')));
-        if(st==='Paid') paidCount++;
-        rows.push({i:emisPlaced,due:dueD,emi:te,paid:al,lateFee:lfM,intFee:intM,charge:chgM,bal:Math.max(0,total-cumPaid)+cumChg,st:st,dueAmt:Math.max(0,te-al)});
+        var te2=(emisPlaced<n)?emi:Math.max(0,total-emi*(n-1));
+        var al2=Math.min(te2,carry); carry-=al2; cumPaid+=al2; cumChg+=chgM;
+        var st2=(al2>=te2-0.5&&te2>0)?'Paid':(al2>0?'Partial':(dueD&&repDaysBetween(t,dueD)<=7?'Due soon':'Upcoming'));
+        if(st2==='Paid') paidCount++;
+        rows.push({i:emisPlaced,due:dueD,emi:te2,paid:al2,lateFee:lfM,intFee:intM,charge:chgM,bal:Math.max(0,total-cumPaid)+cumChg,st:st2,dueAmt:Math.max(0,te2-al2)});
       } else {
         // missed & past grace → deferral (interest + late fee only), EMI pushed forward
         cumChg+=chgM;

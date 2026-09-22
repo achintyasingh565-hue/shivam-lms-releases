@@ -695,7 +695,7 @@
     if(!rows.length){ host.innerHTML='<div class="chg-list-h">Recorded charges</div><p style="color:var(--muted);font-size:13px;margin:4px 2px;">No charges recorded yet.</p>'; return; }
     var total=rows.reduce(function(a,r){return a+(Number(r.c.amount)||0);},0);
     var badgeClass=function(t){ return t==='Cheque bounce'?'cbounce':(t==='Late fee'?'clate':(t==='Overdue interest'?'cint':'cother')); };
-    var body=rows.slice(0,60).map(function(r){
+    var body=rows.map(function(r){
       var meta=[]; if(r.c.cheque) meta.push('chq '+esc(r.c.cheque)); if(r.c.note) meta.push(esc(r.c.note));
       return '<tr>'
         +'<td><span class="chg-badge '+badgeClass(r.c.type)+'">'+esc(r.c.type)+'</span></td>'
@@ -706,7 +706,7 @@
         +'</tr>';
     }).join('');
     host.innerHTML='<div class="chg-list-h">Recorded charges <span class="chg-list-sum">'+rows.length+' &middot; '+inr(total)+' total</span></div>'
-      +'<div class="reg-wrap"><table class="data reg-table chg-table"><thead><tr><th>Type</th><th>Borrower</th><th class="right">Amount</th><th>Date</th><th class="right">Actions</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+      +'<div class="reg-wrap" style="max-height:460px;overflow:auto;"><table class="data reg-table chg-table"><thead><tr><th>Type</th><th>Borrower</th><th class="right">Amount</th><th>Date</th><th class="right">Actions</th></tr></thead><tbody>'+body+'</tbody></table></div>';
   }
   function deleteCharge(loanId, chargeId){
     var l=loans.find(function(x){return x.id===loanId;}); if(!l||!Array.isArray(l.charges)) return;
