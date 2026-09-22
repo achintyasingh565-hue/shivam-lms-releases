@@ -100,7 +100,7 @@
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.4 2.4 4.6-5"/></svg> Audit Logging Enabled</span>
       </div>
       <div class="auth-meta"><span id="lastLogin"></span></div>
-      <div class="auth-meta auth-verline">Version 2.1.3 &nbsp;·&nbsp; © Shivam Enterprises</div>
+      <div class="auth-meta auth-verline">Version 2.1.4 &nbsp;·&nbsp; © Shivam Enterprises</div>
     </div>
   </div>
 </div>
@@ -702,9 +702,10 @@
           <!-- 1 · one-click overdue charges -->
           <div class="chg-card">
             <div class="chg-card-h"><span class="chg-step">1</span> Apply overdue charges automatically</div>
-            <p class="chg-card-p">Adds a late fee for every overdue month and this month&rsquo;s interest for any fully-missed month, in one click. Repeatable &mdash; it never double-charges.</p>
+            <p class="chg-card-p">Adds a late fee for every overdue month and this month&rsquo;s interest for any fully-missed month, in one click. Repeatable &mdash; it never double-charges. Leave <b>Overdue interest</b> blank to work it out from the loan automatically, or type an amount to charge exactly that for every unpaid month.</p>
             <div class="chg-auto-row">
               <label class="chg-inp">Late fee &#8377;/month<input id="lateFeeRate" type="number" min="0" placeholder="500" onchange="setLateFeeRate(this.value)"></label>
+              <label class="chg-inp">Overdue interest &#8377;/month<input id="ovdIntRate" type="number" min="0" placeholder="auto" onchange="setManualOvdInt(this.value)" title="Leave blank to calculate the month's interest from the loan automatically. Enter an amount to charge exactly that for every fully-missed month."></label>
               <label class="chg-inp">Grace days<input id="lateGraceDays" type="number" min="0" placeholder="7" onchange="setLateGraceDays(this.value)" title="A payment counts as late only if the installment isn't covered within this many days of its due date."></label>
               <button class="btn btn-primary" onclick="applyLateFeesSelected()">⚡ Apply overdue interest + late fees</button>
               <button class="btn btn-ghost" onclick="waiveLateFeesSelected()">Remove overdue charges</button>
@@ -728,26 +729,68 @@
             <div><button class="btn btn-primary" id="chgRecordBtn" onclick="recordCharge()">＋ Record charge</button></div>
           </div>
 
-          <div id="chgList" class="chg-list"></div>
         </div>
 
         <div class="panel">
-          <h3>Payments Register</h3>
-          <p class="ph-sub">Every cash, online &amp; cheque entry across all borrowers.</p>
-          <div class="pay-tiles" id="payTiles"></div>
-          <div class="reg-toolbar">
-            <div class="reg-search"><span class="reg-si">&#128269;</span><input id="payRegSearch" placeholder="Search by borrower, A/C or cheque no&hellip;" oninput="renderPayReg()"></div>
-            <select class="reg-filter" id="payRegFilter" onchange="renderPayReg()">
-              <option value="all">All payments</option>
-              <option value="Cash">Cash only</option>
-              <option value="Online">Online only</option>
-              <option value="Cheque">Cheque only</option>
-              <option value="Pending">Pending cheques</option>
-              <option value="Cleared">Cleared only</option>
-            </select>
+          <h3>Registers</h3>
+          <p class="ph-sub">Everything recorded, kept on its own page so this tab stays clean. Click to open.</p>
+          <div class="reg-cards">
+            <button type="button" class="reg-card" onclick="openPayRegister()">
+              <span class="reg-card-ic pay">&#8377;</span>
+              <span class="reg-card-t">
+                <span class="reg-card-hd">Payments Register</span>
+                <span class="reg-card-sub" id="regCardPaySub">Every cash, online &amp; cheque entry</span>
+              </span>
+              <span class="reg-card-go">Open &rarr;</span>
+            </button>
+            <button type="button" class="reg-card" onclick="openChargeRegister()">
+              <span class="reg-card-ic chg">&#9888;</span>
+              <span class="reg-card-t">
+                <span class="reg-card-hd">Charges &amp; Late Fees</span>
+                <span class="reg-card-sub" id="regCardChgSub">Every late fee, interest &amp; other charge</span>
+              </span>
+              <span class="reg-card-go">Open &rarr;</span>
+            </button>
           </div>
-          <div class="reg-wrap">
-            <table class="data reg-table"><thead><tr><th>Date</th><th>Borrower</th><th>A/C No.</th><th>Mode</th><th>Cheque / Bank</th><th class="right">Amount</th><th>Status</th><th class="right">Actions</th></tr></thead><tbody id="payRegBody"></tbody></table>
+        </div>
+
+        <!-- ===== Payments Register (full page) ===== -->
+        <div id="payRegOverlay" class="reg-overlay" style="display:none;">
+          <div class="reg-sheet">
+            <div class="reg-sheet-h">
+              <div><h3>Payments Register</h3><p>Every cash, online &amp; cheque entry across all borrowers.</p></div>
+              <button class="btn btn-ghost" onclick="closePayRegister()">&#10005; Close</button>
+            </div>
+            <div class="reg-sheet-b">
+              <div class="pay-tiles" id="payTiles"></div>
+              <div class="reg-toolbar">
+                <div class="reg-search"><span class="reg-si">&#128269;</span><input id="payRegSearch" placeholder="Search by borrower, A/C or cheque no&hellip;" oninput="renderPayReg()"></div>
+                <select class="reg-filter" id="payRegFilter" onchange="renderPayReg()">
+                  <option value="all">All payments</option>
+                  <option value="Cash">Cash only</option>
+                  <option value="Online">Online only</option>
+                  <option value="Cheque">Cheque only</option>
+                  <option value="Pending">Pending cheques</option>
+                  <option value="Cleared">Cleared only</option>
+                </select>
+              </div>
+              <div class="reg-wrap">
+                <table class="data reg-table"><thead><tr><th>Date</th><th>Borrower</th><th>A/C No.</th><th>Mode</th><th>Cheque / Bank</th><th class="right">Amount</th><th>Status</th><th class="right">Actions</th></tr></thead><tbody id="payRegBody"></tbody></table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Charges Register (full page) ===== -->
+        <div id="chgRegOverlay" class="reg-overlay" style="display:none;">
+          <div class="reg-sheet">
+            <div class="reg-sheet-h">
+              <div><h3>Charges &amp; Late Fees</h3><p>Every charge recorded across all borrowers &mdash; edit or delete any of them.</p></div>
+              <button class="btn btn-ghost" onclick="closeChargeRegister()">&#10005; Close</button>
+            </div>
+            <div class="reg-sheet-b">
+              <div id="chgList" class="chg-list"></div>
+            </div>
           </div>
         </div>
       </section>
