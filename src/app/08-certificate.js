@@ -458,9 +458,14 @@
       var start=(target!=null)?target:fwdStartFor(pk);   // forward-only; after-last payment is an advance
       while(remaining>0.5 && start<=nEff){ var e=earliestUnfull(start); if(!e) break; fill(e); }
     });
+    // Months serviced by an INTEREST-ONLY (byaj) payment are NOT late — the customer paid that
+    // month's interest and the EMI simply defers. Never charge a late fee or overdue interest there.
+    var intMonths={};
+    (l.payments||[]).forEach(function(p){ if(p && p.status==='Cleared' && (p.intOnly||p.type==='Interest') && (Number(p.amount)||0)>0){ var k=_ymKey(p.date); if(k) intMonths[k]=true; } });
     var out=[];
     for(var i=1;i<=nEff;i++){
       var d=emiDueDate(l,i); if(!d) continue;
+      if(intMonths[_ymKey(d)]) continue;                  // interest serviced this month → not late
       var deadline=_lfAddDays(d, grace);
       if(deadline>t) continue;                            // grace window not elapsed yet — not late
       // late if never fully covered (missed/partial) OR only covered after the grace deadline
