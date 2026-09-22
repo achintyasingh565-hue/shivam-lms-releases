@@ -144,6 +144,35 @@
     var deferCount=rows.filter(function(r){return r.missed;}).length;
     return {rows:rows,emi:emi,n:n,total:total,cleared:cleared,paidCount:paidCount,totalLate:totalLate,totalInt:totalInt,totalChg:totalChg,intCount:intPays.length,intIncome:intIncome,advance:advance,extCount:extCount,deferCount:deferCount};
   }
+  /* A plain-language legend + reconciliation so a customer can understand the schedule at a glance.
+     `pr` = print styling (smaller, letterhead colours) vs on-screen styling. */
+  function repSchedLegend(D, l, pr){
+    var monthInt = (typeof overdueMonthlyInterest==='function') ? overdueMonthlyInterest(l) : 0;
+    var cleared = Number(D.cleared)||0, out=Number(l.outstanding)||0;
+    var C = pr ? {wrap:'margin-top:9px;font-size:8.8px;line-height:1.38;color:#333;border-top:1px solid #c8a02a;padding-top:6px;',
+                  h:'font-weight:700;color:#0b1f4b;font-size:10px;margin:0 0 3px;', b:'#0b1f4b',
+                  sum:'margin-top:6px;padding:6px 9px;background:#faf7ef;border:1px solid #efe4c6;border-radius:6px;font-size:9px;'}
+                : {wrap:'margin-top:16px;font-size:12.5px;line-height:1.6;color:var(--muted,#475467);',
+                  h:'font-weight:700;color:var(--bnavy,#0b1f4b);font-size:13.5px;margin:0 0 6px;', b:'var(--bnavy,#0b1f4b)',
+                  sum:'margin-top:10px;padding:10px 13px;background:#faf7ef;border:1px solid #efe4c6;border-radius:9px;font-size:12.5px;color:#3a2f10;'};
+    var pt=function(term,desc){ return '<div style="margin:'+(pr?'1px':'2px')+' 0;"><b style="color:'+C.b+';">'+term+'</b> &mdash; '+desc+'</div>'; };
+    var body=''
+      + pt('EMI', 'the fixed monthly instalment of '+inr(D.emi)+'. This loan has '+D.n+' EMIs, '+inr(D.total)+' in all.')
+      + pt('Paid / Partial', 'the instalment for that month was received in full / in part.')
+      + pt('Deferred &middot; EMI moved forward', 'nothing was paid that month, so only that month&rsquo;s interest'+(monthInt>0?(' ('+inr(monthInt)+')'):'')+' and a late fee were added, and the instalment was pushed to a later month &mdash; the loan simply takes longer to close.')
+      + pt('Upcoming / Due soon', 'an instalment that is still to fall due.')
+      + pt('Charges column', 'shows two things for a month: <b>Late fee</b> &mdash; a flat penalty for a missed/late month; and <b>Interest</b> &mdash; that month&rsquo;s byaj on the balance. Both are added to the balance.')
+      + pt('Balance', 'the total amount still owed after that month.');
+    var sum = '<div style="'+C.sum+'"><b>How the outstanding of '+inr(out)+' is reached:</b><br>'
+      + 'Total of '+D.n+' instalments '+inr(D.total)
+      + (D.totalLate>0?(' &nbsp;+&nbsp; late fees '+inr(D.totalLate)):'')
+      + (D.totalInt>0?(' &nbsp;+&nbsp; overdue interest '+inr(D.totalInt)):'')
+      + ' &nbsp;&minus;&nbsp; amount paid '+inr(cleared)
+      + ' &nbsp;=&nbsp; <b>Outstanding '+inr(out)+'</b>.'
+      + (D.deferCount>0?('<br><span style="opacity:.85;">'+D.deferCount+' month'+(D.deferCount>1?'s were':' was')+' deferred, so the schedule runs beyond the original '+D.n+' months.</span>'):'')
+      + '</div>';
+    return '<div style="'+C.wrap+'"><div style="'+C.h+'">How to read this schedule</div>'+body+sum+'</div>';
+  }
   function repScheduleFill(){
     var l=repScheduleLoan(); var host=$('scBody'); if(!host) return;
     if(!l){ host.innerHTML='<p style="color:var(--grey);">Select a borrower to view their EMI schedule.</p>'; return; }
@@ -161,10 +190,11 @@
       +repTile('Paid / scheduled',paidCount+' / '+D.n,'ok')+'</div>';
     var chgCell=function(r){
       if(!(r.charge>0)) return '&mdash;';
-      var parts=[]; if(r.lateFee>0) parts.push('LF '+inr(r.lateFee)); if(r.intFee>0) parts.push('Int '+inr(r.intFee));
-      var extra=(r.charge-(r.lateFee||0)-(r.intFee||0)); if(extra>0.5) parts.push(inr(extra));
-      var tip=parts.join(' + ');
-      return '<span title="'+tip+'">+'+inr(r.charge)+'</span>';
+      var parts=[];
+      if(r.lateFee>0) parts.push('<span style="color:#8a5a00;">Late fee '+inr(r.lateFee)+'</span>');
+      if(r.intFee>0) parts.push('<span style="color:#3f3d8f;">Interest '+inr(r.intFee)+'</span>');
+      var extra=(r.charge-(r.lateFee||0)-(r.intFee||0)); if(extra>0.5) parts.push('Other '+inr(extra));
+      return '<span style="font-size:11.5px;line-height:1.35;">'+parts.join('<br>')+'</span>';
     };
     var body=D.rows.map(function(r){
       if(r.isInt) return '<tr><td>·</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">'+inr(r.emi)+'</td><td class="right">'+inr(r.emi)+'</td><td class="right">'+(r.charge>0?chgCell(r):'&mdash;')+'</td><td class="right" style="color:#9aa3b2;">'+inr(r.bal)+'</td><td style="color:#4338ca;font-weight:600;">Interest paid &middot; EMI deferred</td></tr>';
@@ -174,7 +204,7 @@
       var rowStyle=r.ext?' style="background:#fbf6e8;"':'';
       return '<tr'+rowStyle+'><td>'+numCell+'</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">'+(r.emi>0?inr(r.emi):'&mdash;')+'</td><td class="right">'+(r.paid>0?inr(r.paid):'&mdash;')+'</td><td class="right" style="color:'+(r.charge>0?'#b26a00':'inherit')+';">'+chgCell(r)+'</td><td class="right">'+inr(r.bal)+'</td><td style="color:'+repStColor(r.st)+';font-weight:600;white-space:nowrap;">'+stTxt+'</td></tr>';
     }).join('');
-    var extNote=(D.extCount>0)?'<p class="ph-sub" style="margin:10px 2px 0;">Rows marked <b style="color:#b26a00;">ext</b> are months beyond the original '+D.n+'-month tenure. There are only '+D.n+' EMIs — past the tenure <b>no new EMI is added</b>; only <b>interest (byaj) accrues each month</b> until the balance is cleared. Payments made after the tenure appear on their own month here and reduce the balance; missed months inside the tenure stay flagged above. The <b>Charges</b> column shows that month&rsquo;s late fee (LF) and overdue interest (Int).</p>':'<p class="ph-sub" style="margin:10px 2px 0;">The <b>Charges</b> column shows each month&rsquo;s late fee (LF) and overdue interest (Int) added to the balance.</p>';
+    var extNote=repSchedLegend(D,l,false);
     var coName=(l.gname||l.coborrower||'').toString().trim();
     var coLine=coName?('<div style="font-size:12.5px;color:var(--muted,#64748b);margin:-4px 0 8px;">Co-applicant / Guarantor: <b style="color:var(--bnavy,#0b1f4b);">'+esc(coName)+'</b></div>'):'';
     host.innerHTML = '<div style="font-weight:600; margin-bottom:8px;">'+esc(l.name)+' &mdash; A/C '+esc(l.acno||'')+'</div>'+coLine+tiles
@@ -190,31 +220,37 @@
   function repSchedulePrint(){
     var l=repScheduleLoan(); if(!l){ toast('Select a borrower first'); return; }
     var D=repScheduleData(l); if(!D.n){ toast('No tenure set'); return; }
-    var t='<table class="sched-tbl"><thead><tr><th>#</th><th>Due Date</th><th class="r">EMI</th><th class="r">Paid</th><th class="r">Late Fee</th><th class="r">Interest</th><th class="r">Due</th><th class="r">Balance</th><th>Status</th></tr></thead><tbody>'
+    var _chg=function(r){ var parts=[]; if(r.lateFee>0) parts.push('Late fee '+inr(r.lateFee)); if(r.intFee>0) parts.push('Interest '+inr(r.intFee)); var extra=(Number(r.charge)||0)-(Number(r.lateFee)||0)-(Number(r.intFee)||0); if(extra>0.5) parts.push('Other '+inr(extra)); return parts.length?parts.join('<br>'):'&mdash;'; };
+    var t='<table class="sched-tbl"><thead><tr><th>#</th><th>Due Date</th><th class="r">EMI</th><th class="r">Paid</th><th class="r">Charges (late fee / interest)</th><th class="r">Balance</th><th>Status</th></tr></thead><tbody>'
       + D.rows.map(function(r){
-          if(r.isInt) return '<tr><td>&middot;</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+inr(r.emi)+'</td><td class="r">'+inr(r.emi)+'</td><td class="r">&mdash;</td><td class="r">&mdash;</td><td class="r">&mdash;</td><td class="r">'+inr(r.bal)+'</td><td>Interest paid &middot; EMI deferred</td></tr>';
-          if(r.missed) return '<tr><td>&middot;</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">&mdash;</td><td class="r">&mdash;</td><td class="r">'+((r.lateFee>0)?('+'+inr(r.lateFee)):'-')+'</td><td class="r">'+((r.intFee>0)?('+'+inr(r.intFee)):'-')+'</td><td class="r">&mdash;</td><td class="r">'+inr(r.bal)+'</td><td>Deferred &middot; EMI moved forward</td></tr>';
-          return '<tr><td>'+r.i+(r.ext?'e':'')+'</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+(r.emi>0?inr(r.emi):'-')+'</td><td class="r">'+(r.paid>0?inr(r.paid):'-')+'</td><td class="r">'+((r.lateFee>0)?('+'+inr(r.lateFee)):'-')+'</td><td class="r">'+((r.intFee>0)?('+'+inr(r.intFee)):'-')+'</td><td class="r">'+((r.dueAmt>0)?inr(r.dueAmt):'-')+'</td><td class="r">'+inr(r.bal)+'</td><td>'+r.st+((r.dueAmt>0&&(r.st==="Partial"||r.st==="Overdue"))?(' ('+inr(r.dueAmt)+' due)'):'')+'</td></tr>'; }).join('')
+          if(r.isInt) return '<tr class="r-int"><td>&middot;</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">&mdash;</td><td class="r">'+inr(r.emi)+'</td><td class="r">'+_chg(r)+'</td><td class="r">'+inr(r.bal)+'</td><td>Interest paid (EMI deferred)</td></tr>';
+          if(r.missed) return '<tr class="r-def"><td>&middot;</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">&mdash;</td><td class="r">&mdash;</td><td class="r">'+_chg(r)+'</td><td class="r">'+inr(r.bal)+'</td><td>Deferred (moved forward)</td></tr>';
+          var stx=r.st+((r.dueAmt>0&&(r.st==="Partial"||r.st==="Overdue"))?(' — '+inr(r.dueAmt)+' due'):'');
+          var cls=(r.st==='Paid')?'r-paid':((r.st==='Overdue')?'r-od':'');
+          return '<tr'+(cls?(' class="'+cls+'"'):'')+'><td>'+r.i+(r.ext?'e':'')+'</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+(r.emi>0?inr(r.emi):'-')+'</td><td class="r">'+(r.paid>0?inr(r.paid):'-')+'</td><td class="r">'+_chg(r)+'</td><td class="r">'+inr(r.bal)+'</td><td>'+stx+'</td></tr>'; }).join('')
       + '</tbody></table>';
     // Fit everything on ONE page: shrink the table's type & row padding as the number of rows grows.
     var nRows=D.rows.length;
     var fs, pad;
-    if(nRows<=22){ fs='12px'; pad='6px 9px'; }
-    else if(nRows<=30){ fs='10px'; pad='4px 7px'; }
-    else if(nRows<=40){ fs='8.6px'; pad='3px 6px'; }
-    else if(nRows<=52){ fs='7.4px'; pad='2px 5px'; }
-    else { fs='6.4px'; pad='1.5px 4px'; }
-    var fit='<style>#reportPrint .sched-tbl{table-layout:fixed;width:100%;}'
+    if(nRows<=16){ fs='11px'; pad='5px 9px'; }
+    else if(nRows<=24){ fs='9.6px'; pad='3px 8px'; }
+    else if(nRows<=34){ fs='8.4px'; pad='2.5px 7px'; }
+    else if(nRows<=46){ fs='7.4px'; pad='2px 6px'; }
+    else { fs='6.4px'; pad='1.5px 5px'; }
+    var fit='<style>#reportPrint .sched-tbl{table-layout:fixed;width:100%;border-collapse:collapse;}'
       +'#reportPrint .sched-tbl th,#reportPrint .sched-tbl td{font-size:'+fs+'!important;padding:'+pad+'!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
-      +'#reportPrint .sched-tbl td:nth-child(1),#reportPrint .sched-tbl th:nth-child(1){width:7%;}'
-      +'#reportPrint .sched-tbl td:nth-child(2),#reportPrint .sched-tbl th:nth-child(2){width:12%;}'
-      +'#reportPrint .sched-tbl td:nth-child(3),#reportPrint .sched-tbl th:nth-child(3){width:10%;}'
-      +'#reportPrint .sched-tbl td:nth-child(4),#reportPrint .sched-tbl th:nth-child(4){width:10%;}'
-      +'#reportPrint .sched-tbl td:nth-child(5),#reportPrint .sched-tbl th:nth-child(5){width:10%;}'
-      +'#reportPrint .sched-tbl td:nth-child(6),#reportPrint .sched-tbl th:nth-child(6){width:10%;}'
-      +'#reportPrint .sched-tbl td:nth-child(7),#reportPrint .sched-tbl th:nth-child(7){width:10%;}'
-      +'#reportPrint .sched-tbl td:nth-child(8),#reportPrint .sched-tbl th:nth-child(8){width:12%;}'
-      +'#reportPrint .sched-tbl td:nth-child(9),#reportPrint .sched-tbl th:nth-child(9){width:19%;white-space:normal;}'
+      +'#reportPrint .sched-tbl tbody tr:nth-child(even){background:#faf7ef;}'
+      +'#reportPrint .sched-tbl tr.r-def td{color:#8a6d1f;background:#fbf4e0;font-style:italic;}'
+      +'#reportPrint .sched-tbl tr.r-int td{color:#3f3d8f;background:#eef0fb;}'
+      +'#reportPrint .sched-tbl tr.r-paid td:last-child{color:#0b7a4b;font-weight:600;}'
+      +'#reportPrint .sched-tbl tr.r-od td:last-child{color:#b42318;font-weight:600;}'
+      +'#reportPrint .sched-tbl td:nth-child(1),#reportPrint .sched-tbl th:nth-child(1){width:6%;}'
+      +'#reportPrint .sched-tbl td:nth-child(2),#reportPrint .sched-tbl th:nth-child(2){width:13%;}'
+      +'#reportPrint .sched-tbl td:nth-child(3),#reportPrint .sched-tbl th:nth-child(3){width:13%;}'
+      +'#reportPrint .sched-tbl td:nth-child(4),#reportPrint .sched-tbl th:nth-child(4){width:13%;}'
+      +'#reportPrint .sched-tbl td:nth-child(5),#reportPrint .sched-tbl th:nth-child(5){width:18%;white-space:normal;}'
+      +'#reportPrint .sched-tbl td:nth-child(6),#reportPrint .sched-tbl th:nth-child(6){width:14%;}'
+      +'#reportPrint .sched-tbl td:nth-child(7),#reportPrint .sched-tbl th:nth-child(7){width:23%;white-space:normal;}'
       +'@page{size:A4 portrait;margin:0;}</style>';
     var paidCount=D.paidCount;
     var coName=(l.gname||l.coborrower||'').toString().trim();
@@ -225,6 +261,6 @@
     if(D.totalInt>0) meta.push(['Overdue interest',inr(D.totalInt)]);
     if(D.extCount>0) meta.push(['Beyond tenure',D.extCount+' mo']);
     meta.push(['Outstanding',inr(Number(l.outstanding)||0)]);
-    printReport('EMI Schedule', l.name+'  (A/C '+(l.acno||'')+')', meta, fit+t, _docFileName(l.name,l.acno,'EMI_Schedule'));
+    printReport('EMI Schedule', l.name+'  (A/C '+(l.acno||'')+')', meta, fit+t+repSchedLegend(D,l,true), _docFileName(l.name,l.acno,'EMI_Schedule'));
   }
 
