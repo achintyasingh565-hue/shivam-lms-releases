@@ -1,0 +1,182 @@
+/* =====================================================================
+ * 08-system.css — Design-system & interaction polish layer.
+ *
+ * Loaded LAST. Deliberately markup-free: it only normalises what is already
+ * on the page, so every existing screen gains one consistent look without a
+ * single HTML change (and therefore without risking a regression).
+ *
+ * Covers: spacing rhythm, elevation, focus states, button/table/form/overlay
+ * consistency, empty states, number alignment, motion (with reduced-motion
+ * respected), scrollbars and dark-mode parity.
+ * ===================================================================== */
+
+:root{
+  /* elevation */
+  --sh-1:0 1px 2px rgba(11,31,75,.06);
+  --sh-2:0 4px 14px rgba(11,31,75,.09);
+  --sh-3:0 14px 38px rgba(11,31,75,.16);
+  /* radii */
+  --r-sm:7px; --r-md:10px; --r-lg:13px;
+  /* motion */
+  --ease:cubic-bezier(.2,.7,.3,1);
+  --t-fast:.13s; --t-med:.2s;
+  /* focus */
+  --focus:0 0 0 3px rgba(11,31,75,.16);
+}
+html.dark{ --focus:0 0 0 3px rgba(230,205,122,.26); --sh-2:0 4px 14px rgba(0,0,0,.4); --sh-3:0 14px 38px rgba(0,0,0,.55); }
+
+/* ---------------- 1. FOCUS — visible, consistent, keyboard-first ------- */
+:where(button,a,input,select,textarea,[tabindex]):focus-visible{
+  outline:none !important; box-shadow:var(--focus) !important; border-radius:var(--r-sm);
+}
+/* never show the ring for plain mouse clicks */
+:where(button,a):focus:not(:focus-visible){ outline:none; }
+
+/* ---------------- 2. MOTION — subtle, and switchable off -------------- */
+@media (prefers-reduced-motion: no-preference){
+  .btn, .lnk, .kpi, .panel, .reg-card, .chg-card, table.data tbody tr{
+    transition: background-color var(--t-fast) var(--ease),
+                border-color var(--t-fast) var(--ease),
+                box-shadow var(--t-med) var(--ease),
+                transform var(--t-fast) var(--ease),
+                color var(--t-fast) var(--ease);
+  }
+  .btn:active{ transform:translateY(1px); }
+  /* NOTE: fade with OPACITY ONLY — never transform. A transformed ancestor becomes the
+     containing block for its position:fixed descendants, which would stop every modal/
+     overlay inside a section from covering the screen. */
+  .section.active{ animation:sysFade var(--t-med) var(--ease); }
+  @keyframes sysFade{ from{ opacity:0; } to{ opacity:1; } }
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{ animation-duration:.001ms !important; transition-duration:.001ms !important; }
+}
+
+/* ---------------- 3. BUTTONS — one family, predictable states --------- */
+.btn{ border-radius:var(--r-md); font-weight:600; letter-spacing:.1px; }
+.btn:hover{ box-shadow:var(--sh-1); }
+.btn:disabled, .btn[disabled]{ opacity:.5; cursor:not-allowed; box-shadow:none; transform:none; }
+.btn-sm{ border-radius:var(--r-sm); }
+
+/* ---------------- 4. PANELS / CARDS — even rhythm & elevation --------- */
+.panel{ border-radius:var(--r-lg); box-shadow:var(--sh-1); }
+.panel + .panel{ margin-top:18px; }
+.panel h3{ letter-spacing:.2px; }
+/* the small grey sub-line under a heading, used across the app */
+.ph-sub{ line-height:1.55; }
+
+/* ---------------- 5. TABLES — aligned numbers, calm rows -------------- */
+table.data{ border-collapse:collapse; }
+table.data th{ font-size:11.5px; letter-spacing:.5px; text-transform:uppercase; white-space:nowrap; }
+table.data td, table.data th{ vertical-align:middle; }
+/* every figure column lines up on the decimal, everywhere */
+table.data td.right, table.data td.num, table.data th.right,
+table.data td:has(> .num){ font-variant-numeric:tabular-nums; }
+html:not(.dark) table.data tbody tr:hover{ background:#f6f1e2; }
+html.dark table.data tbody tr:hover{ background:rgba(255,255,255,.04); }
+/* rounded, contained table shells */
+.table-wrap, .reg-wrap{ border-radius:var(--r-lg); }
+
+/* ---------------- 6. FORMS — one field look across every screen ------- */
+input[type=text], input[type=number], input[type=date], input[type=month],
+input[type=email], input[type=password], input[type=tel], select, textarea{
+  border-radius:var(--r-sm);
+}
+input:focus, select:focus, textarea:focus{ box-shadow:var(--focus); }
+label{ user-select:none; }
+input::placeholder, textarea::placeholder{ opacity:.62; }
+/* stop number spinners stealing space in money columns */
+input[type=number].num::-webkit-outer-spin-button,
+input[type=number].num::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+
+/* ---------------- 7. OVERLAYS / SHEETS — one pattern ------------------ */
+.reg-overlay{ backdrop-filter:blur(2px); }
+@media (prefers-reduced-motion: no-preference){
+  .reg-overlay .reg-sheet{ animation:sysSheet var(--t-med) var(--ease); }
+  @keyframes sysSheet{ from{ opacity:0; transform:translateY(10px) scale(.995); } to{ opacity:1; transform:none; } }
+}
+.reg-sheet{ box-shadow:var(--sh-3); }
+
+/* ---------------- 8. EMPTY STATES — helpful, not blank ---------------- */
+.empty{ text-align:center; padding:30px 18px; color:var(--muted,#64748b); font-size:13.5px; line-height:1.6; }
+.empty b{ display:block; font-size:15px; color:var(--bnavy,#0b1f4b); margin-bottom:5px;
+  font-family:Georgia,"Times New Roman",serif; }
+html.dark .empty b{ color:#e8edf5; }
+
+/* ---------------- 9. SCROLLBARS — slim and unobtrusive ---------------- */
+.reg-wrap::-webkit-scrollbar, .table-wrap::-webkit-scrollbar,
+.reg-sheet-b::-webkit-scrollbar, .reg-overlay::-webkit-scrollbar{ width:10px; height:10px; }
+.reg-wrap::-webkit-scrollbar-thumb, .table-wrap::-webkit-scrollbar-thumb,
+.reg-sheet-b::-webkit-scrollbar-thumb, .reg-overlay::-webkit-scrollbar-thumb{
+  background:rgba(11,31,75,.22); border-radius:99px; border:2px solid transparent; background-clip:content-box; }
+.reg-wrap::-webkit-scrollbar-thumb:hover, .table-wrap::-webkit-scrollbar-thumb:hover{ background:rgba(11,31,75,.38); background-clip:content-box; }
+html.dark .reg-wrap::-webkit-scrollbar-thumb, html.dark .table-wrap::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.18); background-clip:content-box; }
+
+/* ---------------- 10. STATUS PILLS — consistent everywhere ------------ */
+.pp{ letter-spacing:.2px; }
+
+/* ---------------- 11. PRINT — never print app chrome ------------------ */
+@media print{
+  .reg-overlay, .sidebar, .topbar{ display:none !important; }
+}
+
+/* ---------------- 12. TEXT SELECTION ---------------------------------- */
+::selection{ background:rgba(200,160,42,.28); }
+
+/* ---------------- 13. GLOBAL SEARCH RESULTS -------------------------- */
+.gs-results{ position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:1500;
+  background:var(--panel,#fff); border:1px solid var(--line,#e6e9f0); border-radius:var(--r-md);
+  box-shadow:var(--sh-3); overflow:hidden; max-height:60vh; overflow-y:auto; }
+html.dark .gs-results{ background:#111827; border-color:rgba(255,255,255,.10); }
+.gs-row{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; cursor:pointer;
+  padding:9px 12px; border:0; background:transparent; font-family:inherit; }
+.gs-row + .gs-row{ border-top:1px solid rgba(11,31,75,.06); }
+html.dark .gs-row + .gs-row{ border-top-color:rgba(255,255,255,.06); }
+.gs-row:hover, .gs-row.sel{ background:#f6f1e2; }
+html.dark .gs-row:hover, html.dark .gs-row.sel{ background:rgba(255,255,255,.06); }
+.gs-av{ width:28px; height:28px; flex:0 0 28px; border-radius:50%; background:var(--bnavy,#0b1f4b); color:#e6cd7a;
+  display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12.5px;
+  font-family:Georgia,"Times New Roman",serif; }
+.gs-t{ flex:1; min-width:0; display:block; }
+.gs-n{ display:block; font-size:13.5px; font-weight:600; color:var(--bnavy,#0b1f4b);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+html.dark .gs-n{ color:#e8edf5; }
+.gs-s{ display:block; font-size:11.5px; color:var(--muted,#64748b);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.gs-r{ font-size:12.5px; font-weight:700; color:var(--bnavy,#0b1f4b); white-space:nowrap;
+  font-variant-numeric:tabular-nums; text-align:right; }
+html.dark .gs-r{ color:#e6cd7a; }
+.gs-o{ display:block; font-size:10.5px; font-weight:600; color:var(--muted,#64748b); }
+
+/* ---------------- 14. ACTION CENTRE (dashboard work queue) ------------ */
+.ac-panel .panel-head{ margin-bottom:10px; }
+.ac-tiles{ display:flex; gap:12px; flex-wrap:wrap; }
+.ac-tile{ flex:1; min-width:150px; display:flex; flex-direction:column; gap:2px; align-items:flex-start;
+  padding:13px 15px; border:1px solid var(--line,#e6e9f0); border-left-width:4px; border-radius:var(--r-md);
+  background:var(--panel,#fff); cursor:pointer; font-family:inherit; text-align:left; }
+.ac-tile:hover{ box-shadow:var(--sh-2); }
+.ac-tile.open{ border-color:var(--bgold,#c8a02a); background:#faf7ef; }
+html.dark .ac-tile{ background:rgba(255,255,255,.03); border-color:rgba(255,255,255,.09); }
+html.dark .ac-tile.open{ background:rgba(255,255,255,.07); }
+.ac-tile.bad{ border-left-color:#b42318; } .ac-tile.warn{ border-left-color:#b26a00; }
+.ac-tile.info{ border-left-color:#2563EB; } .ac-tile.gold{ border-left-color:#c8a02a; }
+.ac-n{ font-size:23px; font-weight:800; line-height:1.05; color:var(--bnavy,#0b1f4b); font-variant-numeric:tabular-nums; }
+html.dark .ac-n{ color:#e8edf5; }
+.ac-l{ font-size:12.5px; font-weight:600; color:var(--muted,#64748b); }
+.ac-a{ font-size:12px; color:var(--muted,#8a93a6); font-variant-numeric:tabular-nums; }
+.ac-list{ margin-top:12px; border:1px solid var(--line,#e9ecf2); border-radius:var(--r-md); overflow:hidden; }
+.ac-row{ display:flex; align-items:center; gap:12px; width:100%; padding:10px 14px; border:0; cursor:pointer;
+  background:transparent; font-family:inherit; text-align:left; }
+.ac-row + .ac-row{ border-top:1px solid rgba(11,31,75,.06); }
+html.dark .ac-row + .ac-row{ border-top-color:rgba(255,255,255,.06); }
+.ac-row:hover{ background:#f6f1e2; }
+html.dark .ac-row:hover{ background:rgba(255,255,255,.05); }
+.ac-rn{ flex:1; min-width:0; font-size:13.5px; font-weight:600; color:var(--bnavy,#0b1f4b); }
+html.dark .ac-rn{ color:#e8edf5; }
+.ac-rs{ display:block; font-size:11.5px; font-weight:500; color:var(--muted,#64748b); }
+.ac-ra{ font-size:13px; font-weight:700; color:var(--bnavy,#0b1f4b); font-variant-numeric:tabular-nums; white-space:nowrap; }
+html.dark .ac-ra{ color:#e6cd7a; }
+.ac-go{ color:var(--muted,#94a3b8); font-weight:700; }
+.ac-none{ padding:14px; text-align:center; font-size:12.5px; color:var(--muted,#64748b); }
+#sec-pay .reg-more td{ text-align:center; padding:12px; background:#faf7ef; }
+html.dark #sec-pay .reg-more td{ background:rgba(255,255,255,.03); }

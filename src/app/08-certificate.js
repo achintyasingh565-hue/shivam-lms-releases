@@ -299,6 +299,13 @@
     try{ updateRegCards(); }catch(e){}
     const body=$('payRegBody'); if(!body) return;
     if(!rows.length){ body.innerHTML=`<tr><td colspan="8"><div class="empty"><b>No payments recorded yet.</b><br>Use the form on the Payments tab to record a cash or cheque payment.</div></td></tr>`; return; }
+    // Show the newest slice first and let the user pull in more — keeps the register
+    // instant once there are thousands of entries. Any search/filter resets the window.
+    const _total=rows.length;
+    if(renderPayReg._key!==(q+'|'+f)){ renderPayReg._key=(q+'|'+f); renderPayReg._lim=200; }
+    if(!renderPayReg._lim) renderPayReg._lim=200;
+    const _more=Math.max(0,_total-renderPayReg._lim);
+    rows=rows.slice(0,renderPayReg._lim);
     body.innerHTML=rows.map(r=>{
       const chq = r.mode==='Cheque' ? (esc(r.cheque||'\u2014')+(r.bank?(' / '+esc(r.bank)):'')) : (r.mode==='Online'?('Ref '+esc(r.ref||'\u2014')):'\u2014');
       const intTag = r.intOnly ? ' <span class="pp" style="background:#eef2ff;color:#4338ca;">Interest</span>' : '';
@@ -306,8 +313,10 @@
       const tog = r.mode==='Cheque' ? `<button class="lnk" onclick="payToggle('${r.loanId}',${r.idx})">${r.status==='Cleared'?'mark pending':'mark cleared'}</button>` : '';
       const chqNotice = r.mode==='Cheque' ? `<button class="lnk" style="color:#0b7a4b;" onclick="chequeNotice('${r.loanId}',${r.idx})">cheque notice</button>` : '';
       return `<tr><td>${fmtDate(r.date)||'\u2014'}</td><td><div class="name">${esc(r.name)}</div></td><td>${esc(r.acno)}</td><td>${esc(r.mode)}</td><td>${chq}</td><td class="right num">${inr(r.amount)}</td><td>${badge}</td><td><div class="rowact" style="gap:12px;"><button class="lnk" onclick="printPayReceipt('${r.loanId}',${r.idx})">receipt</button>${chqNotice}${tog}<button class="lnk del" onclick="payRemove('${r.loanId}',${r.idx})">remove</button></div></td></tr>`;
-    }).join('');
+    }).join('')
+      + (_more>0 ? `<tr class="reg-more"><td colspan="8"><button class="btn btn-sm btn-ghost" onclick="payRegMore()">Show ${Math.min(200,_more)} more &mdash; ${rows.length} of ${_total} shown</button></td></tr>` : '');
   }
+  window.payRegMore=function(){ renderPayReg._lim=(renderPayReg._lim||200)+200; renderPayReg(); };
   /* ---- Registers open as their own full page, so the Payments tab stays uncluttered.
      The lists themselves (with their receipt / edit / remove actions) are unchanged — they
      simply render inside these sheets now. ---- */
