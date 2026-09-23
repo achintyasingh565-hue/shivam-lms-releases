@@ -401,7 +401,7 @@
     try{ logAudit('Receipt Printed', (l.name||'')+' \u2014 '+inr(Number(l.payments[idx].amount)||0)); }catch(_){}
   }
   function renderPayTab(){ refreshPayLoanDropdown(); if($('payb_date')&&!$('payb_date').value)$('payb_date').value=todayISO(); refreshChargeUI(); payTabModeUI(); renderPayReg(); }
-  function refreshChargeUI(){ var sel=$('chg_loan'); if(sel){ var cur=sel.value; sel.innerHTML='<option value="">\u2014 Select a borrower \u2014</option>'+loans.map(function(l){return '<option value="'+l.id+'">'+esc(l.name)+' ('+esc(l.acno)+')</option>';}).join(''); sel.value=cur; } if($('chg_date')&&!$('chg_date').value)$('chg_date').value=todayISO(); if($('lateFeeRate')) $('lateFeeRate').value=getLateFeeRate(); if($('lateGraceDays')) $('lateGraceDays').value=getLateGraceDays(); if($('ovdIntRate')){ var _mi=getManualOvdInt(); $('ovdIntRate').value=_mi>0?_mi:''; } renderChargeList(); try{ chgUpdateHint(); }catch(e){} }
+  function refreshChargeUI(){ var sel=$('chg_loan'); if(sel){ var cur=sel.value; sel.innerHTML='<option value="">\u2014 Select a borrower \u2014</option>'+loans.map(function(l){return '<option value="'+l.id+'">'+esc(l.name)+' ('+esc(l.acno)+')</option>';}).join(''); sel.value=cur; } if($('chg_date')&&!$('chg_date').value)$('chg_date').value=todayISO(); if($('lateFeeRate')) $('lateFeeRate').value=getLateFeeRate(); if($('lateGraceDays')) $('lateGraceDays').value=getLateGraceDays(); if($('ovdIntRate')){ var _mi=getManualOvdInt(); $('ovdIntRate').value=_mi>0?_mi:''; } if($('ovdFromDate')) $('ovdFromDate').value=getOvdFrom(); renderChargeList(); try{ chgUpdateHint(); }catch(e){} }
   /* ---- Late-fee rate (₹ per overdue month) — persistent, default ₹500 ---- */
   function getLateFeeRate(){ try{ var raw=localStorage.getItem('shivam_latefee_v1'); if(raw==null||raw==='') return 500; var v=Number(raw); return (!isNaN(v) && v>=0)?v:500; }catch(e){ return 500; } }
   window.getLateFeeRate=getLateFeeRate;
@@ -415,6 +415,20 @@
      entered here, THAT exact amount is charged for every unpaid month instead. */
   function getManualOvdInt(){ try{ var raw=localStorage.getItem('shivam_ovdint_v1'); if(raw==null||raw==='') return 0; var v=Number(raw); return (!isNaN(v)&&v>0)?Math.round(v):0; }catch(e){ return 0; } }
   window.getManualOvdInt=getManualOvdInt;
+  /* "Charge only from" — a cut-off date for the one-click overdue button. After entering years of
+     handwritten history the app would otherwise be entitled to back-charge every missed month at
+     once; this lets the lender say "start charging from here". Blank = no limit (previous behaviour). */
+  function getOvdFrom(){ try{ var raw=localStorage.getItem('shivam_ovdfrom_v1'); return (raw&&/^\d{4}-\d{2}-\d{2}$/.test(raw))?raw:''; }catch(e){ return ''; } }
+  window.getOvdFrom=getOvdFrom;
+  window.setOvdFrom=function(v){
+    var s=String(v==null?'':v).trim();
+    try{
+      if(!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)){ localStorage.removeItem('shivam_ovdfrom_v1'); s=''; }
+      else localStorage.setItem('shivam_ovdfrom_v1', s);
+    }catch(e){}
+    try{ chgUpdateHint(); }catch(e){}
+    if(typeof toast==='function') toast(s?('Overdue charges will start from '+s):'Overdue charges no longer limited by date');
+  };
   window.setManualOvdInt=function(v){
     try{
       var n=Number(v);
@@ -524,12 +538,16 @@
     var l=loans.find(function(x){return x.id===(($('chg_loan')||{}).value);});
     if(!l){ hint.textContent=''; return; }
     var idxs=overdueEmiIdxs(l), rate=getLateFeeRate();
+    var _from=(typeof getOvdFrom==='function')?getOvdFrom():'', _skip=0;
+    if(_from){ var _all=idxs.length; idxs=idxs.filter(function(o){ return String(o.due||'')>=_from; }); _skip=_all-idxs.length; }
     var already=(l.charges||[]).filter(function(c){return c&&c.type==='Late fee'&&c.emiIdx;}).length;
     var pending=Math.max(0, idxs.length-already);
     var _mi=(typeof getManualOvdInt==='function')?getManualOvdInt():0;
     var _iAmt=(_mi>0)?_mi:((typeof overdueMonthlyInterest==='function')?overdueMonthlyInterest(l):0);
     var _iTxt=_iAmt>0?(' · interest '+inr(_iAmt)+'/unpaid month'+(_mi>0?' (manual)':' (auto)')):'';
-    hint.innerHTML = idxs.length ? (esc(l.name)+' is '+idxs.length+' month(s) overdue · '+(pending>0?('<b>'+pending+' late fee(s) pending = '+inr(rate*pending)+'</b>'):'late fees up to date')+_iTxt) : (esc(l.name)+' has no overdue EMIs.');
+    var _skipTxt=_skip?(' · <b>'+_skip+' earlier month(s) skipped</b> (charging only from '+esc(_from)+')'):'';
+    hint.innerHTML = idxs.length ? (esc(l.name)+' is '+idxs.length+' month(s) overdue · '+(pending>0?('<b>'+pending+' late fee(s) pending = '+inr(rate*pending)+'</b>'):'late fees up to date')+_iTxt+_skipTxt)
+                                 : (esc(l.name)+(_skip?(' has no overdue EMIs on or after '+esc(_from)+_skipTxt):' has no overdue EMIs.'));
     if(($('chg_type')||{}).value==='Late fee' && $('chg_amt') && !$('chg_amt').value && pending>0){ $('chg_amt').value = rate*pending; }
   }
   window.chgLoanChange=function(){ if($('chg_amt')) $('chg_amt').value=''; chgUpdateHint(); };
@@ -665,13 +683,17 @@
     if(rate<=0 && monthInt<=0){ toast('Set a late-fee rate and/or an overdue-interest amount first.'); return; }
     if(!Array.isArray(l.charges)) l.charges=[];
     var idxs=overdueEmiIdxs(l), addedFee=0, addedInt=0;
+    // Honour the "Charge only from" cut-off: months whose due date falls before it are left alone.
+    var _from=(typeof getOvdFrom==='function')?getOvdFrom():'', _skipped=0;
+    if(_from){ idxs=idxs.filter(function(o){ var keep=String(o.due||'')>=_from; if(!keep) _skipped++; return keep; }); }
     var _noteInt=(manualInt>0)?' (manual)':'';
     idxs.forEach(function(o){
       if(rate>0){ var hasFee=l.charges.some(function(c){return c&&c.type==='Late fee'&&c.emiIdx===o.i;}); if(!hasFee){ l.charges.unshift({ id:'C'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), date:o.due, type:'Late fee', amount:rate, emiIdx:o.i, note:'Late fee — EMI #'+o.i+' overdue' }); addedFee++; } }
       // interest only for FULLY-MISSED months (nothing paid that month)
       if(monthInt>0 && _monthPaidInEmiMonth(l,o.i)<=0.5){ var hasInt=l.charges.some(function(c){return c&&c.type==='Overdue interest'&&c.emiIdx===o.i;}); if(!hasInt){ l.charges.unshift({ id:'C'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), date:o.due, type:'Overdue interest', amount:monthInt, emiIdx:o.i, note:'Interest — EMI #'+o.i+' (month unpaid)'+_noteInt }); addedInt++; } }
     });
-    if(addedFee||addedInt){ try{ recomputeLoan(l); }catch(e){} save(); try{ logAudit('Overdue Charges Applied', addedFee+' late fee(s), '+addedInt+' interest — '+(l.name||'')+' ('+(l.acno||'')+')'); }catch(e){} renderChargeList(); chgUpdateHint(); try{ if(typeof renderLoans==='function') renderLoans(); }catch(e){} toast('Applied '+addedFee+' late fee(s)'+(addedInt?(' + '+addedInt+' interest charge(s)'):'')); }
+    if(addedFee||addedInt){ try{ recomputeLoan(l); }catch(e){} save(); try{ logAudit('Overdue Charges Applied', addedFee+' late fee(s), '+addedInt+' interest — '+(l.name||'')+' ('+(l.acno||'')+')'); }catch(e){} renderChargeList(); chgUpdateHint(); try{ if(typeof renderLoans==='function') renderLoans(); }catch(e){} toast('Applied '+addedFee+' late fee(s)'+(addedInt?(' + '+addedInt+' interest charge(s)'):'')+(_skipped?(' — '+_skipped+' month(s) before '+_from+' skipped'):'')); }
+    else if(_skipped){ toast(_skipped+' overdue month(s) fall before '+_from+' and were skipped. Clear "Charge only from" to include them.', 6000); }
     else { toast('Overdue charges already up to date for '+(l.name||'this borrower')); }
   };
   window.applyLateFeesSelected=function(){ applyLateFees(($('chg_loan')||{}).value); };

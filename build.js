@@ -74,6 +74,12 @@ async function bundle() {
     // esbuild missing or failed: fall back to a plain, still-correct concatenation.
     log('  esbuild unavailable (' + (e && e.message) + ') - writing readable concat instead');
   }
+  // The app code can also ask for the version (the Diagnostics report prints it), so substitute
+  // __APP_VERSION__ in the bundle exactly as we do in index.html — one source of truth, package.json.
+  const bundleVersion = JSON.parse(
+    fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')
+  ).version;
+  output = output.replace(/__APP_VERSION__/g, bundleVersion);
   fs.writeFileSync(BUNDLE_OUT, output, 'utf8');
   log('  wrote app.bundle.js');
 }

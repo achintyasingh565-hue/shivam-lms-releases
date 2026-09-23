@@ -101,7 +101,7 @@
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.4 2.4 4.6-5"/></svg> Audit Logging Enabled</span>
       </div>
       <div class="auth-meta"><span id="lastLogin"></span></div>
-      <div class="auth-meta auth-verline">Version 2.2.0 &nbsp;·&nbsp; © Shivam Enterprises</div>
+      <div class="auth-meta auth-verline">Version 2.2.1 &nbsp;·&nbsp; © Shivam Enterprises</div>
     </div>
   </div>
 </div>
@@ -709,11 +709,12 @@
           <!-- 1 · one-click overdue charges -->
           <div class="chg-card">
             <div class="chg-card-h"><span class="chg-step">1</span> Apply overdue charges automatically</div>
-            <p class="chg-card-p">Adds a late fee for every overdue month and this month&rsquo;s interest for any fully-missed month, in one click. Repeatable &mdash; it never double-charges. Leave <b>Overdue interest</b> blank to work it out from the loan automatically, or type an amount to charge exactly that for every unpaid month.</p>
+            <p class="chg-card-p">Adds a late fee for every overdue month and this month&rsquo;s interest for any fully-missed month, in one click. Repeatable &mdash; it never double-charges. Leave <b>Overdue interest</b> blank to work it out from the loan automatically, or type an amount to charge exactly that for every unpaid month. <b>Charge only from</b> stops anything older than that date being charged &mdash; useful right after entering years of old history.</p>
             <div class="chg-auto-row">
               <label class="chg-inp">Late fee &#8377;/month<input id="lateFeeRate" type="number" min="0" placeholder="500" onchange="setLateFeeRate(this.value)"></label>
               <label class="chg-inp">Overdue interest &#8377;/month<input id="ovdIntRate" type="number" min="0" placeholder="auto" onchange="setManualOvdInt(this.value)" title="Leave blank to calculate the month's interest from the loan automatically. Enter an amount to charge exactly that for every fully-missed month."></label>
               <label class="chg-inp">Grace days<input id="lateGraceDays" type="number" min="0" placeholder="7" onchange="setLateGraceDays(this.value)" title="A payment counts as late only if the installment isn't covered within this many days of its due date."></label>
+              <label class="chg-inp">Charge only from<input id="ovdFromDate" type="date" onchange="setOvdFrom(this.value)" title="Nothing before this date is charged. Use it when you have just entered old history and do not want years of back-dated fees added at once. Leave blank to charge every overdue month."></label>
               <button class="btn btn-primary" onclick="applyLateFeesSelected()">⚡ Apply overdue interest + late fees</button>
               <button class="btn btn-ghost" onclick="waiveLateFeesSelected()">Remove overdue charges</button>
             </div>
