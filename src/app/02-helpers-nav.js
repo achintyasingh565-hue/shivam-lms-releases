@@ -43,11 +43,33 @@
   const FIRM_DEFAULT = {
     name:    'SHIVAM ENTERPRISES',
     address: 'D-295, D-Block, Indira Nagar, Lucknow',
-    phones:  '8528564196, 9839125800',
+    phones:  '9559561162, 9839125800',
     gstin:   '',
     udyam:   'UDYAM-UP-50-0268771',
     licence: ''
   };
+  /* One-time migration (Oct 2026): the office mobile 8528564196 was replaced by
+     9559561162. Changing FIRM_DEFAULT above is not enough on its own — any device
+     where Firm Details were saved in Administration keeps its own copy in
+     shivam_firm_v1, which would go on printing the dead number on every document.
+     Rewrite that stored copy once, record that we have done so, and never touch it
+     again, so a deliberate future edit by the owner is left alone. */
+  const FIRM_PHONE_MIGRATION = 'shivam_firm_phone_migr_v1';
+  (function migrateFirmPhone(){
+    try{
+      if(localStorage.getItem(FIRM_PHONE_MIGRATION)) return;
+      const raw = localStorage.getItem('shivam_firm_v1');
+      if(raw){
+        const o = JSON.parse(raw);
+        if(o && typeof o==='object' && typeof o.phones==='string' && o.phones.indexOf('8528564196')>=0){
+          o.phones = o.phones.replace(/8528564196/g, '9559561162');
+          localStorage.setItem('shivam_firm_v1', JSON.stringify(o));
+        }
+      }
+      localStorage.setItem(FIRM_PHONE_MIGRATION, '1');
+    }catch(e){}
+  })();
+
   function FIRM(){
     try{ const o=JSON.parse(localStorage.getItem('shivam_firm_v1')||'null');
       if(o && typeof o==='object') return Object.assign({}, FIRM_DEFAULT, o); }catch(e){}
