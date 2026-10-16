@@ -35,6 +35,7 @@ function makeSandbox(fixedToday) {
     extractFn(cert, 'emiDueDate'),
     extractFn(cert, 'calcLoanTotals'),
     extractFn(cert, 'recomputeLoan'),
+    extractFn(cert, 'monthlyInterestOf'),   // expected interest for a deferral month
     extractFn(sched, 'repScheduleData'),
     extractFn(restr, 'addMonths'),   // the schedule generator's month-adder
     extractFn(restr, 'fmt'),

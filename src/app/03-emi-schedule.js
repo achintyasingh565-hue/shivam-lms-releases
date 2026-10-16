@@ -69,6 +69,20 @@
        the fees could never be cleared and the last row disagreed with the outstanding.) */
     var _bal=function(){ return Math.max(0, total + cumChg - cumPaid); };
     var rows=[]; var paidCount=0; var intIncome=0; var cumPaid=0; var cumChg=0; var carry=0; var extCount=0; var emisPlaced=0;
+    /* Expected interest for one deferral month — the SAME figure the Payments screen prefills
+       when "interest-only" is ticked (total interest / tenure), so the two can never disagree.
+       An interest row used to be built purely from what came in, which meant a short month
+       (₹2,000 against ₹2,400 due) rendered as fully settled and the gap was invisible.
+       intExp/intShort below are for DISPLAY ONLY — intIncome, cumPaid and every balance stay
+       keyed to money actually received, so no figure elsewhere in the app moves. */
+    var _intExp=(typeof monthlyInterestOf==='function') ? (Number(monthlyInterestOf(l))||0) : 0;
+    var intShortTotal=0;
+    var _intRow=function(o){
+      o.intExp=_intExp;
+      o.intShort=(_intExp>0)?Math.max(0, Math.round(_intExp-(Number(o.paid)||0))):0;
+      intShortTotal+=o.intShort;
+      return o;
+    };
 
     /* Restructured loans (a reset baseline) keep the simple in-place schedule — no auto-defer. */
     if(paidBase>0){
@@ -82,7 +96,7 @@
         if(stR==='Paid') paidCount++;
         rows.push({i:ri,due:dR,emi:teR,paid:alR,lateFee:lateAt(ri,rkR),intFee:intAt(ri,rkR),charge:chgAt(ri,rkR),bal:_bal(),st:stR,dueAmt:Math.max(0,teR-alR)});
       }
-      intPays.forEach(function(p){ var a=Number(p.amount)||0; intIncome+=a; rows.push({i:'',due:(p.date||''),emi:a,paid:a,lateFee:0,intFee:0,charge:0,bal:null,st:'Interest',isInt:true}); });
+      intPays.forEach(function(p){ var a=Number(p.amount)||0; intIncome+=a; rows.push(_intRow({i:'',due:(p.date||''),emi:a,paid:a,lateFee:0,intFee:0,charge:0,bal:null,st:'Interest',isInt:true})); });
       if(shift) rows.sort(function(a,b){return String(a.due||'').localeCompare(String(b.due||''));});
       var advR=Math.max(0,Math.round(cleared-cumPaid));
       return {rows:rows,emi:emi,n:n,total:total,cleared:cleared,paidCount:paidCount,totalLate:totalLate,totalInt:totalInt,totalChg:totalChg,intCount:intPays.length,intIncome:intIncome,advance:advR,extCount:0};
@@ -119,7 +133,7 @@
       var dueD=emiDueDate(l,kk); var key=_mk(dueD);
       var io=intOnlyByMonth[key]||0, ep=emiPayByMonth[key]||0;
       var chgM=chgAt(kk,key), lfM=lateAt(kk,key), intM=intAt(kk,key);
-      if(io>0){ intIncome+=io; cumChg+=chgM; rows.push({i:'',due:dueD,emi:io,paid:io,lateFee:lfM,intFee:intM,charge:chgM,bal:_bal(),st:'Interest',isInt:true,defer:true}); continue; }
+      if(io>0){ intIncome+=io; cumChg+=chgM; rows.push(_intRow({i:'',due:dueD,emi:io,paid:io,lateFee:lfM,intFee:intM,charge:chgM,bal:_bal(),st:'Interest',isInt:true,defer:true})); continue; }
       var future=( _dl(dueD) >= t );
       if(ep>0.5){
         // A payment received this month — it reduces the balance NOW and pays down as many
@@ -167,7 +181,7 @@
       var chg2=chgAt(kk,mKey), lf2=lateAt(kk,mKey), int2=intAt(kk,mKey);
       var owedNow=_bal();
       if(owedNow<=0.5 && !(io2>0) && !(ep2>0) && !(chg2>0)){ if(mKey&&horizonKey&&mKey>=horizonKey&&kk>=latestChargeIdx) break; else continue; }
-      if(io2>0){ intIncome+=io2; cumChg+=chg2; rows.push({i:'',due:dD,emi:io2,paid:io2,lateFee:lf2,intFee:int2,charge:chg2,bal:_bal(),st:'Interest',isInt:true,defer:true}); extCount++; continue; }
+      if(io2>0){ intIncome+=io2; cumChg+=chg2; rows.push(_intRow({i:'',due:dD,emi:io2,paid:io2,lateFee:lf2,intFee:int2,charge:chg2,bal:_bal(),st:'Interest',isInt:true,defer:true})); extCount++; continue; }
       // This month's charge is owed before the money is applied, so a payment can settle fees too.
       cumChg+=chg2;
       var owed2=_bal();
@@ -186,7 +200,7 @@
     if(_lostChg>0){ for(var zi=rows.length-1; zi>=0; zi--){ if(!rows[zi].isInt){ rows[zi].bal=(Number(rows[zi].bal)||0)+_lostChg; break; } } cumChg+=_lostChg; }
     var advance=Math.max(0, Math.round(carry));
     var deferCount=rows.filter(function(r){return r.missed;}).length;
-    return {rows:rows,emi:emi,n:n,total:total,cleared:cleared,paidCount:paidCount,totalLate:totalLate,totalInt:totalInt,totalChg:totalChg,intCount:intPays.length,intIncome:intIncome,advance:advance,extCount:extCount,deferCount:deferCount};
+    return {rows:rows,emi:emi,n:n,total:total,cleared:cleared,paidCount:paidCount,totalLate:totalLate,totalInt:totalInt,totalChg:totalChg,intCount:intPays.length,intIncome:intIncome,advance:advance,extCount:extCount,deferCount:deferCount,intExp:_intExp,intShortTotal:intShortTotal};
   }
   /* A plain-language legend + reconciliation so a customer can understand the schedule at a glance.
      `pr` = print styling (smaller, letterhead colours) vs on-screen styling. */
@@ -231,6 +245,7 @@
       +((D.intCount>0)?repTile('Interest serviced',D.intCount+' mo · '+inr(D.intIncome)):'')
       +((D.advance>0)?repTile('Advance / unscheduled',inr(D.advance)):'')
       +((D.extCount>0)?repTile('Beyond tenure',D.extCount+' month'+(D.extCount>1?'s':''),'bad'):'')
+      +((D.intShortTotal>0)?repTile('Interest short',inr(D.intShortTotal),'bad'):'')
       +repTile('Paid / scheduled',paidCount+' / '+D.n,'ok')+'</div>';
     var chgCell=function(r){
       if(!(r.charge>0)) return '&mdash;';
@@ -241,7 +256,15 @@
       return '<span style="font-size:11.5px;line-height:1.35;">'+parts.join('<br>')+'</span>';
     };
     var body=D.rows.map(function(r){
-      if(r.isInt) return '<tr><td>·</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">'+inr(r.emi)+'</td><td class="right">'+inr(r.emi)+'</td><td class="right">'+(r.charge>0?chgCell(r):'&mdash;')+'</td><td class="right" style="color:#9aa3b2;">'+inr(r.bal)+'</td><td style="color:#4338ca;font-weight:600;">Interest paid &middot; EMI deferred</td></tr>';
+      if(r.isInt){
+        /* EMI column = interest DUE for the month, Paid = what actually came in. These used to be
+           the same number, so a short month looked settled. When short, say so in the status. */
+        var iDue=(r.intExp>0)?r.intExp:r.emi;
+        var iSt=(r.intShort>0)
+          ? '<span style="color:#b26a00;font-weight:600;white-space:nowrap;">Interest part-paid &middot; '+inr(r.intShort)+' short</span>'
+          : '<span style="color:#4338ca;font-weight:600;">Interest paid &middot; EMI deferred</span>';
+        return '<tr'+(r.intShort>0?' style="background:#fff7ed;"':'')+'><td>·</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">'+inr(iDue)+'</td><td class="right">'+inr(r.paid)+'</td><td class="right">'+(r.charge>0?chgCell(r):'&mdash;')+'</td><td class="right" style="color:#9aa3b2;">'+inr(r.bal)+'</td><td>'+iSt+'</td></tr>';
+      }
       if(r.missed) return '<tr style="background:#fff7ed;"><td>·</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">&mdash;</td><td class="right">&mdash;</td><td class="right" style="color:'+(r.charge>0?'#b26a00':'inherit')+';">'+chgCell(r)+'</td><td class="right">'+inr(r.bal)+'</td><td style="color:#b26a00;font-weight:600;white-space:nowrap;">Deferred &middot; EMI moved forward</td></tr>';
       var stTxt=r.st+(((r.st==='Partial'||r.st==='Overdue') && r.dueAmt>0)?(' &middot; <span style="font-weight:600;">'+inr(r.dueAmt)+' due</span>'):'');
       var numCell=r.ext?'<span style="font-size:10px;color:#b26a00;font-weight:600;">ext</span>':r.i;
@@ -258,7 +281,7 @@
   function repScheduleCSV(){
     var l=repScheduleLoan(); if(!l){ toast('Select a borrower first'); return; }
     var D=repScheduleData(l); if(!D.n){ toast('No tenure set'); return; }
-    var data=D.rows.map(r=>[r.isInt?'·':(r.ext?'ext':r.i),fmtDate(r.due),r.emi,(r.isInt?0:r.paid),(r.isInt?0:(r.lateFee||0)),(r.isInt?0:(r.intFee||0)),(r.isInt?'—':(r.dueAmt||0)),(r.isInt?'—':r.bal),r.isInt?'Interest paid':r.st]);
+    var data=D.rows.map(r=>[r.isInt?'·':(r.ext?'ext':r.i),fmtDate(r.due),(r.isInt&&r.intExp>0?r.intExp:r.emi),(r.isInt?r.paid:r.paid),(r.isInt?0:(r.lateFee||0)),(r.isInt?0:(r.intFee||0)),(r.isInt?(r.intShort>0?r.intShort:'—'):(r.dueAmt||0)),(r.isInt?'—':r.bal),r.isInt?(r.intShort>0?'Interest part-paid':'Interest paid'):r.st]);
     repCSV('EMI_Schedule_'+(l.acno||l.name||'loan')+'.csv', ['Installment','Due Date','EMI','Paid','Late Fee','Overdue Interest','Due','Balance After','Status'], data);
   }
   function repSchedulePrint(){
@@ -267,7 +290,7 @@
     var _chg=function(r){ var parts=[]; if(r.lateFee>0) parts.push('Late fee '+inr(r.lateFee)); if(r.intFee>0) parts.push('Interest '+inr(r.intFee)); var extra=(Number(r.charge)||0)-(Number(r.lateFee)||0)-(Number(r.intFee)||0); if(extra>0.5) parts.push('Other '+inr(extra)); return parts.length?parts.join('<br>'):'&mdash;'; };
     var t='<table class="sched-tbl"><thead><tr><th>#</th><th>Due Date</th><th class="r">EMI</th><th class="r">Paid</th><th class="r">Charges (late fee / interest)</th><th class="r">Balance</th><th>Status</th></tr></thead><tbody>'
       + D.rows.map(function(r){
-          if(r.isInt) return '<tr class="r-int"><td>&middot;</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">&mdash;</td><td class="r">'+inr(r.emi)+'</td><td class="r">'+_chg(r)+'</td><td class="r">'+inr(r.bal)+'</td><td>Interest paid (EMI deferred)</td></tr>';
+          if(r.isInt) return '<tr class="r-int"><td>&middot;</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+((r.intShort>0&&r.intExp>0)?inr(r.intExp):'&mdash;')+'</td><td class="r">'+inr(r.paid)+'</td><td class="r">'+_chg(r)+'</td><td class="r">'+inr(r.bal)+'</td><td>'+(r.intShort>0?('Interest part-paid ('+inr(r.intShort)+' short)'):'Interest paid (EMI deferred)')+'</td></tr>';
           if(r.missed) return '<tr class="r-def"><td>&middot;</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">&mdash;</td><td class="r">&mdash;</td><td class="r">'+_chg(r)+'</td><td class="r">'+inr(r.bal)+'</td><td>Deferred (moved forward)</td></tr>';
           var stx=r.st+((r.dueAmt>0&&(r.st==="Partial"||r.st==="Overdue"))?(' — '+inr(r.dueAmt)+' due'):'');
           var cls=(r.st==='Paid')?'r-paid':((r.st==='Overdue')?'r-od':'');
