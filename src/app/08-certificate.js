@@ -563,6 +563,8 @@
     var principalPaid=l.payments.filter(function(p){return p.status==='Cleared' && p.kind==='principal';}).reduce(function(a,p){return a+(Number(p.amount)||0);},0);
     var remaining=Math.max(0, P-principalPaid);
     if(remaining<=0){ toast('The principal has already been returned — this loan is closed.'); return false; }
+    // Advisory: flag instalments already due but unpaid. Warns only — never blocks.
+    if(typeof warnUnpaidEmis==='function' && !warnUnpaidEmis(l,'closing this loan')) return false;
     if(!confirm('Record the principal returned for '+(l.name||'')+' (A/C '+(l.acno||'')+')?\n\nPrincipal being returned: Rs '+remaining.toLocaleString('en-IN')+'\n\nThe loan will be marked CLOSED.')) return false;
     l.payments.push({ date:todayISO(), mode:'Cash', amount:remaining, status:'Cleared', cheque:'', bank:'', ref:'', kind:'principal', note:'Principal returned' });
     try{ recomputeLoan(l); }catch(e){}

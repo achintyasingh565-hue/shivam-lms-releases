@@ -202,6 +202,64 @@
     var deferCount=rows.filter(function(r){return r.missed;}).length;
     return {rows:rows,emi:emi,n:n,total:total,cleared:cleared,paidCount:paidCount,totalLate:totalLate,totalInt:totalInt,totalChg:totalChg,intCount:intPays.length,intIncome:intIncome,advance:advance,extCount:extCount,deferCount:deferCount,intExp:_intExp,intShortTotal:intShortTotal};
   }
+  /* ---- Instalments already due but not fully received -----------------------
+     Shared by the advisory shown before a loan is deleted or closed. Counts only
+     NUMBERED instalment rows whose due date has already passed — interest-only
+     months, deferral markers and post-tenure accrual rows are not instalments
+     and are skipped. dueAmt is the schedule's own "still owed on this row"
+     figure, so this can never disagree with what the schedule displays. */
+  function emiDueTillToday(l){
+    var out={count:0,amount:0,lastDue:''};
+    try{
+      if(!l) return out;
+      var D=repScheduleData(l), t=todayISO(), sEmi=Number(D.emi)||0;
+      (D.rows||[]).forEach(function(r){
+        if(r.isInt||r.accrual||r.ext) return;          // not instalments
+        if(!r.due || String(r.due)>t) return;          // not due yet
+        /* A deferred month is an EMI that should have been collected and was
+           moved forward instead. Its row carries emi 0 and no dueAmt, so without
+           this branch a borrower who has paid NOTHING would raise no warning at
+           all — the exact case the advisory exists for. Charge the month the
+           scheduled EMI. No double count: the instalment it was moved into is
+           future-dated and excluded by the date test above. */
+        if(r.missed){
+          if(sEmi>0.5){ out.count++; out.amount+=sEmi; out.lastDue=r.due; }
+          return;
+        }
+        if(!r.i) return;                               // numbered instalments only
+        var short=Number(r.dueAmt)||0;
+        if(short>0.5){ out.count++; out.amount+=short; out.lastDue=r.due; }
+      });
+      out.amount=Math.round(out.amount);
+    }catch(e){}
+    return out;
+  }
+  window.emiDueTillToday=emiDueTillToday;
+  /* Two-step on purpose.
+     Step 1 is written to be turned around and shown to the borrower who wants
+     his loan closed and the principal rolled into a fresh one while instalments
+     are still outstanding. It states the position as the system's, has a single
+     OK button, and offers no visible way through — so the owner is not the one
+     saying no.
+     Step 2 is the owner's override, which the borrower never sees coming. The
+     function therefore advises firmly but never actually blocks: returning true
+     lets the caller proceed.
+     `verb` is a gerund phrase, e.g. 'deleting this loan'. */
+  function warnUnpaidEmis(l,verb){
+    var d=emiDueTillToday(l);
+    if(!(d.amount>0)) return true;
+    var who=((l&&l.name)||'This borrower')+((l&&l.acno)?(' — A/C '+l.acno):'');
+    alert('⚠  CANNOT CLOSE — INSTALMENTS OUTSTANDING\n\n'
+      +who+'\n\n'
+      +d.count+' installment'+(d.count>1?'s':'')+' due up to today '
+      +(d.count>1?'are':'is')+' still unpaid.\n'
+      +'Amount outstanding: '+inr(d.amount)
+      +(d.lastDue?('\nLatest unpaid due date: '+fmtDate(d.lastDue)):'')+'\n\n'
+      +'All instalments due to date must be cleared before this loan can be '
+      +'closed, or its principal carried into a new loan.');
+    return confirm('Administrator override\n\nThe borrower has been shown the outstanding amount.\n\nProceed with '+verb+' anyway?');
+  }
+  window.warnUnpaidEmis=warnUnpaidEmis;
   /* A plain-language legend + reconciliation so a customer can understand the schedule at a glance.
      `pr` = print styling (smaller, letterhead colours) vs on-screen styling. */
   function repSchedLegend(D, l, pr){

@@ -78,7 +78,6 @@
     kv += _kv('Product Type', (l.secured ? 'Secured / Mortgaged' : 'Unsecured') + (io ? ' · Interest-only' : (l.type ? (' · ' + esc(l.type)) : '')));
     kv += _kv('Sanctioned / Loan Amount', _r(l.principal));
     if (_net(l) !== (Number(l.principal) || 0)) kv += _kv('Net Amount Disbursed', _r(_net(l)));
-    kv += _kv('Rate of Interest', esc(Number(l.rate) || 0) + '% per month');
     if (io) {
       kv += _kv('Monthly Interest Payable', '<b>' + _r(l.emi) + '</b>');
       kv += _kv('Principal Repayment', 'Payable in full on demand');
@@ -133,7 +132,6 @@
         '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
         _kv('Loan Account #', esc(l.acno || '—')) +
         _kv('Product Description', 'Interest-only' + (l.secured ? ' · Secured' : ' · Unsecured')) +
-        _kv('Rate of Interest', esc(Number(l.rate) || 0) + '% per month') +
         _kv('Loan / Principal Amount', _r(l.principal)) +
         _kv('Monthly Interest', _r(l.emi)) +
         _kv('Loan Status', esc(l.status || 'Active')) +
@@ -153,7 +151,6 @@
       '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
       _kv('Loan Account #', esc(l.acno || '—')) +
       _kv('Product Description', (l.secured ? 'SECURED' : 'UNSECURED') + (l.type ? (' · ' + esc(l.type)) : '')) +
-      _kv('Current Rate of Interest', esc(Number(l.rate) || 0) + '% per month (flat)') +
       _kv('Sanctioned Amount', _r(l.principal)) +
       _kv('Disbursed Amount', _r(_net(l))) +
       _kv('Total Amount Payable', _r(l.tpay)) +

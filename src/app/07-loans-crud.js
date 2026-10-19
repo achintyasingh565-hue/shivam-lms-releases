@@ -420,6 +420,8 @@
   function delLoan(id){
     if(typeof can==='function' && !can('delete')){ toast('⚠ Only an administrator can delete loan records.'); return; }
     const l=loans.find(x=>x.id===id);
+    // Advisory: flag instalments already due but unpaid. Warns only — never blocks.
+    if(typeof warnUnpaidEmis==='function' && !warnUnpaidEmis(l,'deleting this loan')) return;
     if(confirm('Move loan record for '+ (l?l.name:'this borrower') +' to the Recycle Bin? You can restore it within 30 days from Administration.')){
       snapBefore('Before delete: '+(l?l.acno:''));
       if(l){ const bin=recyclePurgeOld(); bin.unshift(Object.assign({}, l, {deletedAt:Date.now(), deletedBy:(currentUser&&currentUser.user)||'system'})); recycleSave(bin); }
