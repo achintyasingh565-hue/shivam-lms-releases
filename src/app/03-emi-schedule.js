@@ -209,13 +209,23 @@
      and are skipped. dueAmt is the schedule's own "still owed on this row"
      figure, so this can never disagree with what the schedule displays. */
   function emiDueTillToday(l){
-    var out={count:0,amount:0,lastDue:''};
+    /* emiAmount/intAmount are kept apart so the advisory can itemise them —
+       "₹3,400 instalments + ₹800 interest" is far harder for a borrower to
+       argue with than a single lump figure. amount/count are the totals. */
+    var out={count:0,amount:0,lastDue:'',emiCount:0,emiAmount:0,intCount:0,intAmount:0};
     try{
       if(!l) return out;
       var D=repScheduleData(l), t=todayISO(), sEmi=Number(D.emi)||0;
       (D.rows||[]).forEach(function(r){
-        if(r.isInt||r.accrual||r.ext) return;          // not instalments
+        if(r.accrual||r.ext) return;                   // post-tenure accrual, not owed instalments
         if(!r.due || String(r.due)>t) return;          // not due yet
+        /* An interest-only month that was under-serviced — ₹2,000 against
+           ₹2,400 — leaves real money uncollected just as a short EMI does. */
+        if(r.isInt){
+          var ishort=Number(r.intShort)||0;
+          if(ishort>0.5){ out.intCount++; out.intAmount+=ishort; out.lastDue=r.due; }
+          return;
+        }
         /* A deferred month is an EMI that should have been collected and was
            moved forward instead. Its row carries emi 0 and no dueAmt, so without
            this branch a borrower who has paid NOTHING would raise no warning at
@@ -223,18 +233,51 @@
            scheduled EMI. No double count: the instalment it was moved into is
            future-dated and excluded by the date test above. */
         if(r.missed){
-          if(sEmi>0.5){ out.count++; out.amount+=sEmi; out.lastDue=r.due; }
+          if(sEmi>0.5){ out.emiCount++; out.emiAmount+=sEmi; out.lastDue=r.due; }
           return;
         }
         if(!r.i) return;                               // numbered instalments only
         var short=Number(r.dueAmt)||0;
-        if(short>0.5){ out.count++; out.amount+=short; out.lastDue=r.due; }
+        if(short>0.5){ out.emiCount++; out.emiAmount+=short; out.lastDue=r.due; }
       });
-      out.amount=Math.round(out.amount);
+      out.emiAmount=Math.round(out.emiAmount);
+      out.intAmount=Math.round(out.intAmount);
+      out.amount=out.emiAmount+out.intAmount;
+      out.count=out.emiCount+out.intCount;
     }catch(e){}
     return out;
   }
   window.emiDueTillToday=emiDueTillToday;
+  /* ---- Gross position to date ----------------------------------------------
+     The owner's own test when a borrower asks to close and roll the principal
+     into a fresh loan: by month N he should have paid N full EMIs — interest
+     AND principal — so whatever he has actually handed over, short of that, is
+     still owed.
+     Deliberately ignores the deferral machinery. emiDueTillToday() reports the
+     schedule's view, where an interest-serviced month legitimately moves its
+     EMI forward and only the interest is owed. That view is right for running
+     the account, but it is NOT the question being asked at closing time, when
+     a deferred EMI is money not yet collected like any other. */
+  function dueToDate(l){
+    var out={elapsed:0,expected:0,received:0,outstanding:0};
+    try{
+      if(!l) return out;
+      var n=Math.max(0,Math.round(Number(l.tenure)||0));
+      var emi=Number(l.emi)||0, t=todayISO(), k=0;
+      for(var i=1;i<=n;i++){
+        var d=(typeof emiDueDate==='function')?emiDueDate(l,i):'';
+        if(d && String(d)<=t) k++; else break;        // due dates run in order
+      }
+      out.elapsed=k;
+      out.expected=Math.round(k*emi);
+      out.received=Math.round((l.payments||[])
+        .filter(function(p){ return p && p.status==='Cleared'; })
+        .reduce(function(a,p){ return a+(Number(p.amount)||0); },0));
+      out.outstanding=Math.max(0, out.expected-out.received);
+    }catch(e){}
+    return out;
+  }
+  window.dueToDate=dueToDate;
   /* Two-step on purpose.
      Step 1 is written to be turned around and shown to the borrower who wants
      his loan closed and the principal rolled into a fresh one while instalments
@@ -246,16 +289,19 @@
      lets the caller proceed.
      `verb` is a gerund phrase, e.g. 'deleting this loan'. */
   function warnUnpaidEmis(l,verb){
+    var g=dueToDate(l);
+    if(!(g.outstanding>0)) return true;
     var d=emiDueTillToday(l);
-    if(!(d.amount>0)) return true;
     var who=((l&&l.name)||'This borrower')+((l&&l.acno)?(' — A/C '+l.acno):'');
-    alert('⚠  CANNOT CLOSE — INSTALMENTS OUTSTANDING\n\n'
+    var _pad=function(t){ while(t.length<34) t+=' '; return t; };  // line the three amounts up
+    alert('⚠  CANNOT CLOSE — AMOUNT OUTSTANDING\n\n'
       +who+'\n\n'
-      +d.count+' installment'+(d.count>1?'s':'')+' due up to today '
-      +(d.count>1?'are':'is')+' still unpaid.\n'
-      +'Amount outstanding: '+inr(d.amount)
+      +_pad('Payable to date ('+g.elapsed+' installment'+(g.elapsed>1?'s':'')+')')+inr(g.expected)+'\n'
+      +_pad('Received to date')+inr(g.received)+'\n'
+      +_pad('STILL TO PAY')+inr(g.outstanding)+'\n\n'
+      +'This covers both interest and principal.'
       +(d.lastDue?('\nLatest unpaid due date: '+fmtDate(d.lastDue)):'')+'\n\n'
-      +'All instalments due to date must be cleared before this loan can be '
+      +'The full amount due to date must be cleared before this loan can be '
       +'closed, or its principal carried into a new loan.');
     return confirm('Administrator override\n\nThe borrower has been shown the outstanding amount.\n\nProceed with '+verb+' anyway?');
   }

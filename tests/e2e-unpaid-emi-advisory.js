@@ -46,8 +46,15 @@ const tiwari = loan([
   pay('2026-10-01', 2400, { intOnly: true }),
 ]);
 const d1 = due(tiwari);
-chk('shortfall on instalments already due', d1.amount, 3400);
-chk('counts one unpaid instalment', d1.count, 1);
+chk('instalment shortfall', d1.emiAmount, 3400);
+chk('counts one unpaid instalment', d1.emiCount, 1);
+// the two 2,000 months against 2,400 of interest are real uncollected money too
+chk('interest shortfall folded in', d1.intAmount, 800);
+chk('counts two short interest months', d1.intCount, 2);
+chk('total is instalments + interest', d1.amount, 4200);
+chk('total count is both kinds', d1.count, 3);
+// 04 and 06 are short on interest, 08 is the part-paid instalment; 07/09/10
+// were serviced in full, so the latest genuinely unpaid item is 01-08-26
 chk('reports the latest unpaid due date', d1.lastDue, '2026-08-01');
 
 // --- everything due has been paid -> silent
@@ -66,7 +73,7 @@ chk('future first due -> no warning', due(fresh).amount, 0);
 const neglected = loan([]);
 const d3 = due(neglected);
 chk('no payments, 8 months elapsed -> warns', d3.amount > 0, true);
-chk('no payments -> counts every elapsed instalment', d3.count, 8);
+chk('no payments -> counts every elapsed instalment', d3.emiCount, 8);
 // auto-defer turns each unpaid month into a 'Deferred' row with emi 0; the
 // advisory must still charge the scheduled EMI for it, or the worst borrower
 // in the book would raise no warning at all
@@ -78,19 +85,71 @@ chk('those months really are deferred rows with emi 0',
 // --- interest-only months must never be mistaken for instalments
 const intOnlyRows = S.repScheduleData(tiwari).rows.filter(r => r.isInt);
 chk('interest-only months exist in this fixture', intOnlyRows.length, 5);
-chk('interest-only months excluded from the advisory',
+chk('interest-only months are not treated as instalments',
   intOnlyRows.every(r => r.dueAmt === undefined), true);
+chk('only the short interest months are charged',
+  intOnlyRows.map(r => r.intShort), [400, 400, 0, 0, 0]);
+
+// --- interest fully serviced -> interest contributes nothing
+const intOk = JSON.parse(JSON.stringify(tiwari));
+intOk.payments = intOk.payments.map(p => p.intOnly ? Object.assign({}, p, { amount: 2400 }) : p);
+const d4 = due(intOk);
+chk('fully serviced interest adds nothing', d4.intAmount, 0);
+chk('instalment shortfall still reported', d4.emiAmount, 3400);
 
 // --- future instalments must never be counted, however many are unpaid
 const allRows = S.repScheduleData(tiwari).rows.filter(r => r.i && !r.isInt);
 const futureUnpaid = allRows.filter(r => r.due > '2026-10-19' && (r.dueAmt || 0) > 0).length;
 chk('fixture does have unpaid future instalments', futureUnpaid > 0, true);
-chk('but advisory still reports only the one already due', d1.count, 1);
+chk('but advisory still reports only the one already due', d1.emiCount, 1);
 
 // --- robustness: must not throw on junk
-chk('null loan is safe', S.emiDueTillToday(null), { count: 0, amount: 0, lastDue: '' });
+chk('null loan is safe', S.emiDueTillToday(null),
+  { count: 0, amount: 0, lastDue: '', emiCount: 0, emiAmount: 0, intCount: 0, intAmount: 0 });
 chk('loan with no payments array is safe',
   Number.isFinite(S.emiDueTillToday({ tenure: 12, emi: 100, tpay: 1200, due: '2026-01-01' }).amount), true);
+
+
+// ---------------------------------------------------------------------------
+// Gross position at closing time — the owner's own test, and what the popup
+// actually shows: by month N the borrower should have handed over N full EMIs
+// (interest AND principal); anything short of that is still owed. This
+// deliberately ignores deferrals, unlike emiDueTillToday above.
+//
+// Real figures from A/C 16286's payment history.
+const real = loan([
+  pay('2026-03-01', 7400), pay('2026-04-01', 2000), pay('2026-05-01', 5000),
+  pay('2026-06-01', 2400), pay('2026-07-01', 4000), pay('2026-08-01', 6400),
+  pay('2026-09-01', 6400), pay('2026-10-01', 2400),
+]);
+S.recomputeLoan(real);
+const g = S.dueToDate(real);
+chk('8 instalments have fallen due', g.elapsed, 8);
+chk('payable to date = 8 x 7,400', g.expected, 59200);
+chk('received to date', g.received, 36000);
+chk('still to pay', g.outstanding, 23200);
+
+// pending / uncleared money must not count as received
+const withPending = JSON.parse(JSON.stringify(real));
+withPending.payments.push({ id: 'pz', date: '2026-10-05', amount: 5000, status: 'Pending' });
+S.recomputeLoan(withPending);
+chk('uncleared payment is not credited', S.dueToDate(withPending).received, 36000);
+
+// a borrower who has paid every instalment owes nothing
+const square = loan([]);
+for (let m = 3; m <= 10; m++) square.payments.push(pay('2026-' + String(m).padStart(2, '0') + '-01', 7400));
+S.recomputeLoan(square);
+chk('fully paid to date -> nothing outstanding', S.dueToDate(square).outstanding, 0);
+
+// overpayment must not produce a negative figure
+const ahead = loan([pay('2026-03-01', 200000)]);
+S.recomputeLoan(ahead);
+chk('overpaid -> never negative', S.dueToDate(ahead).outstanding, 0);
+
+// nothing due yet
+S.recomputeLoan(fresh);
+chk('future first due -> nothing payable yet', S.dueToDate(fresh).expected, 0);
+chk('null loan is safe', S.dueToDate(null), { elapsed: 0, expected: 0, received: 0, outstanding: 0 });
 
 console.log(fails ? '\n' + fails + ' CHECK(S) FAILED' : '\nALL UNPAID-EMI ADVISORY CHECKS PASS');
 process.exitCode = fails ? 1 : 0;
