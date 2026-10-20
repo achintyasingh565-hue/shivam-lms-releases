@@ -187,8 +187,11 @@
     const a=Math.round(Number(($('expAmt')&&$('expAmt').value)||0));
     if(!(a>0)){ toast('\u26a0 Enter an amount'); return; }
     const list=loadExpenses();
-    list.push({id:'e'+Date.now()+Math.random().toString(36).slice(2,6), date:d, cat:c, note:n, amount:a});
+    const _exp={id:'e'+Date.now()+Math.random().toString(36).slice(2,6), date:d, cat:c, note:n, amount:a};
+    list.push(_exp);
     saveExpenses(list);
+    // share with the other device; offline just means it syncs on the next sign-in
+    try{ if(typeof cloudPutExpense==='function') cloudPutExpense(_exp); }catch(e){}
     try{ logAudit('Expense Added', c+' \u2014 '+inr(a)+(n?(' ('+n+')'):'')); }catch(e){}
     if($('expAmt')) $('expAmt').value=''; if($('expNote')) $('expNote').value='';
     repPnlFill(); toast('Expense recorded');
@@ -197,6 +200,8 @@
     if(!confirm('Remove this expense entry?')) return;
     const list=loadExpenses().filter(x=>x.id!==id);
     saveExpenses(list);
+    // soft-delete in the cloud too, so it does not come back on the next sync
+    try{ if(typeof cloudDeleteExpense==='function') cloudDeleteExpense(id); }catch(e){}
     try{ logAudit('Expense Removed', id); }catch(e){}
     repPnlFill();
   };

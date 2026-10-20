@@ -76,6 +76,10 @@ window.saveFirmDetails = function () {
   next.udyam = next.udyam.toUpperCase();
   try { localStorage.setItem('shivam_firm_v1', JSON.stringify(next)); }
   catch (e) { toast('⚠ Could not save the firm details'); return; }
+  var _at = Date.now();
+  _setFirmStamp(_at);
+  // share with the other device; failure is non-fatal, the local save already stands
+  try { publishFirmDetails(next, _at); } catch (e) {}
   try { logAudit('Firm Details Updated', next.name + ' — ' + next.address); } catch (e) {}
   try { if (typeof applyFirmToDocs === 'function') applyFirmToDocs(); } catch (e) {}
   try { if (typeof save === 'function') save(); } catch (e) {}
@@ -88,11 +92,66 @@ window.resetFirmDetails = function () {
   if (typeof currentUser !== 'undefined' && currentUser && currentUser.role !== 'admin') { toast('Only an Administrator can change firm details'); return; }
   if (!confirm('Reset the firm details back to the original built-in values?')) return;
   try { localStorage.removeItem('shivam_firm_v1'); } catch (e) {}
+  var _at = Date.now();
+  _setFirmStamp(_at);
+  try { publishFirmDetails(null, _at); } catch (e) {}   // a reset must reach the other device too
   try { logAudit('Firm Details Reset', ''); } catch (e) {}
   try { if (typeof applyFirmToDocs === 'function') applyFirmToDocs(); } catch (e) {}
   renderFirmPanel();
   toast('Firm details reset to the original values');
 };
+
+/* ---------------------------------------------------------------------------
+ * Sharing the firm details across devices.
+ *
+ * These are stored locally in shivam_firm_v1, so a second device used to start
+ * from the built-in defaults and every document printed there could carry the
+ * wrong address. They now travel through the shared `firm` key in app_settings,
+ * using the same cloudGetSetting / cloudSetSetting helpers as the staff roster.
+ *
+ * Conflicts are settled by timestamp, not by who wrote last: every change
+ * records when it happened, and a device only adopts the cloud copy if it is
+ * NEWER than its own last change. Without that, a device coming online after a
+ * week could quietly overwrite details edited here this morning.
+ *
+ * A reset is a change too — it publishes firm:null — so "go back to defaults"
+ * reaches the other device instead of being silently undone by the next sync.
+ * ------------------------------------------------------------------------- */
+var FIRM_AT_KEY = 'shivam_firm_at_v1';
+function _firmStamp(){ var v = Number(localStorage.getItem(FIRM_AT_KEY) || 0); return isFinite(v) ? v : 0; }
+function _setFirmStamp(at){ try { localStorage.setItem(FIRM_AT_KEY, String(at)); } catch (e) {} }
+
+/* Push the current firm details (or the fact they were reset) to the cloud. */
+async function publishFirmDetails(firmOrNull, at) {
+  if (typeof cloudSetSetting !== 'function') return false;
+  try {
+    var r = await cloudSetSetting('firm', { firm: firmOrNull || null, at: at });
+    return !!(r && r.ok);
+  } catch (e) { return false; }
+}
+window.publishFirmDetails = publishFirmDetails;
+
+/* Adopt the cloud copy if it is newer than this device's last change. */
+async function pullFirmDetails() {
+  if (typeof cloudGetSetting !== 'function') return false;
+  try {
+    var row = await cloudGetSetting('firm');
+    var d = row && row.data;
+    if (!d || typeof d !== 'object') return false;
+    var cloudAt = Number(d.at || 0);
+    if (!(cloudAt > _firmStamp())) return false;          // ours is same age or newer
+    if (d.firm && typeof d.firm === 'object') {
+      localStorage.setItem('shivam_firm_v1', JSON.stringify(d.firm));
+    } else {
+      localStorage.removeItem('shivam_firm_v1');          // the other device reset them
+    }
+    _setFirmStamp(cloudAt);
+    try { if (typeof applyFirmToDocs === 'function') applyFirmToDocs(); } catch (e) {}
+    try { if (typeof renderFirmPanel === 'function' && document.getElementById('firmPanel')) renderFirmPanel(); } catch (e) {}
+    return true;
+  } catch (e) { return false; }
+}
+window.pullFirmDetails = pullFirmDetails;
 
 /* (Re)draw the panel with the current values, into the Firm Details tab. */
 function renderFirmPanel() {

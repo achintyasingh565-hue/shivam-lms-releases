@@ -377,6 +377,11 @@
       } catch (_) {}
       // adopt the shared WhatsApp connection so every device can send via the API
       try { if (typeof pullWaConnection === 'function') await pullWaConnection(); } catch (_) {}
+      // adopt the shared firm details (letterhead, address, phones) if the other
+      // device has a newer copy — otherwise a second device prints the defaults
+      try { if (typeof pullFirmDetails === 'function') await pullFirmDetails(); } catch (_) {}
+      // merge expenses recorded on either device
+      try { if (typeof pullExpenses === 'function') await pullExpenses(); } catch (_) {}
       try { await maybeDailySnapshot(); } catch (_) {}   // central daily backup
       if (pollTimer) clearInterval(pollTimer);
       pollTimer = setInterval(poll, Math.max(3000, C.pollMs || 7000));
@@ -464,6 +469,63 @@
       try { var r = await api('/app_settings', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' },
         body: JSON.stringify([{ key: key, data: data, updated_by: deviceId, updated_at: new Date().toISOString() }]) });
         return { ok: !!(r && r.ok), status: r && r.status }; } catch (e) { return { ok: false, error: String(e) }; }
+    };
+
+    /* ---- Expenses -----------------------------------------------------
+       One row per expense, like loans, so entries made on both devices merge
+       instead of one overwriting the other. Removals are soft (deleted=true)
+       so a delete on one device reaches the other rather than the entry
+       reappearing at the next sync. All three are no-ops when signed out. */
+    window.cloudPutExpense = async function (exp) {
+      if (!session || !exp || !exp.id) return { ok: false };
+      try {
+        var r = await api('/expenses', { method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+          body: JSON.stringify([{ id: String(exp.id), data: exp, deleted: false, updated_by: deviceId, updated_at: new Date().toISOString() }]) });
+        return { ok: !!(r && r.ok) };
+      } catch (e) { return { ok: false }; }
+    };
+    window.cloudDeleteExpense = async function (id) {
+      if (!session || !id) return { ok: false };
+      try {
+        var r = await api('/expenses', { method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+          body: JSON.stringify([{ id: String(id), data: { id: String(id) }, deleted: true, updated_by: deviceId, updated_at: new Date().toISOString() }]) });
+        return { ok: !!(r && r.ok) };
+      } catch (e) { return { ok: false }; }
+    };
+    window.pullExpenses = async function () {
+      if (!session) return false;
+      try {
+        var r = await api('/expenses?select=id,data,deleted&order=updated_at.asc', { method: 'GET' });
+        if (!r || !r.ok) return false;
+        var rows = await r.json();
+        if (!Array.isArray(rows)) return false;
+        var local = (typeof loadExpenses === 'function') ? (loadExpenses() || []) : [];
+        var byId = {}, changed = false;
+        local.forEach(function (x) { if (x && x.id) byId[x.id] = x; });
+        var cloudIds = {};
+        rows.forEach(function (row) {
+          if (!row || !row.id) return;
+          cloudIds[row.id] = true;
+          if (row.deleted) { if (byId[row.id]) { delete byId[row.id]; changed = true; } return; }
+          if (!row.data || typeof row.data !== 'object') return;
+          if (!byId[row.id] || JSON.stringify(byId[row.id]) !== JSON.stringify(row.data)) { byId[row.id] = row.data; changed = true; }
+        });
+        if (changed && typeof saveExpenses === 'function') {
+          saveExpenses(Object.keys(byId).map(function (k) { return byId[k]; })
+            .sort(function (a, b) { return String(a.date || '').localeCompare(String(b.date || '')); }));
+          try { if (typeof repPnlFill === 'function') repPnlFill(); } catch (e) {}
+        }
+        /* Seed: expenses recorded before this feature existed are local-only.
+           Push any the cloud has never seen, so the second device gets the
+           back history too. Entries the cloud holds as deleted are skipped by
+           the cloudIds check, so a removal is never undone. */
+        for (var i = 0; i < local.length; i++) {
+          if (local[i] && local[i].id && !cloudIds[local[i].id]) { try { await window.cloudPutExpense(local[i]); } catch (e) {} }
+        }
+        return true;
+      } catch (e) { return false; }
     };
 
     // ---- optimistic-concurrency guard: called before committing an edit to an
