@@ -630,6 +630,16 @@
   window.confirmForeclose=function(){
     var pv=window._fcPreview; if(!pv){ window.closeForeclose(); return; }
     var l=loans.find(function(x){return x.id===pv.id;}); if(!l){ window.closeForeclose(); return; }
+    /* Informational, not a barrier — foreclosure already refuses below 6 EMIs
+       paid. This just puts the arrears to date in front of the owner before he
+       settles, so an early settlement is never agreed without seeing them. */
+    if(typeof warnUnpaidEmis==='function' &&
+       !warnUnpaidEmis(l, '', { single:true,
+         heading:'\u2139  ARREARS TO DATE \u2014 BEFORE FORECLOSURE',
+         reason:'Foreclosing settles the loan early. The amount above is what is '
+              + 'already overdue and is separate from the settlement figure shown '
+              + 'on this screen.',
+         confirmText:'Continue with foreclosure?' })) return;
     var charge=Math.max(0, Math.round(Number(($('fcCharge')||{}).value)||0));
     var mode=(($('fcMode')||{}).value)||'Cash';
     var date=(($('fcDate')||{}).value)||todayISO();
@@ -948,4 +958,64 @@
     [...$('docseg').children].forEach(b=>b.classList.toggle('active', b.dataset.doc===v));
   }
   $('docseg').addEventListener('click', e=>{ if(e.target.dataset.doc) setDoc(e.target.dataset.doc); });
-  function printCert(){ logAudit('Document Printed','No Dues / Receipt'); window._docTitleBak=document.title; document.title=_docFileName(($('f_name')||{}).value, ($('f_loan')||{}).value, 'Certificate'); document.body.classList.add('printing-cert'); window.print(); }
+  /* Offered after a No Dues Certificate is printed for a loan that is fully
+     repaid but still marked Active. Shows the closing position, then marks the
+     account Closed. Declining leaves the record exactly as it was. */
+  function _offerCloseIfSettled(){
+    var id = ($('loadLoan')||{}).value;
+    if(!id || typeof loans === 'undefined') return false;
+    var l = loans.find(function(x){ return x.id === id; });
+    if(!l) return false;
+    if(l.status === 'Closed') return false;                       // already done
+    if((Number(l.outstanding)||0) > 0.5) return false;            // not actually settled
+    var paid = (l.payments||[]).filter(function(p){ return p && p.status==='Cleared'; })
+                               .reduce(function(a,p){ return a+(Number(p.amount)||0); },0);
+    var chg  = (l.charges||[]).reduce(function(a,c){ return a+(Number(c.amount)||0); },0);
+    var pad  = function(t){ while(t.length<26) t+=' '; return t; };
+    var msg = '\u2713  LOAN FULLY REPAID\n\n'
+      + (l.name||'') + (l.acno ? (' \u2014 A/C ' + l.acno) : '') + '\n\n'
+      + pad('Loan amount') + inr(Number(l.principal)||0) + '\n'
+      + pad('Total payable') + inr(Number(l.tpay)||0) + '\n'
+      + (chg>0 ? (pad('Charges levied') + inr(chg) + '\n') : '')
+      + pad('Total received') + inr(paid) + '\n'
+      + pad('Outstanding') + inr(0) + '\n\n'
+      + 'The account is still marked Active, so it will keep appearing in '
+      + 'reports and reminders.\n\nClose it now?';
+    if(!confirm(msg)) return false;
+    l.status = 'Closed'; l.arrears = 0;
+    try { if(typeof save === 'function') save(); } catch(e){}
+    try { logAudit('Loan Closed', (l.name||'') + ' (' + (l.acno||'') + ') \u2014 after No Dues Certificate'); } catch(e){}
+    try { if(typeof renderLoans === 'function') renderLoans(); } catch(e){}
+    try { if(typeof renderDash === 'function') renderDash(); } catch(e){}
+    try { toast('\u2713 Loan closed'); } catch(e){}
+    return true;
+  }
+  window._offerCloseIfSettled = _offerCloseIfSettled;
+
+  function printCert(){
+    /* A No Dues Certificate states in writing that nothing is owed, and the
+       Acknowledgement Receipt has the borrower confirm "full and final payment
+       has been made". Issuing either while instalments are outstanding hands
+       the borrower a document that contradicts the ledger. Same two-step as
+       close/delete: a refusal to show him, then an owner override. */
+    try {
+      var _cid = ($('loadLoan') || {}).value;
+      var _cl = _cid && typeof loans !== 'undefined' ? loans.find(function (x) { return x.id === _cid; }) : null;
+      if (_cl && typeof warnUnpaidEmis === 'function' &&
+          !warnUnpaidEmis(_cl, 'issuing these documents anyway', {
+            heading: '\u26a0  CANNOT ISSUE \u2014 AMOUNT OUTSTANDING',
+            reason: 'A No Dues Certificate states that nothing is owed, and the '
+                  + 'Acknowledgement Receipt has the borrower confirm that full and '
+                  + 'final payment has been made.\n\n'
+                  + 'The full amount due to date must be cleared before these '
+                  + 'documents can be issued.'
+          })) return;
+    } catch (e) {}
+    /* The mirror case: the loan IS fully repaid and these documents are being
+       issued to close it off — but the record can be left sitting as Active,
+       so it keeps appearing in reports and reminders. Offer to close it, with
+       the figures, once the documents are on their way to the printer.
+       Guarded on l.outstanding (the WHOLE loan repaid), not on dues to date —
+       a borrower who is merely up to date still has instalments to come. */
+    try { _offerCloseIfSettled(); } catch (e) {}
+    logAudit('Document Printed','No Dues / Receipt'); window._docTitleBak=document.title; document.title=_docFileName(($('f_name')||{}).value, ($('f_loan')||{}).value, 'Certificate'); document.body.classList.add('printing-cert'); window.print(); }

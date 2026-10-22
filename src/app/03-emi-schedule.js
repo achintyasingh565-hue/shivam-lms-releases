@@ -198,6 +198,32 @@
     // Safety: fold any charge that never landed on a row into the final balance so it reconciles.
     var _lostChg=Math.round(totalChg-cumChg);
     if(_lostChg>0){ for(var zi=rows.length-1; zi>=0; zi--){ if(!rows[zi].isInt){ rows[zi].bal=(Number(rows[zi].bal)||0)+_lostChg; break; } } cumChg+=_lostChg; }
+    /* ---- Projected balance on instalments still to come ---------------------
+       The balance column is `total payable + charges − money received`, so on a
+       row where nothing has been received and no charge falls, it cannot move:
+       every future instalment repeated the same figure, which read as a fault
+       and told the borrower nothing.
+       Those rows now carry a PROJECTION — what the balance becomes if each
+       remaining instalment is paid as scheduled — walking down to zero on the
+       last row. It is written to `projBal`, never to `bal`, so the actual
+       arithmetic is untouched and the schedule still reconciles exactly with
+       the outstanding shown everywhere else. Rows that have already happened
+       (paid, partial, deferred, interest-serviced, post-tenure accrual) are
+       left alone: their balance is history, not a forecast. */
+    (function(){
+      var run = null;
+      for(var pi=0; pi<rows.length; pi++){
+        var r=rows[pi];
+        if(r.isInt || r.missed || r.accrual || r.ext) continue;   // not a forecastable instalment
+        if(!r.i) continue;                                        // unnumbered marker rows
+        var owed = (r.dueAmt==null) ? 0 : (Number(r.dueAmt)||0);
+        if(owed<=0.5){ run = null; continue; }                    // settled: forecast restarts after it
+        if(run===null) run = Number(r.bal)||0;                    // start from the last real balance
+        run = Math.max(0, Math.round(run - owed));
+        r.projBal = run;
+        r.projected = true;
+      }
+    })();
     var advance=Math.max(0, Math.round(carry));
     var deferCount=rows.filter(function(r){return r.missed;}).length;
     return {rows:rows,emi:emi,n:n,total:total,cleared:cleared,paidCount:paidCount,totalLate:totalLate,totalInt:totalInt,totalChg:totalChg,intCount:intPays.length,intIncome:intIncome,advance:advance,extCount:extCount,deferCount:deferCount,intExp:_intExp,intShortTotal:intShortTotal};
@@ -288,21 +314,28 @@
      function therefore advises firmly but never actually blocks: returning true
      lets the caller proceed.
      `verb` is a gerund phrase, e.g. 'deleting this loan'. */
-  function warnUnpaidEmis(l,verb){
+  function warnUnpaidEmis(l,verb,opts){
+    opts = opts || {};   // {heading, reason, single, confirmText}
+    /* `single` is for places where a refusal would be nonsense — a default
+       notice is ABOUT the arrears, so telling the owner he may not issue one
+       because money is owed would be backwards. There it shows the figures
+       once, as information, with a plain Continue. */
     var g=dueToDate(l);
     if(!(g.outstanding>0)) return true;
     var d=emiDueTillToday(l);
     var who=((l&&l.name)||'This borrower')+((l&&l.acno)?(' — A/C '+l.acno):'');
     var _pad=function(t){ while(t.length<34) t+=' '; return t; };  // line the three amounts up
-    alert('⚠  CANNOT CLOSE — AMOUNT OUTSTANDING\n\n'
+    var _body = (opts.heading || '⚠  CANNOT CLOSE — AMOUNT OUTSTANDING')+'\n\n'
       +who+'\n\n'
       +_pad('Payable to date ('+g.elapsed+' installment'+(g.elapsed>1?'s':'')+')')+inr(g.expected)+'\n'
       +_pad('Received to date')+inr(g.received)+'\n'
       +_pad('STILL TO PAY')+inr(g.outstanding)+'\n\n'
       +'This covers both interest and principal.'
       +(d.lastDue?('\nLatest unpaid due date: '+fmtDate(d.lastDue)):'')+'\n\n'
-      +'The full amount due to date must be cleared before this loan can be '
-      +'closed, or its principal carried into a new loan.');
+      +(opts.reason || ('The full amount due to date must be cleared before this loan can be '
+                        +'closed, or its principal carried into a new loan.'));
+    if(opts.single) return confirm(_body+'\n\n'+(opts.confirmText || 'Continue?'));
+    alert(_body);
     return confirm('Administrator override\n\nThe borrower has been shown the outstanding amount.\n\nProceed with '+verb+' anyway?');
   }
   window.warnUnpaidEmis=warnUnpaidEmis;
@@ -373,20 +406,25 @@
       var stTxt=r.st+(((r.st==='Partial'||r.st==='Overdue') && r.dueAmt>0)?(' &middot; <span style="font-weight:600;">'+inr(r.dueAmt)+' due</span>'):'');
       var numCell=r.ext?'<span style="font-size:10px;color:#b26a00;font-weight:600;">ext</span>':r.i;
       var rowStyle=r.ext?' style="background:#fbf6e8;"':'';
-      return '<tr'+rowStyle+'><td>'+numCell+'</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">'+(r.emi>0?inr(r.emi):'&mdash;')+'</td><td class="right">'+(r.paid>0?inr(r.paid):'&mdash;')+'</td><td class="right" style="color:'+(r.charge>0?'#b26a00':'inherit')+';">'+chgCell(r)+'</td><td class="right">'+inr(r.bal)+'</td><td style="color:'+repStColor(r.st)+';font-weight:600;white-space:nowrap;">'+stTxt+'</td></tr>';
+      // projected rows show the forecast balance in muted italics, so it can never
+      // be read as money actually received
+      var balCell = (r.projected && r.projBal!=null)
+        ? '<td class="right" style="color:#9aa3b2;font-style:italic;">'+inr(r.projBal)+'</td>'
+        : '<td class="right">'+inr(r.bal)+'</td>';
+      return '<tr'+rowStyle+'><td>'+numCell+'</td><td>'+(r.due?fmtDate(r.due):'&mdash;')+'</td><td class="right">'+(r.emi>0?inr(r.emi):'&mdash;')+'</td><td class="right">'+(r.paid>0?inr(r.paid):'&mdash;')+'</td><td class="right" style="color:'+(r.charge>0?'#b26a00':'inherit')+';">'+chgCell(r)+'</td>'+balCell+'<td style="color:'+repStColor(r.st)+';font-weight:600;white-space:nowrap;">'+stTxt+'</td></tr>';
     }).join('');
     var extNote=repSchedLegend(D,l,false);
     var coName=(l.gname||l.coborrower||'').toString().trim();
     var coLine=coName?('<div style="font-size:12.5px;color:var(--muted,#64748b);margin:-4px 0 8px;">Co-applicant / Guarantor: <b style="color:var(--bnavy,#0b1f4b);">'+esc(coName)+'</b></div>'):'';
     host.innerHTML = '<div style="font-weight:600; margin-bottom:8px;">'+esc(l.name)+' &mdash; A/C '+esc(l.acno||'')+'</div>'+coLine+tiles
       +'<div class="table-wrap"><table class="data"><thead><tr><th>#</th><th>Due Date</th>'
-      +'<th class="right">EMI</th><th class="right">Paid</th><th class="right">Charges</th><th class="right">Balance After</th><th>Status</th></tr></thead><tbody>'+body+'</tbody></table></div>'+extNote;
+      +'<th class="right">EMI</th><th class="right">Paid</th><th class="right">Charges</th><th class="right">Balance After</th><th>Status</th></tr></thead><tbody>'+body+'</tbody></table></div>'+(((D.rows||[]).some(function(r){return r.projected;}))  ? '<div style="margin-top:8px;font-size:12px;color:var(--muted,#667085);"><i>Balances in grey italics are projections \u2014 what the balance becomes if each remaining installment is paid as scheduled. Every other figure is the actual outstanding.</i></div>'  : '')+extNote;
   }
   function repScheduleCSV(){
     var l=repScheduleLoan(); if(!l){ toast('Select a borrower first'); return; }
     var D=repScheduleData(l); if(!D.n){ toast('No tenure set'); return; }
-    var data=D.rows.map(r=>[r.isInt?'·':(r.ext?'ext':r.i),fmtDate(r.due),(r.isInt&&r.intExp>0?r.intExp:r.emi),(r.isInt?r.paid:r.paid),(r.isInt?0:(r.lateFee||0)),(r.isInt?0:(r.intFee||0)),(r.isInt?(r.intShort>0?r.intShort:'—'):(r.dueAmt||0)),(r.isInt?'—':r.bal),r.isInt?(r.intShort>0?'Interest part-paid':'Interest paid'):r.st]);
-    repCSV('EMI_Schedule_'+(l.acno||l.name||'loan')+'.csv', ['Installment','Due Date','EMI','Paid','Late Fee','Overdue Interest','Due','Balance After','Status'], data);
+    var data=D.rows.map(r=>[r.isInt?'·':(r.ext?'ext':r.i),fmtDate(r.due),(r.isInt&&r.intExp>0?r.intExp:r.emi),(r.isInt?r.paid:r.paid),(r.isInt?0:(r.lateFee||0)),(r.isInt?0:(r.intFee||0)),(r.isInt?(r.intShort>0?r.intShort:'—'):(r.dueAmt||0)),(r.isInt?'—':((r.projected&&r.projBal!=null)?r.projBal:r.bal)),r.isInt?(r.intShort>0?'Interest part-paid':'Interest paid'):r.st]);
+    repCSV('EMI_Schedule_'+(l.acno||l.name||'loan')+'.csv', ['Installment','Due Date','EMI','Paid','Late Fee','Overdue Interest','Due','Balance After (future = projected)','Status'], data);
   }
   function repSchedulePrint(){
     var l=repScheduleLoan(); if(!l){ toast('Select a borrower first'); return; }
@@ -398,7 +436,7 @@
           if(r.missed) return '<tr class="r-def"><td>&middot;</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">&mdash;</td><td class="r">&mdash;</td><td class="r">'+_chg(r)+'</td><td class="r">'+inr(r.bal)+'</td><td>Deferred (moved forward)</td></tr>';
           var stx=r.st+((r.dueAmt>0&&(r.st==="Partial"||r.st==="Overdue"))?(' — '+inr(r.dueAmt)+' due'):'');
           var cls=(r.st==='Paid')?'r-paid':((r.st==='Overdue')?'r-od':'');
-          return '<tr'+(cls?(' class="'+cls+'"'):'')+'><td>'+r.i+(r.ext?'e':'')+'</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+(r.emi>0?inr(r.emi):'-')+'</td><td class="r">'+(r.paid>0?inr(r.paid):'-')+'</td><td class="r">'+_chg(r)+'</td><td class="r">'+inr(r.bal)+'</td><td>'+stx+'</td></tr>'; }).join('')
+          return '<tr'+(cls?(' class="'+cls+'"'):'')+'><td>'+r.i+(r.ext?'e':'')+'</td><td>'+(r.due?fmtDate(r.due):'-')+'</td><td class="r">'+(r.emi>0?inr(r.emi):'-')+'</td><td class="r">'+(r.paid>0?inr(r.paid):'-')+'</td><td class="r">'+_chg(r)+'</td><td class="r"'+((r.projected&&r.projBal!=null)?' style="color:#777;font-style:italic;"':'')+'>'+inr((r.projected&&r.projBal!=null)?r.projBal:r.bal)+'</td><td>'+stx+'</td></tr>'; }).join('')
       + '</tbody></table>';
     // Fit everything on ONE page: shrink the table's type & row padding as the number of rows grows.
     var nRows=D.rows.length;

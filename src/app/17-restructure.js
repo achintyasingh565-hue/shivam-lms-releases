@@ -335,7 +335,20 @@
   };
 
   function _dnEditedBody(){ var el=document.getElementById('dnEditable'); return el?el.innerHTML:(window._defData?_dnBody(window._defData):''); }
-  window.printDefaultDoc=function(){ var d=window._defData; if(!d) return; var html=defaultDocHTML(d, _dnEditedBody());
+  window.printDefaultDoc=function(){ var d=window._defData; if(!d) return;
+    /* Show the arrears to date before the notice is issued, so what is posted
+       can never contradict the ledger. Informational only — a default notice is
+       ABOUT the arrears, so refusing to issue one because money is owed would
+       be backwards. */
+    try {
+      var _dId = ($('defPick')||{}).value;
+      var _dL = _dId && typeof loans !== 'undefined' ? loans.find(function(x){ return x.id===_dId; }) : null;
+      if (_dL && typeof warnUnpaidEmis==='function' &&
+          !warnUnpaidEmis(_dL, '', { single:true,
+            heading:'\u2139  ARREARS TO DATE \u2014 CHECK BEFORE ISSUING',
+            reason:'Confirm these figures match the notice before it is printed and sent.',
+            confirmText:'Print the default notice?' })) return;
+    } catch(e) {} var html=defaultDocHTML(d, _dnEditedBody());
     var f=document.createElement('iframe'); f.style.position='fixed'; f.style.right='0'; f.style.bottom='0'; f.style.width='0'; f.style.height='0'; f.style.border='0'; document.body.appendChild(f);
     var doc=f.contentWindow.document; doc.open(); doc.write(html); doc.close();
     setTimeout(function(){ try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){} setTimeout(function(){ f.remove(); },1500); },350);
