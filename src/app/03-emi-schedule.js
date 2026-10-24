@@ -285,7 +285,7 @@
      the account, but it is NOT the question being asked at closing time, when
      a deferred EMI is money not yet collected like any other. */
   function dueToDate(l){
-    var out={elapsed:0,expected:0,received:0,outstanding:0};
+    var out={elapsed:0,expected:0,emiExpected:0,charges:0,received:0,outstanding:0};
     try{
       if(!l) return out;
       var n=Math.max(0,Math.round(Number(l.tenure)||0));
@@ -295,7 +295,19 @@
         if(d && String(d)<=t) k++; else break;        // due dates run in order
       }
       out.elapsed=k;
-      out.expected=Math.round(k*emi);
+      out.emiExpected=Math.round(k*emi);
+      /* Late fees and bounce charges already levied are money owed just as much
+         as an instalment, and `received` below counts every rupee that came in
+         — including anything paid against a fee. Leaving charges out of the
+         expected side therefore understated the position: a borrower carrying a
+         ₹500 bounce fee looked ₹500 better off than he is. Only charges dated on
+         or before today count; a charge with no date is treated as already
+         levied, which is how the schedule treats it too. This mirrors the
+         schedule's own one-pot arithmetic (total + charges − received). */
+      out.charges=Math.round((l.charges||[])
+        .filter(function(c){ return c && (!c.date || String(c.date)<=t); })
+        .reduce(function(a,c){ return a+(Number(c.amount)||0); },0));
+      out.expected=out.emiExpected+out.charges;
       out.received=Math.round((l.payments||[])
         .filter(function(p){ return p && p.status==='Cleared'; })
         .reduce(function(a,p){ return a+(Number(p.amount)||0); },0));
@@ -327,7 +339,9 @@
     var _pad=function(t){ while(t.length<34) t+=' '; return t; };  // line the three amounts up
     var _body = (opts.heading || '⚠  CANNOT CLOSE — AMOUNT OUTSTANDING')+'\n\n'
       +who+'\n\n'
-      +_pad('Payable to date ('+g.elapsed+' installment'+(g.elapsed>1?'s':'')+')')+inr(g.expected)+'\n'
+      +_pad('Installments to date ('+g.elapsed+')')+inr(g.emiExpected)+'\n'
+      +(g.charges>0 ? (_pad('Charges levied')+inr(g.charges)+'\n') : '')
+      +_pad('Payable to date')+inr(g.expected)+'\n'
       +_pad('Received to date')+inr(g.received)+'\n'
       +_pad('STILL TO PAY')+inr(g.outstanding)+'\n\n'
       +'This covers both interest and principal.'

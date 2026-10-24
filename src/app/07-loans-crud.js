@@ -428,14 +428,57 @@
       logAudit('Loan Deleted (to Recycle Bin)', (l?l.name:'')+' ('+(l?l.acno:'')+')'); loans=loans.filter(x=>x.id!==id); save(); try{ if(typeof cloudDelete==='function') cloudDelete(id, l); }catch(_){ } try{ if(typeof autoQueueDropForLoan==='function') autoQueueDropForLoan(l); }catch(_){ } renderLoans(); if(typeof renderRecycle==='function') renderRecycle(); if(typeof renderDash==='function'){ try{ renderDash(); }catch(_){ } } toast('Moved to Recycle Bin — restorable for 30 days');
     }
   }
+  /* The bin used to be purely local, so a loan deleted on the office machine
+     could not be restored from the second device. The cloud keeps the whole
+     record with deleted=true, so the bin now shows BOTH: this device's bin and
+     anything the other device deleted.
+     `_cloudBin` is a cache filled in the background — the bin renders instantly
+     from local data and fills in when the fetch returns, so it never blocks or
+     shows a spinner. */
+  var _cloudBin = [];
+  const PURGED_STORE = 'shivam_recycle_purged_v1';
+  function purgedLoad(){ try{ return JSON.parse(localStorage.getItem(PURGED_STORE)||'[]')||[]; }catch(e){ return []; } }
+  function purgedAdd(id){ try{ var a=purgedLoad(); if(a.indexOf(id)<0){ a.push(id); localStorage.setItem(PURGED_STORE, JSON.stringify(a.slice(-500))); } }catch(e){} }
+
+  /* Local bin first (it has the exact deletedAt/deletedBy this device recorded),
+     then anything from the cloud that is not already listed, not back in the
+     live book, and not something this device chose to purge. */
+  function recycleMerged(){
+    var local = recyclePurgeOld();
+    var seen = {};
+    local.forEach(function(x){ if(x && x.id) seen[x.id]=true; });
+    var live = {};
+    (typeof loans !== 'undefined' ? loans : []).forEach(function(x){ if(x && x.id) live[x.id]=true; });
+    var purged = {};
+    purgedLoad().forEach(function(id){ purged[id]=true; });
+    var cut = Date.now() - 30*24*60*60*1000;
+    var extra = (_cloudBin||[]).filter(function(x){
+      return x && x.id && !seen[x.id] && !live[x.id] && !purged[x.id] && (x.deletedAt||0) >= cut;
+    });
+    return local.concat(extra);
+  }
+
+  /* Fetch what the other device deleted, then redraw. Failure is silent: the
+     bin still shows this device's own deletions. */
+  function refreshRecycleFromCloud(){
+    if(typeof cloudDeletedLoans !== 'function') return;
+    try{
+      cloudDeletedLoans().then(function(rows){
+        _cloudBin = rows || [];
+        try{ renderRecycle(); }catch(e){}
+      }).catch(function(){});
+    }catch(e){}
+  }
+  window.refreshRecycleFromCloud = refreshRecycleFromCloud;
+
   function renderRecycle(){
     const host=$('recycleList'); if(!host) return;
-    const bin=recyclePurgeOld();
+    const bin=recycleMerged();
     if(!bin.length){ host.innerHTML='<p style="color:var(--muted);font-size:13px;margin:6px 0;">Recycle Bin is empty. Deleted loans appear here and can be restored for 30 days.</p>'; return; }
     host.innerHTML=bin.map(function(l){
       const days=Math.max(0, 30-Math.floor((Date.now()-(l.deletedAt||0))/(24*60*60*1000)));
       return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:6px;">'+
-        '<div style="font-size:13px;"><b>'+esc(l.name||'')+'</b> &middot; '+esc(l.acno||'')+' <span style="color:var(--muted);">— deleted '+new Date(l.deletedAt).toLocaleDateString('en-IN')+', '+days+' day'+(days===1?'':'s')+' left</span></div>'+
+        '<div style="font-size:13px;"><b>'+esc(l.name||'')+'</b> &middot; '+esc(l.acno||'')+' <span style="color:var(--muted);">— deleted '+(l._fromCloud?'on the other device ':'')+new Date(l.deletedAt).toLocaleDateString('en-IN')+', '+days+' day'+(days===1?'':'s')+' left</span></div>'+
         '<div style="display:flex;gap:6px;"><button class="btn btn-sm btn-primary" onclick="restoreFromRecycle(\''+l.id+'\')">Restore</button>'+
         '<button class="btn btn-sm btn-ghost" onclick="purgeFromRecycle(\''+l.id+'\')">Delete forever</button></div></div>';
     }).join('');
@@ -445,6 +488,7 @@
     go('backup');
     setTimeout(function(){
       try{ renderRecycle(); }catch(e){}
+      try{ refreshRecycleFromCloud(); }catch(e){}
       var el=$('recycleList'); if(!el) return;
       try{ el.scrollIntoView({behavior:'smooth', block:'center'}); }catch(e){ try{ el.scrollIntoView(); }catch(_){} }
       el.style.transition='outline-color .3s'; el.style.outline='2px solid var(--accent,#2563EB)'; el.style.outlineOffset='4px'; el.style.borderRadius='8px';
@@ -453,16 +497,20 @@
   }
   window.openRecycleBin=openRecycleBin;
   function restoreFromRecycle(id){
-    let bin=recyclePurgeOld(); const item=bin.find(x=>x.id===id); if(!item){ toast('Not found in Recycle Bin'); return; }
+    let bin=recyclePurgeOld(); let item=bin.find(x=>x.id===id);
+    if(!item) item=(_cloudBin||[]).find(x=>x.id===id);   // deleted on the other device
+    if(!item){ toast('Not found in Recycle Bin'); return; }
     if(loans.some(x=>x.acno && item.acno && x.acno.toLowerCase()===item.acno.toLowerCase())){ toast('\u26a0 A loan with A/C "'+item.acno+'" already exists. Change or remove it first, then restore.'); return; }
-    const clean=Object.assign({}, item); delete clean.deletedAt; delete clean.deletedBy;
+    const clean=Object.assign({}, item); delete clean.deletedAt; delete clean.deletedBy; delete clean._fromCloud;
     loans.unshift(clean); try{recomputeAll();}catch(e){} save(); bin=bin.filter(x=>x.id!==id); recycleSave(bin);
+    _cloudBin=(_cloudBin||[]).filter(x=>x.id!==id);   // save() already wrote deleted=false upstream
     logAudit('Loan Restored from Recycle Bin', (item.name||'')+' ('+(item.acno||'')+')');
     renderRecycle(); if(typeof renderLoans==='function') renderLoans(); if(typeof renderDash==='function') renderDash(); toast('Loan restored');
   }
   function purgeFromRecycle(id){
     if(!confirm('Permanently delete this record? This cannot be undone.')) return;
-    let bin=recyclePurgeOld(); const item=bin.find(x=>x.id===id); bin=bin.filter(x=>x.id!==id); recycleSave(bin);
+    let bin=recyclePurgeOld(); let item=bin.find(x=>x.id===id)||(_cloudBin||[]).find(x=>x.id===id); bin=bin.filter(x=>x.id!==id); recycleSave(bin);
+    purgedAdd(id); _cloudBin=(_cloudBin||[]).filter(x=>x.id!==id);   // never list it again on this device
     logAudit('Loan Permanently Deleted', item?((item.name||'')+' ('+(item.acno||'')+')'):id);
     renderRecycle(); toast('Permanently deleted');
   }

@@ -398,8 +398,17 @@
         if (!chk.ok) return;
         var rows = await chk.json();
         if (rows && rows.length) return; // already have today's
+        /* The snapshot used to be the loan book alone, so a full restore brought
+           back the loans but not the expense register or the firm letterhead —
+           both of which are now shared cloud data. Store them alongside.
+           Shape: legacy snapshots are a bare ARRAY of loans; new ones are an
+           OBJECT. The restore below accepts either, so the 56 existing backups
+           keep working exactly as they do today. */
+        var _payload = { v: 2, loans: loans };
+        try { if (typeof loadExpenses === 'function') _payload.expenses = loadExpenses() || []; } catch (_) {}
+        try { var _f = localStorage.getItem('shivam_firm_v1'); if (_f) _payload.firm = JSON.parse(_f); } catch (_) {}
         await api('/snapshots', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-          body: JSON.stringify([{ day: today, data: loans, taken_by: deviceId }]) });
+          body: JSON.stringify([{ day: today, data: _payload, taken_by: deviceId }]) });
         // trim to the most recent 60 days
         try {
           var keep = await api('/snapshots?select=id&order=day.desc&offset=60&limit=1', { method: 'GET' });
@@ -423,7 +432,15 @@
         if (!rows || !rows.length) { toast('Backup not found'); return; }
         if (!confirm('Restore the ENTIRE loan book to the backup from ' + rows[0].day + '?\n\nThis replaces the current shared data on ALL devices. (A safety snapshot of the current data is kept.)')) return;
         try { snapBefore && snapBefore('Before cloud restore ' + rows[0].day); } catch (_) {}
-        loans = rows[0].data || [];
+        /* Legacy snapshots are a bare array of loans; v2 snapshots are an object
+           that also carries the expense register and the firm details. */
+        var _d = rows[0].data;
+        if (Array.isArray(_d)) { loans = _d; }
+        else if (_d && typeof _d === 'object') {
+          loans = Array.isArray(_d.loans) ? _d.loans : [];
+          if (Array.isArray(_d.expenses) && typeof saveExpenses === 'function') { try { saveExpenses(_d.expenses); } catch (_) {} }
+          if (_d.firm && typeof _d.firm === 'object') { try { localStorage.setItem('shivam_firm_v1', JSON.stringify(_d.firm)); } catch (_) {} }
+        } else { loans = []; }
         try { recomputeAll(); } catch (_) {}
         save(); // pushes the restored book up -> other device receives it
         rerenderAll();
@@ -469,6 +486,32 @@
       try { var r = await api('/app_settings', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' },
         body: JSON.stringify([{ key: key, data: data, updated_by: deviceId, updated_at: new Date().toISOString() }]) });
         return { ok: !!(r && r.ok), status: r && r.status }; } catch (e) { return { ok: false, error: String(e) }; }
+    };
+
+    /* Loans the OTHER device deleted. The Recycle Bin was local-only, so a
+       loan deleted on one machine could not be restored from the other — its
+       bin was empty. The cloud already holds the full record with deleted=true
+       (pushDelete soft-deletes, it does not remove the row), so the bin can
+       simply read it. Nothing about delete or restore changes: restoring calls
+       the normal save(), and pushUpsert already writes deleted=false. */
+    window.cloudDeletedLoans = async function () {
+      if (!session) return [];
+      try {
+        var r = await api('/loans?select=id,data,updated_at,updated_by&deleted=is.true&order=updated_at.desc&limit=200', { method: 'GET' });
+        if (!r || !r.ok) return [];
+        var rows = await r.json();
+        if (!Array.isArray(rows)) return [];
+        return rows.map(function (row) {
+          var l = (row && row.data && typeof row.data === 'object') ? row.data : null;
+          if (!l || !row.id) return null;
+          var o = JSON.parse(JSON.stringify(l));
+          o.id = row.id;
+          o.deletedAt = Date.parse(row.updated_at || '') || Date.now();
+          o.deletedBy = row.updated_by || '';
+          o._fromCloud = true;
+          return o;
+        }).filter(Boolean);
+      } catch (e) { return []; }
     };
 
     /* ---- Expenses -----------------------------------------------------

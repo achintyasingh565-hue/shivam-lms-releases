@@ -149,7 +149,46 @@ chk('overpaid -> never negative', S.dueToDate(ahead).outstanding, 0);
 // nothing due yet
 S.recomputeLoan(fresh);
 chk('future first due -> nothing payable yet', S.dueToDate(fresh).expected, 0);
-chk('null loan is safe', S.dueToDate(null), { elapsed: 0, expected: 0, received: 0, outstanding: 0 });
+chk('null loan is safe', S.dueToDate(null),
+  { elapsed: 0, expected: 0, emiExpected: 0, charges: 0, received: 0, outstanding: 0 });
+
+
+// ---------------------------------------------------------------------------
+// Charges count too. Late fees and bounce charges already levied are money
+// owed just like an instalment, and `received` counts every rupee that came in
+// including anything paid against a fee — so leaving charges out of the
+// expected side understated the position.
+const charged = loan([
+  pay('2026-03-01', 7400), pay('2026-04-01', 2000), pay('2026-05-01', 5000),
+  pay('2026-06-01', 2400), pay('2026-07-01', 4000), pay('2026-08-01', 6400),
+  pay('2026-09-01', 6400), pay('2026-10-01', 2400),
+]);
+charged.charges = [
+  { id: 'c1', type: 'Late fee', amount: 500, date: '2026-08-05' },
+  { id: 'c2', type: 'Bounce fee', amount: 350, date: '2026-09-05' },
+];
+S.recomputeLoan(charged);
+const gc = S.dueToDate(charged);
+chk('instalments to date unchanged', gc.emiExpected, 59200);
+chk('charges levied are counted', gc.charges, 850);
+chk('payable = instalments + charges', gc.expected, 60050);
+chk('outstanding now includes the fees', gc.outstanding, 24050);
+
+// a charge dated in the FUTURE has not been levied yet
+const future = JSON.parse(JSON.stringify(charged));
+future.charges.push({ id: 'c3', type: 'Late fee', amount: 999, date: '2027-06-01' });
+S.recomputeLoan(future);
+chk('future-dated charge excluded', S.dueToDate(future).charges, 850);
+
+// a charge with no date is treated as already levied, as the schedule does
+const undated = JSON.parse(JSON.stringify(charged));
+undated.charges.push({ id: 'c4', type: 'Late fee', amount: 100 });
+S.recomputeLoan(undated);
+chk('undated charge counted as levied', S.dueToDate(undated).charges, 950);
+
+// no charges -> figures identical to before this change
+chk('loan with no charges is unaffected', S.dueToDate(real).outstanding, 23200);
+chk('  and reports zero charges', S.dueToDate(real).charges, 0);
 
 console.log(fails ? '\n' + fails + ' CHECK(S) FAILED' : '\nALL UNPAID-EMI ADVISORY CHECKS PASS');
 process.exitCode = fails ? 1 : 0;
