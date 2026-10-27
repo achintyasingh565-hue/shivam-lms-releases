@@ -96,8 +96,63 @@
   window.loanAcnoPrefix=loanAcnoPrefix;
 
   /* ---------- modal CRUD ---------- */
+  /* ---- Repeat borrower: offer to copy their details ------------------------
+     Someone taking a second loan had to have their address, father's name,
+     occupation and ID numbers typed again from scratch — slow, and it is how
+     the same borrower ends up with three slightly different addresses across
+     three records.
+     On leaving the Name box in a NEW loan, if the name matches someone already
+     in the book, offer to bring their personal details across.
+     Deliberately copies IDENTITY ONLY. Nothing about the loan — amount, tenure,
+     rate, dates, account number, status, payments, charges — is ever copied;
+     carrying those over would silently create a wrong loan. */
+  var LOAN_COPY_FIELDS = [
+    'reltype','relname','phone','addr','age','residence','occupation',
+    'designation','officeaddr','gname','gphone',
+    'coname','cophone','corel','coid','coaddr'
+  ];
+  function _normName(v){ return String(v||'').trim().toLowerCase().replace(/\s+/g,' '); }
+
+  window.loanNameLookup = function(){
+    try{
+      if(editId) return;                               // editing, not a new loan
+      var el=$('m_name'); if(!el) return;
+      var want=_normName(el.value); if(want.length<3) return;
+      if(window._loanAutofillFor===want) return;       // already offered for this name
+      var prior=(loans||[]).filter(function(l){ return l && _normName(l.name)===want; });
+      if(!prior.length) return;
+      // most recent record wins — latest disbursement, falling back to list order
+      prior.sort(function(a,b){ return String(b.disb||'').localeCompare(String(a.disb||'')); });
+      var src=prior[0];
+      var filled=LOAN_COPY_FIELDS.filter(function(k){ return String(src[k]||'').trim()!==''; });
+      var ids=(typeof _idsFromRecord==='function')?(_idsFromRecord(src)||[]):[];
+      if(!filled.length && !ids.length) return;
+      window._loanAutofillFor=want;
+      var msg='\u2139  '+(src.name||'This borrower')+' already has '+prior.length+' loan'+(prior.length>1?'s':'')
+        +' on record'+(src.acno?(' (latest A/C '+src.acno+')'):'')+'.\n\n'
+        +'Copy their details into this new loan?\n'
+        +'  \u2022 '+filled.length+' personal field'+(filled.length===1?'':'s')
+        +(ids.length?('\n  \u2022 '+ids.length+' identity document'+(ids.length===1?'':'s')):'')
+        +'\n\nNothing about the loan itself is copied \u2014 amount, tenure, rate, dates and '
+        +'account number stay as they are.';
+      if(!confirm(msg)) return;
+      var done=0;
+      LOAN_COPY_FIELDS.forEach(function(k){
+        var box=$('m_'+k); if(!box) return;
+        var v=src[k]; if(v==null||String(v).trim()==='') return;
+        if(String(box.value||'').trim()!=='') return;   // never overwrite something typed
+        box.value=v; done++;
+      });
+      if(ids.length && (!modalIds || !modalIds.length)){
+        try{ modalIds=JSON.parse(JSON.stringify(ids)); renderIdRows(); done+=ids.length; }catch(e){}
+      }
+      try{ toast('\u2713 Copied '+done+' detail'+(done===1?'':'s')+' from the earlier record'); }catch(e){}
+    }catch(e){}
+  };
+
   function openLoan(id){
     editId = id||null;
+    window._loanAutofillFor=null;   // a fresh form may offer the copy again
     $('modalTitle').textContent = id?'Edit Loan Record':'New Loan Record';
     // ID numbers open masked every time (Aadhaar/PAN privacy) — eye toggle reveals.
     try{ ['m_coid'].forEach(function(x){ var e=$(x); if(e) e.classList.add('id-masked'); }); }catch(_){}

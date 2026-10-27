@@ -160,7 +160,7 @@
 
       <div class="loan-panel active" id="ltab-borrower">
         <div class="form-grid">
-        <div class="fg"><label>Borrower Name *</label><input id="m_name" placeholder="Full name"></div>
+        <div class="fg"><label>Borrower Name *</label><input id="m_name" placeholder="Full name" onchange="loanNameLookup()" onblur="loanNameLookup()"></div>
         <div class="fg"><label>Loan A/C No. *</label><input id="m_acno" placeholder=""></div>
         <div class="fg" style="display:flex; gap:10px;">
           <div style="flex:0 0 105px;"><label>Relation</label><select id="m_reltype"><option value="son of">S/o</option><option value="daughter of">D/o</option><option value="wife of">W/o</option></select></div>

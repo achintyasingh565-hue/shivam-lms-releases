@@ -5,7 +5,7 @@
           <div class="pay-form">
             <div class="fg full"><label>Search borrower</label><input id="payb_search" type="text" placeholder="Type a name or A/C no. to filter&hellip;" oninput="filterPayLoans()"></div>
             <div class="pay-row">
-              <div class="fg grow2"><label>Borrower / Loan A/C <span class="ph-sub">(A&ndash;Z)</span></label><select id="payb_loan"><option value="">&mdash; Select a borrower &mdash;</option></select></div>
+              <div class="fg grow2"><label>Borrower / Loan A/C <span class="ph-sub">(A&ndash;Z)</span></label><select id="payb_loan" onchange="payLoanPicked()"><option value="">&mdash; Select a borrower &mdash;</option></select></div>
               <div class="fg"><label>Amount &#8377;</label><input id="payb_amt" type="number" min="0" placeholder="0"></div>
             </div>
             <div class="pay-row">
@@ -39,19 +39,37 @@
           <h3>Charges &amp; Late Fees</h3>
           <p class="ph-sub">One place for every charge on a borrower &mdash; late fees, cheque-bounce or other. Charges are <b>added to the outstanding balance</b> and appear in the EMI schedule, reminders and reports. Pick the borrower once, then either apply overdue charges in one click or add a single charge by hand.</p>
 
-          <div class="fg full chg-borrower"><label>Borrower / Loan A/C</label><select id="chg_loan" onchange="chgLoanChange()"><option value="">— Select a borrower —</option></select></div>
+          <div class="fg full chg-borrower"><label>Borrower / Loan A/C</label><select id="chg_loan" onchange="chgLoanChange(true)"><option value="">— Select a borrower —</option></select></div>
 
           <!-- 1 · one-click overdue charges -->
           <div class="chg-card">
             <div class="chg-card-h"><span class="chg-step">1</span> Apply overdue charges automatically</div>
             <p class="chg-card-p">Adds a late fee for every overdue month and this month&rsquo;s interest for any fully-missed month, in one click. Repeatable &mdash; it never double-charges. Leave <b>Overdue interest</b> blank to work it out from the loan automatically, or type an amount to charge exactly that for every unpaid month. <b>Charge only from</b> stops anything older than that date being charged &mdash; useful right after entering years of old history.</p>
+            <!-- Fee policy: set once, rarely touched. Collapsed so it stops
+                 competing with the buttons used every day. The inputs and their
+                 ids/handlers are untouched — only the wrapper is new. -->
+            <details class="chg-settings" style="margin:4px 0 10px;">
+              <summary style="cursor:pointer;font-size:13px;color:var(--muted,#667085);user-select:none;">
+                Fee settings <span id="chgFeeSummary" style="color:var(--bnavy,#0b1f4b);font-weight:600;"></span>
+              </summary>
+              <div class="chg-auto-row" style="margin-top:8px;">
+                <label class="chg-inp">Late fee &#8377;/month<input id="lateFeeRate" type="number" min="0" placeholder="500" onchange="setLateFeeRate(this.value)"></label>
+                <label class="chg-inp">Overdue interest &#8377;/month<input id="ovdIntRate" type="number" min="0" placeholder="auto" onchange="setManualOvdInt(this.value)" title="Leave blank to calculate the month's interest from the loan automatically. Enter an amount to charge exactly that for every fully-missed month."></label>
+                <label class="chg-inp">Grace days<input id="lateGraceDays" type="number" min="0" placeholder="7" onchange="setLateGraceDays(this.value)" title="A payment counts as late only if the installment isn't covered within this many days of its due date."></label>
+                <label class="chg-inp">Charge only from<input id="ovdFromDate" type="date" onchange="setOvdFrom(this.value)" title="Nothing before this date is charged. Use it when you have just entered old history and do not want years of back-dated fees added at once. Leave blank to charge every overdue month."></label>
+              </div>
+            </details>
+
+            <!-- Two actions, with a scope. Six separate buttons said the same
+                 thing in more words and made the panel the busiest on the screen. -->
             <div class="chg-auto-row">
-              <label class="chg-inp">Late fee &#8377;/month<input id="lateFeeRate" type="number" min="0" placeholder="500" onchange="setLateFeeRate(this.value)"></label>
-              <label class="chg-inp">Overdue interest &#8377;/month<input id="ovdIntRate" type="number" min="0" placeholder="auto" onchange="setManualOvdInt(this.value)" title="Leave blank to calculate the month's interest from the loan automatically. Enter an amount to charge exactly that for every fully-missed month."></label>
-              <label class="chg-inp">Grace days<input id="lateGraceDays" type="number" min="0" placeholder="7" onchange="setLateGraceDays(this.value)" title="A payment counts as late only if the installment isn't covered within this many days of its due date."></label>
-              <label class="chg-inp">Charge only from<input id="ovdFromDate" type="date" onchange="setOvdFrom(this.value)" title="Nothing before this date is charged. Use it when you have just entered old history and do not want years of back-dated fees added at once. Leave blank to charge every overdue month."></label>
-              <button class="btn btn-primary" onclick="applyLateFeesSelected()">⚡ Apply overdue interest + late fees</button>
-              <button class="btn btn-ghost" onclick="waiveLateFeesSelected()">Remove overdue charges</button>
+              <label class="chg-inp">Applies to<select id="chgScope">
+                <option value="both">Late fees + overdue interest</option>
+                <option value="fee">Late fees only</option>
+                <option value="int">Overdue interest only</option>
+              </select></label>
+              <button class="btn btn-primary" onclick="applyOverdueScoped()">⚡ Apply</button>
+              <button class="btn btn-ghost" onclick="removeOverdueScoped()">Remove</button>
             </div>
             <div id="lateFeeHint" class="chg-hint"></div>
           </div>
@@ -128,7 +146,7 @@
         <div id="chgRegOverlay" class="reg-overlay" style="display:none;">
           <div class="reg-sheet">
             <div class="reg-sheet-h">
-              <div><h3>Charges &amp; Late Fees</h3><p>Every charge recorded across all borrowers &mdash; edit or delete any of them.</p></div>
+              <div><h3>Charges Register</h3><p>Every charge recorded across all borrowers &mdash; edit or delete any of them.</p></div>
               <button class="btn btn-ghost" onclick="closeChargeRegister()">&#10005; Close</button>
             </div>
             <div class="reg-sheet-b">

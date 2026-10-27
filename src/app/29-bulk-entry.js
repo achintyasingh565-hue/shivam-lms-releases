@@ -86,15 +86,24 @@
   window.closeBulkEntry = function(){ var ov=_$('bulkOverlay'); if(ov) ov.style.display='none'; };
 
   /* Sensible defaults for the chosen loan: first EMI month → last month gone by. */
+  /* Which loan the open sheet was last laid out for. Switching borrower has to
+     reset the amount and month range — without this the boxes keep whatever was
+     typed for the PREVIOUS borrower, so opening Ajeet (EMI 2,000) and then
+     Akash (EMI 2,500) laid Akash's months out at 2,000 and would have recorded
+     every one of them wrong. */
+  var _bulkLastLoanId = null;
+
   function bulkDefaults(){
     var l=_loan(); if(!l) return;
+    var fresh = (_bulkLastLoanId !== l.id);
+    _bulkLastLoanId = l.id;
     var first='', last=_todayYM();
     try{ first=_ym(emiDueDate(l,1)); }catch(e){}
     if(!first) first=_ymAdd(_ym(l.disb||l.due||''),1);
     var f=_$('bulk_from'), tt=_$('bulk_to'), a=_$('bulk_amt'), dr=_$('bulk_dayrule');
-    if(f && !f.value) f.value=first;
-    if(tt && !tt.value) tt.value=last;
-    if(a && !a.value) a.value=Math.round(Number(l.emi)||0)||'';
+    if(f && (fresh || !f.value)) f.value=first;
+    if(tt && (fresh || !tt.value)) tt.value=last;
+    if(a && (fresh || !a.value)) a.value=Math.round(Number(l.emi)||0)||'';
     if(dr && !dr.value) dr.value='due';
   }
 
@@ -143,6 +152,22 @@
     if(field==='amount') r.amount=Math.max(0, Math.round(Number(val)||0));
     else if(field==='date') r.date=String(val||'');
     else r[field]=!!val;
+    /* Ticking "interest only" should put the month's interest in the box — the
+       same figure the Payments screen prefills — instead of leaving the full
+       EMI there and recording far too much against an interest-only month.
+       Untick restores the EMI. A figure the user typed himself is never
+       overwritten: only the untouched default is swapped. */
+    if(field==='intOnly'){
+      var _l=_loan();
+      if(_l){
+        var _emi=Math.round(Number(_l.emi)||0);
+        var _mi=(typeof monthlyInterestOf==='function')?Math.round(Number(monthlyInterestOf(_l))||0):0;
+        if(r.intOnly){ if(_mi>0 && r.amount===_emi) { r.amount=_mi; r._wasEmi=true; } }
+        else if(r._wasEmi){ r.amount=_emi; delete r._wasEmi; }
+      }
+      bulkRender();
+      return;
+    }
     bulkSummary();
     if(!quiet && field==='use'){ /* keep the row markup in sync for dimming only */ }
   };

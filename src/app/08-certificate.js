@@ -533,6 +533,7 @@
   window.overdueEmiIdxs=overdueEmiIdxs;
   function chgTypeChange(){ var t=($('chg_type')||{}).value; var row=$('chg_chequeRow')||$('chg_chequeWrap'); if(row) row.style.display=(t==='Cheque bounce')?'flex':'none'; chgUpdateHint(); }
   function chgUpdateHint(){
+    try{ if(typeof window.chgFeeSummary==='function') window.chgFeeSummary(); }catch(e){}
     if($('lateFeeRate') && document.activeElement!==$('lateFeeRate')) $('lateFeeRate').value=getLateFeeRate();
     var hint=$('lateFeeHint'); if(!hint) return;
     var l=loans.find(function(x){return x.id===(($('chg_loan')||{}).value);});
@@ -550,7 +551,33 @@
                                  : (esc(l.name)+(_skip?(' has no overdue EMIs on or after '+esc(_from)+_skipTxt):' has no overdue EMIs.'));
     if(($('chg_type')||{}).value==='Late fee' && $('chg_amt') && !$('chg_amt').value && pending>0){ $('chg_amt').value = rate*pending; }
   }
-  window.chgLoanChange=function(){ if($('chg_amt')) $('chg_amt').value=''; chgUpdateHint(); };
+  /* The two borrower pickers on the Payments screen — one on Record a Payment,
+     one on Charges — list the same borrowers, so choosing a person meant doing
+     it twice. Picking in either now mirrors to the other.
+     Mirroring only; neither dropdown is removed and neither id changes, so
+     every existing caller (including the Action Centre, which sets chg_loan
+     directly) keeps working. `fromUser` stops the two from echoing each other. */
+  function _mirrorLoanPick(fromId, toId){
+    try{
+      var a=$(fromId), b=$(toId);
+      if(!a || !b || !a.value) return;
+      if(b.value===a.value) return;
+      // only mirror if the other dropdown actually offers that borrower
+      var ok=false;
+      for(var i=0;i<b.options.length;i++){ if(b.options[i].value===a.value){ ok=true; break; } }
+      if(!ok) return;
+      b.value=a.value;
+    }catch(e){}
+  }
+  window.chgLoanChange=function(fromUser){
+    if($('chg_amt')) $('chg_amt').value='';
+    if(fromUser) _mirrorLoanPick('chg_loan','payb_loan');
+    chgUpdateHint();
+  };
+  window.payLoanPicked=function(){
+    _mirrorLoanPick('payb_loan','chg_loan');
+    try{ if(typeof chgUpdateHint==='function') chgUpdateHint(); }catch(e){}
+  };
 
   /* Interest-only loans: record the principal being returned (in full, or the remaining
      part) as a kind:'principal' payment — this reduces the balance and, once the whole
@@ -685,46 +712,98 @@
   /* One-click: for every overdue month, apply a ₹rate late fee; AND for months where NOTHING was
      paid, also apply that month's interest (byaj on the outstanding principal). Keyed by EMI number
      + type so repeated clicks never double-charge. All are ordinary, removable/editable charges. */
-  window.applyLateFees=function(id){
+  /* `only` narrows what is applied: 'fee' = late fees alone, 'int' = overdue
+     interest alone, anything else = both. Separating them lets one be applied
+     or undone without disturbing the other. */
+  window.applyLateFees=function(id, only){
     var l=loans.find(function(x){return x.id===id;}); if(!l){ toast('Choose a borrower first'); return; }
-    var rate=getLateFeeRate();
+    var rate=(only==='int') ? 0 : getLateFeeRate();
     // A figure typed into the "Overdue interest ₹/month" box wins — that exact amount is charged
     // for every fully-missed month. Left blank, we work it out from the loan automatically.
     var manualInt=(typeof getManualOvdInt==='function')?getManualOvdInt():0;
-    var monthInt=(manualInt>0)?manualInt:overdueMonthlyInterest(l);
-    if(rate<=0 && monthInt<=0){ toast('Set a late-fee rate and/or an overdue-interest amount first.'); return; }
+    var monthInt=(only==='fee') ? 0 : ((manualInt>0)?manualInt:overdueMonthlyInterest(l));
+    if(rate<=0 && monthInt<=0){ toast(only==='fee' ? 'Set a late-fee rate first.' : (only==='int' ? 'Set an overdue-interest amount, or leave it blank to work it out automatically.' : 'Set a late-fee rate and/or an overdue-interest amount first.')); return; }
     if(!Array.isArray(l.charges)) l.charges=[];
     var idxs=overdueEmiIdxs(l), addedFee=0, addedInt=0;
     // Honour the "Charge only from" cut-off: months whose due date falls before it are left alone.
     var _from=(typeof getOvdFrom==='function')?getOvdFrom():'', _skipped=0;
     if(_from){ idxs=idxs.filter(function(o){ var keep=String(o.due||'')>=_from; if(!keep) _skipped++; return keep; }); }
     var _noteInt=(manualInt>0)?' (manual)':'';
+    /* Duplicate guard.
+       This used to test only `c.emiIdx === o.i`. Charges added by hand through
+       the Record-a-charge form carry NO emiIdx — just a date — so a manually
+       entered ₹500 late fee was invisible here and Apply added a second ₹500
+       for the same month. The register then showed ₹1,000 against one month.
+       A charge now counts as already present if it matches the instalment
+       index OR falls in the same calendar month as that instalment's due date,
+       which is the only thing a hand-entered charge can be matched on. */
+    var _ym=function(d){ d=String(d||''); return d.length>=7 ? d.slice(0,7) : ''; };
+    var _already=function(type,o){
+      var m=_ym(o.due);
+      return (l.charges||[]).some(function(c){
+        if(!c || c.type!==type) return false;
+        if(c.emiIdx===o.i) return true;
+        return !!m && _ym(c.date)===m;
+      });
+    };
     idxs.forEach(function(o){
-      if(rate>0){ var hasFee=l.charges.some(function(c){return c&&c.type==='Late fee'&&c.emiIdx===o.i;}); if(!hasFee){ l.charges.unshift({ id:'C'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), date:o.due, type:'Late fee', amount:rate, emiIdx:o.i, note:'Late fee — EMI #'+o.i+' overdue' }); addedFee++; } }
+      if(rate>0){ var hasFee=_already('Late fee',o); if(!hasFee){ l.charges.unshift({ id:'C'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), date:o.due, type:'Late fee', amount:rate, emiIdx:o.i, note:'Late fee — EMI #'+o.i+' overdue' }); addedFee++; } }
       // interest only for FULLY-MISSED months (nothing paid that month)
-      if(monthInt>0 && _monthPaidInEmiMonth(l,o.i)<=0.5){ var hasInt=l.charges.some(function(c){return c&&c.type==='Overdue interest'&&c.emiIdx===o.i;}); if(!hasInt){ l.charges.unshift({ id:'C'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), date:o.due, type:'Overdue interest', amount:monthInt, emiIdx:o.i, note:'Interest — EMI #'+o.i+' (month unpaid)'+_noteInt }); addedInt++; } }
+      if(monthInt>0 && _monthPaidInEmiMonth(l,o.i)<=0.5){ var hasInt=_already('Overdue interest',o); if(!hasInt){ l.charges.unshift({ id:'C'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), date:o.due, type:'Overdue interest', amount:monthInt, emiIdx:o.i, note:'Interest — EMI #'+o.i+' (month unpaid)'+_noteInt }); addedInt++; } }
     });
-    if(addedFee||addedInt){ try{ recomputeLoan(l); }catch(e){} save(); try{ logAudit('Overdue Charges Applied', addedFee+' late fee(s), '+addedInt+' interest — '+(l.name||'')+' ('+(l.acno||'')+')'); }catch(e){} renderChargeList(); chgUpdateHint(); try{ if(typeof renderLoans==='function') renderLoans(); }catch(e){} toast('Applied '+addedFee+' late fee(s)'+(addedInt?(' + '+addedInt+' interest charge(s)'):'')+(_skipped?(' — '+_skipped+' month(s) before '+_from+' skipped'):'')); }
+    if(addedFee||addedInt){ try{ recomputeLoan(l); }catch(e){} save(); try{ logAudit('Overdue Charges Applied', addedFee+' late fee(s), '+addedInt+' interest — '+(l.name||'')+' ('+(l.acno||'')+')'); }catch(e){} renderChargeList(); chgUpdateHint(); try{ chgFeeSummary(); }catch(e){} try{ if(typeof renderLoans==='function') renderLoans(); }catch(e){} toast('Applied '+addedFee+' late fee(s)'+(addedInt?(' + '+addedInt+' interest charge(s)'):'')+(_skipped?(' — '+_skipped+' month(s) before '+_from+' skipped'):'')); }
     else if(_skipped){ toast(_skipped+' overdue month(s) fall before '+_from+' and were skipped. Clear "Charge only from" to include them.', 6000); }
     else { toast('Overdue charges already up to date for '+(l.name||'this borrower')); }
   };
   window.applyLateFeesSelected=function(){ applyLateFees(($('chg_loan')||{}).value); };
+  window.applyLateFeesOnly=function(){ applyLateFees(($('chg_loan')||{}).value,'fee'); };
+  window.applyOvdIntOnly=function(){ applyLateFees(($('chg_loan')||{}).value,'int'); };
+  /* One Apply / one Remove, with a scope picker beside them. Six buttons said
+     the same thing in more words and made this the busiest panel on the screen.
+     The three underlying paths are unchanged and still individually tested. */
+  function _chgScope(){ var v=(($('chgScope')||{}).value)||'both'; return (v==='fee'||v==='int')?v:undefined; }
+  window.applyOverdueScoped=function(){ applyLateFees(($('chg_loan')||{}).value, _chgScope()); };
+  window.removeOverdueScoped=function(){ waiveLateFees(($('chg_loan')||{}).value, _chgScope()); };
+  /* One-line summary on the collapsed Fee settings row, so the current policy
+     is visible without opening it. */
+  window.chgFeeSummary=function(){
+    var el=$('chgFeeSummary'); if(!el) return;
+    var bits=[];
+    var fee=(typeof getLateFeeRate==='function')?getLateFeeRate():0;
+    var oi=(typeof getManualOvdInt==='function')?getManualOvdInt():0;
+    var gr=(typeof getLateGraceDays==='function')?getLateGraceDays():null;
+    var fr=(typeof getOvdFrom==='function')?getOvdFrom():'';
+    if(fee>0) bits.push(inr(fee)+'/month late fee');
+    bits.push(oi>0 ? (inr(oi)+'/month interest') : 'interest auto');
+    if(gr!=null) bits.push(gr+' grace day'+(gr===1?'':'s'));
+    if(fr) bits.push('from '+fmtDate(fr));
+    el.textContent = bits.length ? ('\u2014 '+bits.join(' \u00b7 ')) : '';
+  };
   /* One-click undo: remove ALL late-fee charges for the selected borrower (individual
      charges can still be deleted from the list below). Recomputes so the outstanding,
      schedule, reminders and reports drop the fees immediately. */
-  window.waiveLateFees=function(id){
+  window.waiveLateFees=function(id, only){
     var l=loans.find(function(x){return x.id===id;}); if(!l){ toast('Choose a borrower first'); return; }
-    var late=(l.charges||[]).filter(function(c){return c&&(c.type==='Late fee'||c.type==='Overdue interest');});
-    if(!late.length){ toast('No overdue charges to remove for '+(l.name||'this borrower')+'.'); return; }
+    var _want=function(c){
+      if(!c) return false;
+      if(only==='fee') return c.type==='Late fee';
+      if(only==='int') return c.type==='Overdue interest';
+      return c.type==='Late fee'||c.type==='Overdue interest';
+    };
+    var _label=(only==='fee'?'late fee':(only==='int'?'overdue interest charge':'overdue charge'));
+    var late=(l.charges||[]).filter(_want);
+    if(!late.length){ toast('No '+_label+'s to remove for '+(l.name||'this borrower')+'.'); return; }
     var tot=late.reduce(function(a,c){return a+(Number(c.amount)||0);},0);
-    if(!confirm('Remove all '+late.length+' overdue charge(s) ('+inr(tot)+' — late fees & interest) for '+(l.name||'')+'?\n\nThis clears them from the outstanding, schedule, reminders and reports.')) return;
-    l.charges=(l.charges||[]).filter(function(c){return !(c&&(c.type==='Late fee'||c.type==='Overdue interest'));});
+    if(!confirm('Remove all '+late.length+' '+_label+'(s) ('+inr(tot)+') for '+(l.name||'')+'?\n\nThis clears them from the outstanding, schedule, reminders and reports.')) return;
+    l.charges=(l.charges||[]).filter(function(c){ return !_want(c); });
     try{ recomputeLoan(l); }catch(e){} save();
     try{ logAudit('Overdue Charges Removed', late.length+' charge(s) ('+inr(tot)+') — '+(l.name||'')+' ('+(l.acno||'')+')'); }catch(e){}
-    renderChargeList(); chgUpdateHint(); try{ if(typeof renderLoans==='function') renderLoans(); }catch(e){}
-    toast(late.length+' overdue charge(s) removed');
+    renderChargeList(); chgUpdateHint(); try{ chgFeeSummary(); }catch(e){} try{ if(typeof renderLoans==='function') renderLoans(); }catch(e){}
+    toast(late.length+' '+_label+'(s) removed');
   };
   window.waiveLateFeesSelected=function(){ waiveLateFees(($('chg_loan')||{}).value); };
+  window.waiveLateFeesOnly=function(){ waiveLateFees(($('chg_loan')||{}).value,'fee'); };
+  window.waiveOvdIntOnly=function(){ waiveLateFees(($('chg_loan')||{}).value,'int'); };
   var _editCharge=null;
   function recordCharge(){
     var id=($('chg_loan')||{}).value; if(!id){ toast('Choose a borrower first'); return; }
@@ -778,20 +857,69 @@
     loans.forEach(function(l){ (l.charges||[]).forEach(function(c){ if(!c.id) c.id='C'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); rows.push({loanId:l.id, name:l.name, acno:l.acno, c:c}); }); });
     rows.sort(function(a,b){ return (b.c.date||'').localeCompare(a.c.date||''); });
     try{ updateRegCards(); }catch(e){}
-    if(!rows.length){ host.innerHTML='<div class="chg-list-h">Recorded charges</div><p style="color:var(--muted);font-size:13px;margin:4px 2px;">No charges recorded yet.</p>'; return; }
+    var _all = rows.length, _allTotal = rows.reduce(function(a,r){return a+(Number(r.c.amount)||0);},0);
+
+    /* Duplicate detector.
+       applyLateFees() used to de-duplicate on emiIdx only, so a hand-entered
+       late fee and an auto-applied one could both land on the same month and
+       the register showed e.g. 1,000 where 500 was charged. The cause is fixed,
+       but records created before that fix are still in the book. This flags
+       them; it never deletes anything — they are money records, so removing
+       the right one is a judgement call. */
+    var _dupKey = {};
+    rows.forEach(function(r){
+      var t=r.c.type;
+      if(t!=='Late fee' && t!=='Overdue interest') return;
+      var k = r.loanId+'|'+t+'|'+String(r.c.date||'').slice(0,7);
+      (_dupKey[k] = _dupKey[k] || []).push(r);
+    });
+    var _dupRows = [];
+    Object.keys(_dupKey).forEach(function(k){ if(_dupKey[k].length>1) _dupRows = _dupRows.concat(_dupKey[k]); });
+    var _dupIds = {}; _dupRows.forEach(function(r){ _dupIds[r.c.id]=true; });
+    window._chgDupCount = _dupRows.length;
+
+    /* Filter. 156 charges with no way to find one was unworkable. Matches the
+       borrower, the account number, the type and the note. */
+    var _q = ((($('chgSearch')||{}).value)||'').trim().toLowerCase();
+    var _dupOnly = !!(($('chgDupOnly')||{}).checked);
+    if(_dupOnly) rows = rows.filter(function(r){ return _dupIds[r.c.id]; });
+    if(_q){
+      rows = rows.filter(function(r){
+        return (String(r.name||'')+' '+String(r.acno||'')+' '+String(r.c.type||'')+' '
+               +String(r.c.note||'')+' '+String(r.c.cheque||'')+' '+String(r.c.amount||''))
+               .toLowerCase().indexOf(_q) >= 0;
+      });
+    }
+    var _bar = '<div class="chg-reg-tools" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 2px 10px;">'
+      +'<input id="chgSearch" type="search" placeholder="Search borrower, A/C, type or note\u2026" value="'+esc(_q)+'" oninput="renderChargeList()" '
+      +'style="flex:1 1 260px;min-width:200px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;">'
+      +(window._chgDupCount>0
+        ? ('<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#b26a00;white-space:nowrap;cursor:pointer;">'
+           +'<input id="chgDupOnly" type="checkbox" '+(_dupOnly?'checked':'')+' onchange="renderChargeList()"> '
+           +'\u26a0 Possible duplicates ('+window._chgDupCount+')</label>')
+        : '')
+      +'</div>';
+    if(!_all){ host.innerHTML='<div class="chg-list-h">Recorded charges</div><p style="color:var(--muted);font-size:13px;margin:4px 2px;">No charges recorded yet.</p>'; return; }
+    if(!rows.length){
+      host.innerHTML='<div class="chg-list-h">Recorded charges <span style="font-weight:400;color:var(--muted);">'+_all+' \u00b7 '+inr(_allTotal)+' total</span></div>'+_bar
+        +'<p style="color:var(--muted);font-size:13px;margin:4px 2px;">Nothing matches that search.</p>';
+      return;
+    }
     var total=rows.reduce(function(a,r){return a+(Number(r.c.amount)||0);},0);
     var badgeClass=function(t){ return t==='Cheque bounce'?'cbounce':(t==='Late fee'?'clate':(t==='Overdue interest'?'cint':'cother')); };
     var body=rows.map(function(r){
       var meta=[]; if(r.c.cheque) meta.push('chq '+esc(r.c.cheque)); if(r.c.note) meta.push(esc(r.c.note));
-      return '<tr>'
-        +'<td><span class="chg-badge '+badgeClass(r.c.type)+'">'+esc(r.c.type)+'</span></td>'
+      var _dup = !!_dupIds[r.c.id];
+      return '<tr'+(_dup?' style="background:#fff7ed;" title="Another charge of the same type exists for this borrower in the same month — check whether one is a duplicate."':'')+'>'
+        +'<td><span class="chg-badge '+badgeClass(r.c.type)+'">'+esc(r.c.type)+'</span>'+(_dup?' <span style="color:#b26a00;font-weight:700;" title="Possible duplicate">\u26a0</span>':'')+'</td>'
         +'<td><div class="name">'+esc(r.name||'')+'</div><div class="chg-sub">'+esc(r.acno||'')+(meta.length?(' &middot; '+meta.join(' &middot; ')):'')+'</div></td>'
         +'<td class="right num">'+inr(r.c.amount)+'</td>'
         +'<td class="chg-date">'+fmtDate(r.c.date)+'</td>'
         +'<td class="right"><div class="rowact" style="gap:12px;justify-content:flex-end;"><button class="lnk" onclick="editCharge(\''+r.loanId+'\',\''+r.c.id+'\')">edit</button><button class="lnk del" onclick="deleteCharge(\''+r.loanId+'\',\''+r.c.id+'\')">delete</button></div></td>'
         +'</tr>';
     }).join('');
-    host.innerHTML='<div class="chg-list-h">Recorded charges <span class="chg-list-sum">'+rows.length+' &middot; '+inr(total)+' total</span></div>'
+    host.innerHTML='<div class="chg-list-h">Recorded charges <span class="chg-list-sum">'
+        +((rows.length!==_all)?(rows.length+' of '+_all+' &middot; '+inr(total)):(_all+' &middot; '+inr(_allTotal)+' total'))+'</span></div>'+_bar
       +'<div class="reg-wrap" style="max-height:460px;overflow:auto;"><table class="data reg-table chg-table"><thead><tr><th>Type</th><th>Borrower</th><th class="right">Amount</th><th>Date</th><th class="right">Actions</th></tr></thead><tbody>'+body+'</tbody></table></div>';
   }
   function deleteCharge(loanId, chargeId){
