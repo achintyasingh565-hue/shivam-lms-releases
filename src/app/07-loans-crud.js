@@ -150,9 +150,31 @@
     }catch(e){}
   };
 
+  /* Processing fee withheld at disbursement, as a percentage of the loan
+     amount. Deliberately separate from the interest rate. Stored so it can be
+     changed without touching code; defaults to 4%. */
+  var PROC_FEE_KEY='shivam_proc_fee_pct_v1';
+  function procFeePct(){
+    try{
+      var v=localStorage.getItem(PROC_FEE_KEY);
+      if(v==null||v==='') return 4;
+      var n=Number(v);
+      return (isFinite(n)&&n>=0&&n<=100)?n:4;
+    }catch(e){ return 4; }
+  }
+  window.procFeePct=procFeePct;
+  window.setProcFeePct=function(v){
+    var n=Number(v);
+    if(!isFinite(n)||n<0||n>100){ try{ toast('Enter a percentage between 0 and 100'); }catch(e){} return false; }
+    try{ localStorage.setItem(PROC_FEE_KEY, String(n)); }catch(e){}
+    try{ recalc(); }catch(e){}
+    return true;
+  };
+
   function openLoan(id){
     editId = id||null;
     window._loanAutofillFor=null;   // a fresh form may offer the copy again
+    try{ var _db=$('m_deductions'); if(_db&&_db.dataset) delete _db.dataset.autoval; }catch(e){}
     $('modalTitle').textContent = id?'Edit Loan Record':'New Loan Record';
     // ID numbers open masked every time (Aadhaar/PAN privacy) — eye toggle reveals.
     try{ ['m_coid'].forEach(function(x){ var e=$(x); if(e) e.classList.add('id-masked'); }); }catch(_){}
@@ -288,11 +310,44 @@
       var emiV=Number($('m_emi').value)||0;
       if(emiV>0){ var tp=Math.round(emiV*n); $('m_tpay').value=tp; $('m_tint').value=Math.max(0, tp-p); }
     }
+    /* ---- Processing / deductions ------------------------------------------
+       A flat percentage of the loan amount is withheld at disbursement. It is
+       NOT the interest rate — ROI is a separate field and is never touched
+       here — it only reduces the cash handed over; the borrower still owes the
+       full loan amount.
+       Filled in automatically as the loan amount is typed, so the Net Disbursed
+       figure is right immediately. A figure typed by hand is never overwritten:
+       once the box holds anything other than the percentage of the current
+       amount, it is treated as deliberate and left alone. */
+    /* Applies to every loan, old or new — the processing fee is standard, so a
+       record with the box still blank gets it filled in too. It only populates
+       the field; nothing is written until the form is saved. */
+    var _dedBox=$('m_deductions');
+    if(_dedBox && !_dedBox.readOnly){
+      var _pct=procFeePct();
+      var _auto=(p>0 && _pct>0) ? Math.round(p*_pct/100) : 0;
+      var _cur=String(_dedBox.value||'').trim();
+      var _isAuto = (_cur==='') || (_dedBox.dataset && _dedBox.dataset.autoval===_cur);
+      if(_isAuto && _auto>0){
+        _dedBox.value=_auto;
+        if(_dedBox.dataset) _dedBox.dataset.autoval=String(_auto);
+      }
+      var _hint=$('m_dedHint');
+      if(_hint){
+        var typed=(!_isAuto && _cur!=='');
+        _hint.textContent = _pct>0
+          ? (typed ? ('entered by hand \u2014 '+_pct+'% would be '+inr(_auto))
+                   : (_pct+'% of the loan amount'))
+          : '';
+      }
+    }
     const ded=Number($('m_deductions').value)||0;
     const dp=Number($('m_downpay').value)||0;
-    // Net cash handed to the customer = principal minus processing/deductions minus any
-    // down payment. The customer still owes the FULL loan amount (this only reduces the
-    // cash paid out, exactly like the processing fee).
+    // Net cash handed to the customer = loan amount, minus the processing fee,
+    // minus any adjustment (dues carried over from an earlier loan). NEITHER
+    // affects what the borrower owes: the EMI, total payable and interest are
+    // all worked out from the loan amount alone (see calcLoanTotals, which takes
+    // only principal/rate/months). These two reduce the cash paid out, nothing else.
     $('m_remaining').value=Math.max(0,p-ded-dp);
     // Build a temp record and run the REAL recomputeLoan so the preview — Next Due Date,
     // status, and outstanding (incl. cheque-bounce fees) — matches exactly what saving

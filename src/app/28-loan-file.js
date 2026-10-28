@@ -95,7 +95,7 @@
       + '<div class="row"><div>Loan Purpose: ' + fv(l.product) + '</div><div>Ref.: ' + fv(l.refno) + '</div></div>'
       + '<div class="sec-h">FOR OFFICE USE ONLY</div>'
       + '<table class="kv"><tr><td>Referred By / Source: ' + fv(l.dealer, 'bl') + '</td><td>Date: ' + fv(_d(l.disb)) + '</td></tr>'
-      + '<tr><td>Down Payment ₹: ' + fv(_r(l.downpay)) + '</td><td>Financed Amount ₹: ' + fv(_r(l.principal)) + '</td></tr>'
+      + '<tr><td>Adjustment ₹: ' + fv(_r(l.downpay)) + '</td><td>Financed Amount ₹: ' + fv(_r(l.principal)) + '</td></tr>'
       + '<tr><td>Interest @ (%): ' + fv(l.rate) + '</td><td></td></tr></table>'
       + '<div class="sec-h">APPLICANT</div>'
       + '<p class="cl">1. (a) Name of the Applicant: ' + fv(l.name, 'bl') + ' &nbsp; Age: ' + fv(l.age) + '</p>'

@@ -531,7 +531,19 @@
     return out;
   }
   window.overdueEmiIdxs=overdueEmiIdxs;
-  function chgTypeChange(){ var t=($('chg_type')||{}).value; var row=$('chg_chequeRow')||$('chg_chequeWrap'); if(row) row.style.display=(t==='Cheque bounce')?'flex':'none'; chgUpdateHint(); }
+  /* Late fee and Overdue interest were removed from this dropdown: the
+     automatic tool already covers every overdue month INCLUDING months after
+     the tenure, and a one-off amount can be corrected by editing that charge
+     in the register. Having both routes was how the same month ended up
+     charged twice. What remains here is what the automatic tool cannot create.
+     For "Other", the note stops being optional — an unexplained charge on a
+     borrower's statement is indefensible. */  function chgTypeChange(){
+    try{
+      var _t=($('chg_type')||{}).value, _lbl=$('chg_noteLbl'), _n=$('chg_note');
+      if(_lbl) _lbl.textContent=(_t==='Other')?'What is this charge? *':'Note (optional)';
+      if(_n) _n.placeholder=(_t==='Other')?'e.g. Valuation fee, legal notice cost':'Reason / reference';
+    }catch(e){}
+    var t=($('chg_type')||{}).value; var row=$('chg_chequeRow')||$('chg_chequeWrap'); if(row) row.style.display=(t==='Cheque bounce')?'flex':'none'; chgUpdateHint(); }
   function chgUpdateHint(){
     try{ if(typeof window.chgFeeSummary==='function') window.chgFeeSummary(); }catch(e){}
     if($('lateFeeRate') && document.activeElement!==$('lateFeeRate')) $('lateFeeRate').value=getLateFeeRate();
@@ -812,6 +824,7 @@
     var type=($('chg_type')||{}).value||'Other';
     var cheque=(type==='Cheque bounce'?(($('chg_cheque')||{}).value||'').trim():'');
     var note=(($('chg_note')||{}).value||'').trim();
+    if(type==='Other' && !note){ toast('\u26a0 Say what this charge is \u2014 it appears on the borrower\u2019s statement'); try{ $('chg_note').focus(); }catch(e){} return; }
     var date=($('chg_date')||{}).value||todayISO();
     // EDIT MODE: update an existing charge instead of adding
     if(_editCharge){

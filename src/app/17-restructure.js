@@ -206,41 +206,10 @@
     return 'In the event the outstanding dues are not cleared within the period stated above, we shall be constrained to initiate judicial proceedings for recovery of the amount due, as per applicable law.';
   }
 
-  function _dnBody(d){
-    var l=d.l, hi=(window._dnLang==='hi');
-    var ref=_dnRef(l, d.today);
-    var deadline=_dnLong(_dnAddDays(d.today, d.days));
-    var L=hi?{principal:'मूलधन वितरित',out:'कुल बकाया राशि',arr:'अतिदेय (बकाया) राशि',missed:'अंतिम चूकी हुई देय तिथि',dpd:'अतिदेय दिवस',days:' दिन',to:'सेवा में,',mob:'मोबाइल: ',refL:'संदर्भ:',dateL:'दिनांक:',sub:'विषय: ',acct:' — ऋण खाता ',dear:'महोदय/महोदया,',forSig:'शिवम एंटरप्राइजेज की ओर से',signer:'अधिकृत हस्ताक्षरकर्ता'}
-             :{principal:'Principal disbursed',out:'Total outstanding',arr:'Overdue (arrears) amount',missed:'Due date last missed',dpd:'Days overdue',days:' day(s)',to:'To,',mob:'Mobile: ',refL:'Ref:',dateL:'Date:',sub:'Subject: ',acct:' — Loan Account ',dear:'Dear '+esc(l.name||'Sir/Madam')+',',forSig:'For <b>Shivam Enterprises</b>',signer:'Authorised Signatory'};
-    var rows=''
-      +'<tr><td>'+L.principal+'</td><td style="text-align:right;">'+rupee(Number(l.principal)||0)+'</td></tr>'
-      +'<tr><td>'+L.out+'</td><td style="text-align:right;">'+rupee(d.out)+'</td></tr>'
-      +'<tr><td><b>'+L.arr+'</b></td><td style="text-align:right;"><b>'+rupee(d.arrears)+'</b></td></tr>'
-      +'<tr><td>'+L.missed+'</td><td style="text-align:right;">'+(l.due?_dnLong(l.due):'—')+'</td></tr>'
-      +'<tr><td>'+L.dpd+'</td><td style="text-align:right;">'+(d.dpd>0?d.dpd:0)+L.days+'</td></tr>';
-    var toBlock='<div class="dn-meta"><b>'+L.to+'</b><br>'+esc(l.name||'')+(l.addr?('<br>'+esc(String(l.addr)).replace(/\n/g,'<br>')):'')+(l.phone?('<br>'+L.mob+esc(l.phone)):'')+'</div>';
-    var p1, p2, p4;
-    if(hi){
-      p1='<p>आपको औपचारिक रूप से सूचित किया जाता है कि शिवम एंटरप्राइजेज से आपके द्वारा लिया गया ऋण खाता संख्या <b>'+esc(l.acno||'')+'</b> अतिदेय हो गया है। हमारे अभिलेखों के अनुसार, दिनांक '+_dnLong(d.today)+' तक उक्त खाते में निम्नलिखित राशियाँ देय हैं:</p>';
-      p2='<p>आपसे अपेक्षा की जाती है कि इस सूचना की तिथि से <b>'+d.days+' दिन</b> के भीतर, अर्थात <b>'+deadline+'</b> तक, अतिदेय राशि <b>'+rupee(d.arrears)+'</b> का भुगतान कर उक्त खाते को नियमित करें।</p>';
-      p4='<p>बकाया राशि के निपटान अथवा उपयुक्त पुनर्भुगतान व्यवस्था पर विचार-विमर्श हेतु कृपया शीघ्र हमारे कार्यालय से संपर्क करें।</p>';
-    } else {
-      p1='<p>This is to formally notify you that the loan account bearing number <b>'+esc(l.acno||'')+'</b>, availed by you from Shivam Enterprises, has fallen overdue. As per our records, the following amounts stand due against the said account as on '+_dnLong(d.today)+':</p>';
-      p2='<p>You are hereby called upon to pay the overdue amount of <b>'+rupee(d.arrears)+'</b> and to regularise the said account within <b>'+d.days+' day(s)</b> from the date of this notice, i.e. on or before <b>'+deadline+'</b>.</p>';
-      p4='<p>You are advised to contact our office at the earliest to settle the dues or to discuss a suitable repayment arrangement.</p>';
-    }
-    return ''
-      +'<div class="dn-refrow"><span><b>'+L.refL+'</b> '+esc(ref)+'</span><span><b>'+L.dateL+'</b> '+_dnLong(d.today)+'</span></div>'
-      +toBlock
-      +'<div class="dn-sub"><b>'+L.sub+_dnTitle(d.type)+L.acct+esc(l.acno||'')+'</b></div>'
-      +'<p>'+L.dear+'</p>'
-      +p1
-      +'<table class="dn-tbl"><tbody>'+rows+'</tbody></table>'
-      +p2
-      +'<p>'+_dnConsequence(d.type)+'</p>'
-      +p4
-      +'<div class="dn-sign">'+L.forSig+_dnSig()+'<br>'+L.signer+'</div>';
-  }
+  /* The list-driven default-notice builder that used to live here was
+     superseded by the form-driven one further down (see the marker below).
+     Both sets defined the same names, so only the later ones ever ran;
+     the dead copies are removed rather than left to mislead. */
   function _dnSig(){
     try{ var im=document.querySelector('#sec-cert .sigcol img'); var src=im&&im.getAttribute('src');
       if(src) return '<br><img src="'+src+'" alt="signature" style="max-height:50px;max-width:150px;display:block;margin:6px 0 2px;">';
@@ -295,44 +264,8 @@
       +'</body></html>';
   }
 
-  window.renderDefaults=function(){
-    var tb=$('defBodyRows'); if(!tb) return;
-    var t=_dnIso();
-    var rows=(loans||[]).filter(_dnIsDefault);
-    rows.sort(function(a,b){ return _dnDays(b.due,t)-_dnDays(a.due,t); });
-    if(!rows.length){ tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--grey);padding:24px;">No overdue accounts — there is nothing to notice right now.</td></tr>'; return; }
-    tb.innerHTML=rows.map(function(l){
-      var dpd=l.due?_dnDays(l.due,t):0, out=_dnOut(l), arr=Number(l.arrears)||0;
-      return '<tr>'
-        +'<td>'+esc(l.name||'')+'</td>'
-        +'<td>'+esc(l.acno||'')+'</td>'
-        +'<td>'+esc(l.phone||'—')+'</td>'
-        +'<td class="right">'+rupee(out)+'</td>'
-        +'<td class="right" style="color:var(--bad);font-weight:600;">'+rupee(arr)+'</td>'
-        +'<td>'+(l.due?_dnShort(l.due):'—')+'</td>'
-        +'<td class="right" style="color:var(--bad);font-weight:600;">'+(dpd>0?dpd:0)+'</td>'
-        +'<td class="right"><button class="btn btn-sm btn-notice" onclick="openDefaultNotice(\''+l.id+'\')">Prepare Notice</button></td>'
-        +'</tr>';
-    }).join('');
-  };
 
-  window.openDefaultNotice=function(id){
-    var l=(loans||[]).find(function(x){return x.id===id;}); if(!l){ toast('Loan not found'); return; }
-    var typeEl=$('defType'), daysEl=$('defDays');
-    var type=typeEl?typeEl.value:'demand';
-    var days=Math.max(1, parseInt(daysEl&&daysEl.value,10)||7);
-    var t=_dnIso();
-    var d={ l:l, type:type, days:days, today:t, dpd:(l.due?_dnDays(l.due,t):0), out:_dnOut(l), arrears:Number(l.arrears)||0 };
-    window._defData=d;
-    $('defBody').innerHTML=_dnPreview(d);
-    $('defOverlay').classList.add('show');
-  };
   window.closeDefaultNotice=function(){ $('defOverlay').classList.remove('show'); };
-  window.setDnLang=function(v){
-    window._dnLang=(v==='hi')?'hi':'en';
-    var seg=$('dnLangSeg'); if(seg){ [...seg.children].forEach(function(b){ b.classList.toggle('active', b.dataset.dnl===window._dnLang); }); }
-    if(window._defData && $('defOverlay').classList.contains('show')) $('defBody').innerHTML=_dnPreview(window._defData);
-  };
 
   function _dnEditedBody(){ var el=document.getElementById('dnEditable'); return el?el.innerHTML:(window._defData?_dnBody(window._defData):''); }
   window.printDefaultDoc=function(){ var d=window._defData; if(!d) return;
@@ -352,15 +285,6 @@
     var f=document.createElement('iframe'); f.style.position='fixed'; f.style.right='0'; f.style.bottom='0'; f.style.width='0'; f.style.height='0'; f.style.border='0'; document.body.appendChild(f);
     var doc=f.contentWindow.document; doc.open(); doc.write(html); doc.close();
     setTimeout(function(){ try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){} setTimeout(function(){ f.remove(); },1500); },350);
-  };
-  window.sendDefaultWA=function(){ var d=window._defData; if(!d) return; var l=d.l;
-    var phone=(l.phone||'').replace(/\D/g,''); if(phone.length===10) phone='91'+phone; else if(phone.length===11&&phone[0]==='0') phone='91'+phone.slice(1);
-    if(!phone){ toast('No phone number on this loan'); return; }
-    var deadline=_dnLong(_dnAddDays(d.today, d.days));
-    var head=d.type==='reminder'?'Payment reminder':(d.type==='final'?'FINAL demand notice':'Demand notice');
-    var msg=head+' from Shivam Enterprises for loan account '+(l.acno||'')+'.\n\nDear '+(l.name||'')+', your account is overdue.\nOverdue amount: '+rupee(d.arrears)+'\nTotal outstanding: '+rupee(d.out)+'\nDays overdue: '+(d.dpd>0?d.dpd:0)+'\n\nPlease clear the overdue amount on or before '+deadline+'. The formal notice is attached. — Shivam Enterprises';
-    window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg), '_blank');
-    toast('WhatsApp opened — attach the downloaded PDF and send');
   };
 
   /* ===== form-driven notice builder (overrides the list-based version above) ===== */

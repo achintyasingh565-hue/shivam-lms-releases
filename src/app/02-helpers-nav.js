@@ -5,6 +5,14 @@
   /* Local-time "today" (toISOString() is UTC: in IST it reports YESTERDAY before 05:30 AM,
      which made due/overdue statuses lag by a day in early-morning use). */
   function todayISO(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  /* Same rule for "n days from a date". Building a Date and reading it back with
+     toISOString() re-introduces the UTC problem above, so the "due in the next
+     7 days" windows went one day early when the app was opened before 05:30. */
+  function addDaysISO(iso, n){
+    var p=String(iso||todayISO()).split('-');
+    var d=new Date(Number(p[0]), Number(p[1])-1, Number(p[2])+(Number(n)||0));
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
   function toast(msg, ms){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'), ms||2200); }
   function autoStatus(l){
     const out = Number(l.outstanding)||0;

@@ -86,7 +86,7 @@
       `</tbody></table></div>`+(od.length>6?`<div class="tbl-foot">Showing top 6 of ${od.length} overdue accounts · <a onclick="go('loans')">open full ledger →</a></div>`:'');
   }
   function renderCollections(today){
-    const i7=new Date(); i7.setDate(i7.getDate()+7); const i7s=i7.toISOString().slice(0,10);
+    const i7s=addDaysISO(today,7);
     let dtN=0,dtA=0,upN=0,upA=0,msN=0,msA=0,recovered=0,disb=0;
     loans.forEach(l=>{ const st=autoStatus(l),O=Number(l.outstanding)||0,P=Number(l.principal)||0; disb+=P; recovered+=(Number(l.paid)||0);
       if(st==='Closed') return;
@@ -116,7 +116,7 @@
   /* Live filter the borrower list as you type in the top-bar search — only while
      Customers & Loans is the open screen (elsewhere the box searches on Enter). */
   window.topSearchLive=function(){ try{ var s=document.getElementById('sec-cust'); if(s && s.classList.contains('active') && typeof renderCustomers==='function') renderCustomers(); }catch(e){} };
-  function notifItems(){ const today=todayISO(); const i7=new Date(); i7.setDate(i7.getDate()+7); const i7s=i7.toISOString().slice(0,10); const out=[];
+  function notifItems(){ const today=todayISO(); const i7s=addDaysISO(today,7); const out=[];
     loans.forEach(l=>{ const st=autoStatus(l); if(st==='Overdue') out.push({t:'overdue',l}); else if(st==='Active'&&l.due&&l.due>=today&&l.due<=i7s) out.push({t:'due',l}); }); return out; }
   function refreshBell(){ const n=notifItems().length; const bd=$('bellBadge'); if(bd){ bd.textContent=n>99?'99+':String(n); bd.style.display=n?'flex':'none'; } }
   function toggleNotif(e){ if(e&&e.stopPropagation) e.stopPropagation(); const p=$('notifPop'); if(!p) return;

@@ -101,7 +101,7 @@
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.4 2.4 4.6-5"/></svg> Audit Logging Enabled</span>
       </div>
       <div class="auth-meta"><span id="lastLogin"></span></div>
-      <div class="auth-meta auth-verline">Version 2.7.0 &nbsp;·&nbsp; © Shivam Enterprises</div>
+      <div class="auth-meta auth-verline">Version 2.8.1 &nbsp;·&nbsp; © Shivam Enterprises</div>
     </div>
   </div>
 </div>
@@ -299,7 +299,7 @@
             <div class="fg2" style="display:flex;gap:8px;"><div style="flex:1"><label>Case No.</label><input id="p_case"></div><div style="flex:1"><label>Month</label><input id="p_month"></div></div>
             <div class="fg2" style="display:flex;gap:8px;"><div style="flex:1"><label>Loan Purpose</label><input id="p_product"></div><div style="flex:1"><label>Ref.</label><input id="p_ref"></div></div>
             <div class="fg2"><label>Referred By / Source</label><input id="p_dealer"></div>
-            <div class="fg2" style="display:flex;gap:8px;"><div style="flex:1"><label>Down Payment ₹</label><input id="p_downpay" type="number"></div><div style="flex:1"><label>Financed Amount ₹</label><input id="p_financed" type="number"></div></div>
+            <div class="fg2" style="display:flex;gap:8px;"><div style="flex:1"><label>Adjustment ₹</label><input id="p_downpay" type="number"></div><div style="flex:1"><label>Financed Amount ₹</label><input id="p_financed" type="number"></div></div>
             <div class="fg2"><label>Interest @ (%)</label><input id="p_interest"></div>
             <div class="fg2"><label>Date</label><input id="p_date" type="date"></div>
 
@@ -344,7 +344,7 @@
               <div class="pf-sec" style="clear:both;">FOR OFFICE USE ONLY</div>
               <div class="pf-line"><span class="lab">Referred By / Source</span><span class="pf-fill" id="pv_dealer"></span></div>
               <div class="pf-line"><span class="lab">Loan Purpose</span><span class="pf-fill" id="pv_product2"></span></div>
-              <div class="pf-line"><span class="lab">Down Payment</span><span class="pf-fill" id="pv_downpay"></span></div>
+              <div class="pf-line"><span class="lab">Adjustment</span><span class="pf-fill" id="pv_downpay"></span></div>
               <div class="pf-line"><span class="lab">Financed Amount</span><span class="pf-fill" id="pv_financed"></span></div>
               <div class="pf-line"><span class="lab">Interest@</span><span class="pf-fill" id="pv_interest"></span></div>
               <div class="pf-line" style="margin-top:12px;justify-content:flex-end;"><span class="lab">Date</span><span class="pf-fill" style="flex:0 0 200px;" id="pv_date"></span></div>
@@ -742,16 +742,16 @@
           <!-- 2 · manual charge (any type, amount and date — incl. months after the tenure) -->
           <div class="chg-card">
             <div class="chg-card-h"><span class="chg-step">2</span> Add a single charge manually</div>
-            <p class="chg-card-p">Use this to charge a late fee on a specific date and amount (including months after the tenure), a cheque-bounce fee, or any other charge.</p>
+            <p class="chg-card-p">For a cheque-bounce fee or a one-off charge. Late fees and overdue interest are handled by step 1 above &mdash; including months after the tenure &mdash; and a single month can be adjusted by editing it in the register.</p>
             <div class="pay-row">
-              <div class="fg"><label>Charge type</label><select id="chg_type" onchange="chgTypeChange()"><option>Late fee</option><option>Overdue interest</option><option>Cheque bounce</option><option>Other</option></select></div>
+              <div class="fg"><label>Charge type</label><select id="chg_type" onchange="chgTypeChange()"><option>Cheque bounce</option><option>Other</option></select></div>
               <div class="fg"><label>Amount &#8377;</label><input id="chg_amt" type="number" min="0" placeholder="0"></div>
               <div class="fg"><label>Date</label><input id="chg_date" type="date"></div>
             </div>
             <div class="pay-row" id="chg_chequeRow" style="display:none;">
               <div class="fg" id="chg_chequeWrap"><label>Cheque no.</label><input id="chg_cheque" placeholder="Bounced cheque no."></div>
             </div>
-            <div class="fg full"><label>Note (optional)</label><input id="chg_note" placeholder="Reason / reference"></div>
+            <div class="fg full"><label id="chg_noteLbl">Note (optional)</label><input id="chg_note" placeholder="Reason / reference"></div>
             <div><button class="btn btn-primary" id="chgRecordBtn" onclick="recordCharge()">＋ Record charge</button></div>
           </div>
 
@@ -1191,10 +1191,10 @@
         <div class="fg" style="display:none;"><label>Reference</label><input id="m_refno"></div>
         <div class="fg"><label>Loan Purpose</label><input id="m_product" placeholder=""></div>
         <div class="fg"><label>Referred By / Source</label><input id="m_dealer"></div>
-        <div class="fg"><label>Down Payment ₹</label><input id="m_downpay" type="number" min="0" oninput="recalc()"></div>
+        <div class="fg"><label>Adjustment ₹ <span class="ph-sub">(previous dues carried over)</span></label><input id="m_downpay" type="number" min="0" oninput="recalc()"></div>
         <div class="fg" style="display:none;"><label>Account Officer</label><input id="m_officer"></div>
         <div class="fg"><label>Loan Amount (Principal) ₹ *</label><input id="m_principal" type="number" min="0" oninput="recalc()"></div>
-        <div class="fg"><label>Processing / Deductions ₹</label><input id="m_deductions" type="number" min="0" placeholder="0" oninput="recalc()"></div>
+        <div class="fg"><label>Processing / Deductions ₹</label><input id="m_deductions" type="number" min="0" placeholder="0" oninput="recalc()"><div id="m_dedHint" class="ph-sub" style="font-size:11.5px;margin-top:3px;color:var(--muted,#667085);"></div></div>
         <div class="fg"><label>Net Disbursed to Customer ₹</label><input id="m_remaining" class="calc" type="number" readonly></div>
         <div class="fg"><label>Interest Rate (% per month) *</label><input id="m_rate" type="number" min="0" step="0.1" oninput="recalc()"></div>
         <div class="fg"><label>Disbursement Date</label><input id="m_disb" type="date" oninput="recalc()"></div>

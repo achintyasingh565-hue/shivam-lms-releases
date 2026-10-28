@@ -77,16 +77,16 @@
           <!-- 2 · manual charge (any type, amount and date — incl. months after the tenure) -->
           <div class="chg-card">
             <div class="chg-card-h"><span class="chg-step">2</span> Add a single charge manually</div>
-            <p class="chg-card-p">Use this to charge a late fee on a specific date and amount (including months after the tenure), a cheque-bounce fee, or any other charge.</p>
+            <p class="chg-card-p">For a cheque-bounce fee or a one-off charge. Late fees and overdue interest are handled by step 1 above &mdash; including months after the tenure &mdash; and a single month can be adjusted by editing it in the register.</p>
             <div class="pay-row">
-              <div class="fg"><label>Charge type</label><select id="chg_type" onchange="chgTypeChange()"><option>Late fee</option><option>Overdue interest</option><option>Cheque bounce</option><option>Other</option></select></div>
+              <div class="fg"><label>Charge type</label><select id="chg_type" onchange="chgTypeChange()"><option>Cheque bounce</option><option>Other</option></select></div>
               <div class="fg"><label>Amount &#8377;</label><input id="chg_amt" type="number" min="0" placeholder="0"></div>
               <div class="fg"><label>Date</label><input id="chg_date" type="date"></div>
             </div>
             <div class="pay-row" id="chg_chequeRow" style="display:none;">
               <div class="fg" id="chg_chequeWrap"><label>Cheque no.</label><input id="chg_cheque" placeholder="Bounced cheque no."></div>
             </div>
-            <div class="fg full"><label>Note (optional)</label><input id="chg_note" placeholder="Reason / reference"></div>
+            <div class="fg full"><label id="chg_noteLbl">Note (optional)</label><input id="chg_note" placeholder="Reason / reference"></div>
             <div><button class="btn btn-primary" id="chgRecordBtn" onclick="recordCharge()">＋ Record charge</button></div>
           </div>
 

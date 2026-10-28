@@ -188,10 +188,10 @@
         <div class="fg" style="display:none;"><label>Reference</label><input id="m_refno"></div>
         <div class="fg"><label>Loan Purpose</label><input id="m_product" placeholder=""></div>
         <div class="fg"><label>Referred By / Source</label><input id="m_dealer"></div>
-        <div class="fg"><label>Down Payment ₹</label><input id="m_downpay" type="number" min="0" oninput="recalc()"></div>
+        <div class="fg"><label>Adjustment ₹ <span class="ph-sub">(previous dues carried over)</span></label><input id="m_downpay" type="number" min="0" oninput="recalc()"></div>
         <div class="fg" style="display:none;"><label>Account Officer</label><input id="m_officer"></div>
         <div class="fg"><label>Loan Amount (Principal) ₹ *</label><input id="m_principal" type="number" min="0" oninput="recalc()"></div>
-        <div class="fg"><label>Processing / Deductions ₹</label><input id="m_deductions" type="number" min="0" placeholder="0" oninput="recalc()"></div>
+        <div class="fg"><label>Processing / Deductions ₹</label><input id="m_deductions" type="number" min="0" placeholder="0" oninput="recalc()"><div id="m_dedHint" class="ph-sub" style="font-size:11.5px;margin-top:3px;color:var(--muted,#667085);"></div></div>
         <div class="fg"><label>Net Disbursed to Customer ₹</label><input id="m_remaining" class="calc" type="number" readonly></div>
         <div class="fg"><label>Interest Rate (% per month) *</label><input id="m_rate" type="number" min="0" step="0.1" oninput="recalc()"></div>
         <div class="fg"><label>Disbursement Date</label><input id="m_disb" type="date" oninput="recalc()"></div>

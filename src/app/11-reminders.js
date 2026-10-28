@@ -98,7 +98,7 @@
     // is reflected here (arrears / outstanding), regardless of how this screen was opened.
     try{ if(typeof recomputeAll==='function') recomputeAll(); }catch(e){}
     const f=$('remFilter').value; const lang=$('remLang')?$('remLang').value:'en'; const today=todayISO();
-    const in7=new Date(); in7.setDate(in7.getDate()+7); const in7s=in7.toISOString().slice(0,10);
+    const in7s=addDaysISO(today,7);
     let list=loans.map(l=>({...l,_st:autoStatus(l)})).filter(l=>l._st!=='Closed');
     if(f==='overdue') list=list.filter(l=>l._st==='Overdue');
     else if(f==='due') list=list.filter(l=>l.due && l.due>=today && l.due<=in7s);
