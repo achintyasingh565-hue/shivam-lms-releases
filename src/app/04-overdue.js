@@ -483,8 +483,34 @@
       }
       out.push(it);
     });
-    if(JSON.stringify(out)!==before) autoQueueSave(out);
-    return out;
+
+    /* One account must appear once per category. The queue key carries the due
+       date it was raised against, so each time an instalment date moved on a
+       FRESH item was added and the old one stayed — the same borrower then
+       appeared two or three times. Restating them from the live loan (above)
+       made those stale rows render identically, which is how it became
+       visible. Keep the newest entry per account per category.
+       Matched on account number so duplicate records of the same loan
+       collapse too; only event records are exempt, since two payments really
+       are two separate confirmations. */
+    var best={};
+    var deduped=[];
+    out.forEach(function(it){
+      var parts=String((it&&it.key)||'').split(':');
+      var kind=parts[0];
+      if(kind!=='od' && kind!=='emi'){ deduped.push(it); return; }
+      var slot=kind+'|'+((it.acno||'').trim()||parts[1]||'');
+      var prev=best[slot];
+      if(!prev){ best[slot]=it; deduped.push(it); return; }
+      // keep whichever was raised most recently, drop the other
+      if((it.createdAt||0) > (prev.createdAt||0)){
+        deduped[deduped.indexOf(prev)]=it;
+        best[slot]=it;
+      }
+    });
+
+    if(JSON.stringify(deduped)!==before) autoQueueSave(deduped);
+    return deduped;
   }
   window.autoQueueRevalidate=autoQueueRevalidate;
   function autoQueueClearAll(){ try{ localStorage.removeItem(AUTOQ_STORE); }catch(e){} if(typeof renderAutoPending==='function'){ try{ renderAutoPending(); }catch(e){} } }

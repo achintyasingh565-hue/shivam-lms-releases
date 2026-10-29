@@ -162,5 +162,54 @@ app = makeApp([item(), item({ id: 'aq9', acno: '16291', key: 'od:L291:2026-10-09
 out = app.autoQueueRevalidate();
 chk('mixed queue keeps exactly the right items', out.map(x => x.id), ['aq9', 'e1']);
 
+// --- 10. One account, one reminder per category.
+// Reported: "why are the same customer names repeated". Each time an
+// instalment date moved, a fresh item was queued under a new key and the old
+// one was left behind, so Varun Chowdhary stood in the list three times with
+// the same account, amount and due date.
+const dupLoan = { id: 'L290', name: 'Mr. Varun Chowdhary', phone: '9628887776', acno: '16290',
+                  principal: 100000, outstanding: 80000, arrears: 0, due: '2026-11-13' };
+const dupItem = (id, keyDue, at) => ({
+  id: id, name: 'Mr. Varun Chowdhary', phone: '9628887776', acno: '16290',
+  cat: 'EMI Reminder', reason: 'EMI due in 7 days', msg: 'frozen', vars: {},
+  key: 'emi:L290:' + keyDue + ':7', createdAt: at,
+});
+app = makeApp([dupItem('a', '2026-09-13', 1), dupItem('b', '2026-10-13', 2), dupItem('c', '2026-11-13', 3)], [dupLoan]);
+out = app.autoQueueRevalidate();
+chk('three entries for one account collapse to one', out.length, 1);
+chk('  and it is the most recent', out[0].id, 'c');
+
+// duplicate LOAN records for the same account collapse too
+app = makeApp([dupItem('a', '2026-11-13', 1), dupItem('b', '2026-11-13', 2)],
+              [dupLoan, Object.assign({}, dupLoan, { id: 'L290-copy' })]);
+chk('duplicate records of one account still yield one reminder',
+  app.autoQueueRevalidate().length, 1);
+
+// two DIFFERENT accounts must both survive
+const other = { id: 'L276', name: 'M/S M.A. Enterprises', phone: '9839755204', acno: '16276',
+                principal: 90000, outstanding: 70000, arrears: 0, due: '2026-11-01' };
+app = makeApp([dupItem('a', '2026-11-13', 1),
+               Object.assign(dupItem('b', '2026-11-01', 2), { id: 'b', acno: '16276', name: 'M/S M.A. Enterprises', phone: '9839755204', key: 'emi:L276:2026-11-01:3' })],
+              [dupLoan, other]);
+out = app.autoQueueRevalidate();
+chk('two different accounts are both kept', out.length, 2);
+
+// an overdue and an EMI item for the SAME account are different categories
+app = makeApp([dupItem('a', '2026-11-13', 1),
+               { id: 'z', name: 'Mr. Varun Chowdhary', phone: '9628887776', acno: '16290',
+                 cat: 'Overdue Reminder', reason: 'Overdue by 7 days', msg: 'f', vars: {},
+                 key: 'od:L290:2026-11-13:7', createdAt: 2 }],
+              [Object.assign({}, dupLoan, { arrears: 5000 })]);
+out = app.autoQueueRevalidate();
+chk('an overdue account keeps its overdue notice only',
+  out.map(x => x.cat), ['Overdue Reminder']);
+
+// two payment confirmations are two real events -- never collapsed
+app = makeApp([
+  { id: 'p1', cat: 'Payment Confirmation', key: 'pay:L290:2026-09-01:0:7400', msg: 'a', reason: 'r' },
+  { id: 'p2', cat: 'Payment Confirmation', key: 'pay:L290:2026-10-01:1:7400', msg: 'b', reason: 'r' },
+], [dupLoan]);
+chk('two separate payments stay two confirmations', app.autoQueueRevalidate().length, 2);
+
 console.log(fails ? '\n' + fails + ' CHECK(S) FAILED' : '\nALL REMINDER-STALENESS CHECKS PASS');
 process.exitCode = fails ? 1 : 0;

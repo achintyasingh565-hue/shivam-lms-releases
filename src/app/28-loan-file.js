@@ -14,6 +14,18 @@
   function _r(n) { n = Number(n) || 0; return n ? n.toLocaleString('en-IN') : ''; }
   function _d(iso) { try { return (typeof fmtDate === 'function' && fmtDate(iso)) ? fmtDate(iso) : (iso || ''); } catch (e) { return iso || ''; } }
   function _addM(iso, n) { try { return (typeof repAddMonths === 'function') ? repAddMonths(iso, n) : iso; } catch (e) { return iso; } }
+  /* The lender's signature lives in one place (the certificate signature
+     block) and every document reads it from there, so it only ever has to be
+     replaced once. Returns nothing if none is set, leaving a blank line to
+     sign by hand. */
+  function _lfLenderSig() {
+    try {
+      var im = document.querySelector('#sec-cert .sigcol img');
+      var src = im && im.getAttribute('src');
+      if (src) return '<img src="' + src + '" alt="Authorised Signatory">';
+    } catch (e) {}
+    return '';
+  }
   function _so(l) { var t = (l.reltype || 's/o'); return l.relname ? (t + ' ' + l.relname) : ''; }
   function _aadhaar(l) {
     try { if (Array.isArray(l.ids)) { var a = l.ids.find(function (x) { return /aadhaar/i.test(x.t || x.type || ''); }); if (a) return a.n || a.number || ''; } } catch (e) {}
@@ -53,6 +65,8 @@
       + '.row{display:flex;gap:18px;flex-wrap:wrap;margin:5px 0;}.row>div{flex:1;min-width:180px;}'
       + 'table.kv{width:100%;border-collapse:collapse;margin-top:6px;}table.kv td{padding:5px 4px;vertical-align:top;}'
       + '.sig-line{border-top:1px solid #333;margin-top:16px;padding-top:4px;}'
+      + '.sig-space{height:46px;display:flex;align-items:flex-end;justify-content:center;}'
+      + '.sig-space img{max-height:44px;max-width:150px;display:block;}'
       + '.note{font-size:12.5px;font-style:italic;color:#333;margin-top:10px;border:1px solid #ddd;background:#fafafa;padding:8px 10px;}'
       + '.photo{float:right;width:30mm;height:38mm;border:1px solid #999;display:flex;align-items:center;justify-content:center;font-size:10px;color:#888;text-align:center;margin-left:12px;}'
       + 'ol.clauses{margin:5px 0 0 18px;}ol.clauses li{margin:3px 0;text-align:justify;page-break-inside:avoid;}'
@@ -132,7 +146,7 @@
       + '<div class="sec-h">SECURITY</div><p class="cl">Type of security held: ' + fv(l.propdesc, 'bl') + ' &nbsp; Approx. value of security Rs. ' + fv(_r(l.propvalue)) + '</p>'
       + '<div class="sec-h">SCHEDULE OF LOAN</div><table class="kv"><tr><td>Loan amount Rs. ' + fv(_r(l.principal)) + '</td><td>Rate of interest ' + fv(l.rate) + ' % per month</td></tr>'
       + '<tr><td>Monthly instalment Rs. ' + fv(_r(l.emi)) + ' &times; ' + fv(l.tenure) + '</td><td>Total amount repayable Rs. ' + fv(_r(l.tpay)) + '</td></tr></table>'
-      + '<div style="display:flex;justify-content:space-between;margin-top:14px;gap:24px;font-size:12.5px;text-align:center;"><div style="flex:1;"><div class="sig-line">Signature of the Borrower</div></div><div style="flex:1;"><div class="sig-line">Signature of Guarantor</div></div><div style="flex:1;"><div class="sig-line">For Shivam Enterprises (Lender)</div></div></div>'
+      + '<div style="display:flex;justify-content:space-between;margin-top:14px;gap:24px;font-size:12.5px;text-align:center;"><div style="flex:1;"><div class="sig-space"></div><div class="sig-line" style="margin-top:0;">Signature of the Borrower</div></div><div style="flex:1;"><div class="sig-space"></div><div class="sig-line" style="margin-top:0;">Signature of Guarantor</div></div><div style="flex:1;"><div class="sig-space">' + _lfLenderSig() + '</div><div class="sig-line" style="margin-top:0;">For Shivam Enterprises (Lender)</div></div></div>'
       + '<div class="row" style="margin-top:6px;"><div>Witness 1: <span class="b" style="min-width:95px;"></span> Addr: <span class="b" style="min-width:80px;"></span></div><div>Witness 2: <span class="b" style="min-width:95px;"></span> Addr: <span class="b" style="min-width:80px;"></span></div></div>'
       + '</section>'
 
