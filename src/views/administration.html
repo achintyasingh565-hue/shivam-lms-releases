@@ -15,7 +15,7 @@
         <div class="adm-tab active" data-adm="data">
         <div class="panel">
           <h3>Backup &amp; Restore</h3>
-893          <div class="backup-grid">
+          <div class="backup-grid">
             <div class="bk-card">
               <h4>⤓ Download Backup</h4>
               <p>Saves all your loan records as a single file. Keep it somewhere safe (pen drive, email, cloud).</p>
@@ -77,7 +77,7 @@
         <div class="adm-tab" data-adm="security">
         <div class="panel">
           <h3>App Lock &amp; Security</h3>
-5949          <div id="secDisabled">
+          <div id="secDisabled">
             <div class="form-grid" style="grid-template-columns:1fr 1fr; max-width:460px;">
               <div class="fg"><label>New password</label><input id="secNew" type="password" autocomplete="new-password"></div>
               <div class="fg"><label>Confirm password</label><input id="secNew2" type="password" autocomplete="new-password"></div>
@@ -102,15 +102,15 @@
             </div>
             <div id="usersAdmin" style="margin-top:18px; border-top:1px solid var(--line); padding-top:16px;">
               <h4 style="font-size:13.5px; margin:0 0 4px;">Team Members</h4>
-8375              <div style="margin:0 0 14px; padding:10px 12px; border:1px solid var(--line); border-radius:9px;">
+              <div style="margin:0 0 14px; padding:10px 12px; border:1px solid var(--line); border-radius:9px;">
                 <h4 style="font-size:13px; margin:0 0 4px;">Recovery Password <span id="recStatus" class="wa-stat off" style="margin-left:6px;">Not set</span></h4>
-8823                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
                   <input id="recSet1" type="password" placeholder="New recovery password" autocomplete="new-password" style="border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:13px;background:var(--field);color:var(--text);font-family:inherit;min-width:180px;">
                   <input id="recSet2" type="password" placeholder="Confirm recovery password" autocomplete="new-password" style="border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:13px;background:var(--field);color:var(--text);font-family:inherit;min-width:180px;">
                   <button class="btn btn-sm btn-primary" onclick="saveRecoveryPassword()">Save recovery password</button>
                 </div>
                 <h4 style="font-size:13px; margin:12px 0 4px;">Or generate a one-time code</h4>
-10131                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;"><input id="recPwConfirm" type="password" placeholder="Confirm your admin password" autocomplete="off" style="border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:12.5px;background:var(--field);color:var(--text);font-family:inherit;min-width:220px;"><button class="btn btn-ghost" onclick="genRecoveryCode()">Generate recovery code</button></div>
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;"><input id="recPwConfirm" type="password" placeholder="Confirm your admin password" autocomplete="off" style="border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:12.5px;background:var(--field);color:var(--text);font-family:inherit;min-width:220px;"><button class="btn btn-ghost" onclick="genRecoveryCode()">Generate recovery code</button></div>
                 <div id="recOut" class="ph-sub" style="display:none; margin-top:8px;"></div>
               </div>
               <div id="userList" class="user-list"></div>
@@ -123,7 +123,7 @@
               <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="addUser()">＋ Add team member</button>
               <div id="rosterAdmin" style="margin-top:16px; padding:12px 14px; border:1px solid var(--line); border-radius:9px; background:var(--field,#f6f8fc);">
                 <h4 style="font-size:13px; margin:0 0 4px;">Central user list (all devices)</h4>
-12034                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                   <button class="btn btn-sm btn-primary" onclick="publishUserRoster()">Publish user list to all devices</button>
                   <span id="rosterMsg" class="ph-sub" style="margin:0;"></span>
                 </div>
@@ -132,7 +132,7 @@
           </div>
           <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
             <b style="font-size:13px;">Auto-lock when idle</b>
-12985            <div style="display:flex; gap:8px; align-items:center;">
+            <div style="display:flex; gap:8px; align-items:center;">
               <input id="autoLockMins" type="number" min="0" max="240" style="width:90px;">
               <span style="font-size:12.5px; color:var(--muted);">minutes</span>
               <button class="btn btn-sm" onclick="setAutoLockMins($('autoLockMins').value)">Save</button>
@@ -157,7 +157,7 @@
         <div id="waSettingsWrap">
           <div class="panel">
             <h3>WhatsApp Business Settings <span id="waStatus" class="wa-stat off">Not configured</span></h3>
-15502            <div class="form-grid" style="grid-template-columns:1fr 1fr;max-width:680px;">
+            <div class="form-grid" style="grid-template-columns:1fr 1fr;max-width:680px;">
               <div class="fg"><label>WhatsApp Business Number</label><input id="wa_bnumber" placeholder=""></div>
               <div class="fg"><label>Phone Number ID</label><input id="wa_pnid"></div>
               <div class="fg"><label>Access Token (permanent)</label><input id="wa_token" type="password" autocomplete="off"></div>
@@ -170,15 +170,15 @@
               <div class="fg" style="margin:0;"><label>Test number</label><input id="wa_testnum" placeholder="" style="width:160px;"></div>
               <button class="btn btn-sm btn-ghost" onclick="waSendTest()">Send Test (hello_world)</button>
             </div>
-16991          </div>
+          </div>
           <div class="panel">
             <h3>WhatsApp Message Templates</h3>
-17285            <div id="waTplWrap"></div>
+            <div id="waTplWrap"></div>
             <button class="btn btn-primary" style="margin-top:12px;" onclick="saveWaTemplates()">Save Templates</button>
           </div>
           <div class="panel">
             <h3>Message Wording Templates</h3>
-18147            <div class="varbox">Available tags: <code>{name}</code> <code>{acno}</code> <code>{emi}</code> <code>{due_date}</code> <code>{outstanding}</code> <code>{arrears}</code> <code>{fine}</code> <code>{rate}</code> <code>{occasion}</code> <code>{date}</code></div>
+            <div class="varbox">Available tags: <code>{name}</code> <code>{acno}</code> <code>{emi}</code> <code>{due_date}</code> <code>{outstanding}</code> <code>{arrears}</code> <code>{fine}</code> <code>{rate}</code> <code>{occasion}</code> <code>{date}</code></div>
             <div class="tpl-grid">
               <div><div class="tpl-h">Due-date reminder · English</div><textarea id="tpl_reminder" rows="3"></textarea></div>
               <div><div class="tpl-h">किस्त याद-पत्र · हिन्दी</div><textarea id="tpl_reminder_hi" rows="3" dir="auto"></textarea></div>
@@ -208,7 +208,7 @@
         <div class="adm-tab" data-adm="notices">
         <div class="panel">
           <h3>Default notice wording</h3>
-21467          <div class="seg2" id="dnTplTypeSeg" style="max-width:440px;margin:6px 0 10px;">
+          <div class="seg2" id="dnTplTypeSeg" style="max-width:440px;margin:6px 0 10px;">
             <button data-dnt="demand" class="active" onclick="setDnTplType('demand')">Demand Notice</button>
             <button data-dnt="final" onclick="setDnTplType('final')">Final Demand Notice</button>
           </div>
@@ -228,13 +228,13 @@
         <div class="adm-tab" data-adm="maint">
         <div class="panel" id="selfTestPanel">
           <h3>Health Check</h3>
-23407          <button class="btn btn-primary btn-sm" onclick="runSelfTest()">&#9654; Run health check</button>
+          <button class="btn btn-primary btn-sm" onclick="runSelfTest()">&#9654; Run health check</button>
           <div id="selfTestOut" style="margin-top:12px;"></div>
         </div>
 
         <div class="panel" id="auditPanel">
           <h3>Audit Logs <span id="auditCount" style="font-weight:400;font-size:12px;color:var(--muted);"></span></h3>
-24007          <div class="toolbar" style="margin:10px 0;">
+          <div class="toolbar" style="margin:10px 0;">
             <div class="search"><span class="si">&#9013;</span><input id="auditSearch" placeholder="Search by user, action or detail&hellip;" oninput="renderAudit()"></div>
             <button class="btn btn-ghost btn-sm" onclick="exportAudit()">Export log (.csv)</button>
             <button class="btn btn-danger btn-sm" onclick="clearAudit()">Clear log</button>
@@ -244,7 +244,7 @@
 
         <div class="panel" id="dangerPanel">
           <h3>Danger Zone</h3>
-24822          <button class="btn btn-danger" onclick="clearAll()">🗑 Delete All Records</button>
+          <button class="btn btn-danger" onclick="clearAll()">🗑 Delete All Records</button>
         </div>
         </div>
       </section>
