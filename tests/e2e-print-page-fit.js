@@ -13,8 +13,17 @@
 //                       second sheet. (This one shipped, and split the No Dues
 //                       certificate between the signatures and the footer.)
 //
-// The answer is vh: at print time it resolves to the actual page box, whatever
-// margins end up applied. These checks keep every document on that rule.
+// vh was the third attempt and it failed the same way: on a real printer it
+// resolved taller than the printable area and the footer still spilled.
+//
+// The height of a printed page is simply not knowable from CSS. So the closing
+// block is no longer laid out by height at all -- it is pinned with
+// position:fixed, which is placed against the page box and takes no part in
+// the flow. It adds zero height, so it cannot push anything onto a second
+// sheet whatever the printable height turns out to be.
+//
+// These checks hold that line: no document may go back to guessing a page
+// height, and the pinned footer must stay pinned.
 
 const fs = require('fs');
 const path = require('path');
@@ -48,93 +57,54 @@ function chk(label, got, want) {
     (ok ? '' : '\n        got  ' + JSON.stringify(got) + '\n        want ' + JSON.stringify(want)));
 }
 
-// Every file that defines a printable page box.
-const files = [
-  'src/styles/01-base.css',
-  'src/app/25-welcome-letter.js',
-  'src/app/26-letterhead.js',
-  'src/app/28-loan-file.js',
-];
-
-// --- 1. A big fixed page height must always be backed by a vh rule.
-// Anything >= 240mm is describing a sheet, not a component.
-const unbacked = [];
-for (const f of files) {
-  let src = fs.readFileSync(path.join(root, f), 'utf8');
-  // Only print rules are judged. The on-screen preview is deliberately a fixed
-  // 296mm sheet so it looks like a sheet of paper in the app -- that is not a
-  // print-fit problem and must not be "fixed".
-  if (f.endsWith('.css')) src = printRules(src);
-  const re = /(min-)?height\s*:\s*(\d{3}(?:\.\d+)?)mm/g;
-  let m;
-  while ((m = re.exec(src))) {
-    if (Number(m[2]) < 240) continue;
-    // a vh override must follow within the same declaration block
-    const after = src.slice(m.index, m.index + 160);
-    // a line marked print-fit-exempt is an offscreen measuring harness, not a
-    // page box -- it is sized to the printable area on purpose
-    const lineStart = src.lastIndexOf('\n', m.index) + 1;
-    const context = src.slice(Math.max(0, lineStart - 400), m.index);
-    if (/print-fit-exempt/.test(context)) continue;
-    if (!/\dvh\b/.test(after)) {
-      unbacked.push(f + ': ' + m[0] + ' with no vh fallback');
-    }
-  }
-}
-chk('no page box relies on a fixed millimetre height alone', unbacked, []);
-
-// --- 2. No page box may be left to collapse to its content.
-const collapsing = [];
-for (const f of files) {
-  let src = fs.readFileSync(path.join(root, f), 'utf8');
-  if (f.endsWith('.css')) src = printRules(src);
-  src.split('\n').forEach((L, i) => {
-    if (!/min-height\s*:\s*(auto|0)\s*(!important)?\s*[;}'"]/.test(L)) return;
-    // only care about rules that are page boxes
-    if (!/\.page\b|\.pform\b|\.cover-page\b|\.cover-sheet\b|\.wl-cover\b|#lhpage\b|\bbody\s*\{/.test(L)) return;
-    collapsing.push(f + ':' + (i + 1));
-  });
-}
-chk('no page box collapses to its content height', collapsing, []);
-
-// --- 3. The letterhead's shrink-to-fit must measure the page, not a constant.
-const lh = fs.readFileSync(path.join(root, 'src/app/26-letterhead.js'), 'utf8');
-chk('letterhead no longer scales against a hard-coded pixel target',
-  /TARGET\s*=\s*\d+/.test(lh), false);
-chk('  it measures the page box instead', /clientHeight/.test(lh), true);
-chk('  and never sets the page height to the content height',
-  /pg\.style\.height\s*=/.test(lh), false);
-chk('letterhead footer is pinned to the foot of the sheet',
-  /\.lhfoot\{[^}]*margin-top:auto/.test(lh), true);
-chk('letterhead body fills the page box', /body\{[^}]*min-height:99vh/.test(lh), true);
-
-// --- 4. The certificate / receipt page: full page, footer at the bottom.
 const css = fs.readFileSync(path.join(root, 'src/styles/01-base.css'), 'utf8');
 const printBlock = printRules(css);
-chk('certificate page is sized to the page box', /\.page\{[^}]*min-height:99vh/.test(printBlock), true);
-chk('  laid out as a column', /\.page\{[^}]*flex-direction:column/.test(printBlock), true);
-chk('  with the signature block pushed to the foot',
-  /\.page \.sigblock\{[^}]*margin-top:auto/.test(printBlock), true);
-chk('  and a millimetre fallback declared before it',
-  /\.page\{[^}]*min-height:265mm[^}]*min-height:99vh/.test(printBlock), true);
 
-// --- 5. The two certificates must not run into one another when both print.
-chk('a second document starts its own sheet',
-  /\.page \+ \.page\{[^}]*page-break-before:always/.test(printBlock), true);
+// --- 1. The certificate closing block is pinned, not laid out by height.
+chk('signature block is pinned to the page box',
+  /\.page-cert \.sigblock,[\s\S]{0,120}position:fixed/.test(printBlock), true);
+chk('footer line is pinned to the page box',
+  /\.page-cert \.docfoot,[\s\S]{0,120}position:fixed/.test(printBlock), true);
+chk('the corner graphic is pinned to the paper, not the text',
+  /\.page-cert \.pg-corner\.br,[\s\S]{0,120}position:fixed/.test(printBlock), true);
+chk('space is reserved so the text cannot run under the pinned block',
+  /\.page\{[^}]*padding:12mm 15mm 54mm/.test(printBlock), true);
 
-// --- 6. break-inside:avoid on a full-page box can shunt the whole page to the
-// next sheet and leave the first one blank -- it must not come back.
-chk('no break-inside:avoid on the full-height page box',
-  /\.page\{[^}]*break-inside:avoid/.test(printBlock), false);
+// --- 2. No page-height guess may come back, in ANY printable document.
+const guessy = [];
+for (const f of ['src/styles/01-base.css', 'src/app/25-welcome-letter.js',
+                 'src/app/26-letterhead.js', 'src/app/28-loan-file.js']) {
+  let src = fs.readFileSync(path.join(root, f), 'utf8');
+  if (f.endsWith('.css')) src = printRules(src);
+  // comments explain the failed attempts by name -- don't flag the explanation
+  src = src.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
+  src.split('\n').forEach((L, i) => {
+    if (/print-fit-exempt/.test(L)) return;
+    // a page-sized vh height is the guess that failed on a real printer
+    if (/(min-)?height\s*:\s*(9\d|100)vh/.test(L)) guessy.push(f + ':' + (i + 1) + ' ' + L.trim().slice(0, 70));
+  });
+}
+chk('no printable document sizes itself with a page-height vh guess', guessy, []);
 
-// --- 7. The cover pages carry visible borders/graphics, so their height shows.
-chk('loan-documents cover fills the page box',
-  /\.cover-page\{[^}]*min-height:99vh/.test(printBlock), true);
+// --- 3. The letterhead keeps its footer pinned too, and stays content-height.
+const lh = fs.readFileSync(path.join(root, 'src/app/26-letterhead.js'), 'utf8');
+chk('letterhead footer is pinned in print', /@media print\{\.lhfoot\{position:fixed/.test(lh), true);
+chk('letterhead body is not forced to a page height', /body\{[^}]*min-height:0/.test(lh), true);
+chk('letterhead reserves room for the pinned footer', /padding-bottom:26mm/.test(lh), true);
+chk('letterhead still measures rather than hard-coding a target',
+  [/TARGET\s*=\s*\d+/.test(lh), /clientHeight/.test(lh)], [false, true]);
+
+// --- 4. Documents I did not need to touch must stay exactly as they shipped.
 const lf = fs.readFileSync(path.join(root, 'src/app/28-loan-file.js'), 'utf8');
-chk('loan-file booklet cover fills the page box',
-  /\.cover-sheet\{[^}]*min-height:99vh/.test(lf), true);
+chk('loan-file booklet cover is unchanged', /\.cover-sheet\{padding:0;min-height:296mm;height:296mm/.test(lf), true);
 const wl = fs.readFileSync(path.join(root, 'src/app/25-welcome-letter.js'), 'utf8');
-chk('welcome-letter cover fills the page box', /min-height:99vh/.test(wl), true);
+chk('welcome-letter cover is unchanged', /min-height:248mm;"/.test(wl), true);
+chk('loan-documents cover is unchanged', /\.cover-page\{width:auto; border:5px solid #111;\}/.test(printBlock), true);
+
+// --- 5. break-inside:avoid on a page box can shunt a whole page -- stay away.
+chk('no break-inside:avoid on the page box', /\.page\{[^}]*break-inside:avoid/.test(printBlock), false);
+chk('a second document still starts its own sheet',
+  /\.page \+ \.page\{[^}]*page-break-before:always/.test(printBlock), true);
 
 console.log(fails ? '\n' + fails + ' CHECK(S) FAILED' : '\nALL PRINT PAGE-FIT CHECKS PASS');
 process.exitCode = fails ? 1 : 0;

@@ -322,12 +322,7 @@
     #reportPrint tr.tot td{font-weight:700; background:#f4f4f4;}
     #reportPrint .rep-foot{margin-top:22px; font-size:11px; color:#555; font-style:italic; text-align:center; border-top:1px solid #c8a02a; padding-top:6px;}
     .cover-page,.adoc{box-shadow:none !important; margin:0 !important;}
-    /* the cover is a bordered frame, so its height is visible on paper. A fixed
-       280mm left a blank strip under the border and overran once the dialog
-       added margins -- size it to the real page box instead. */
-    .cover-page{width:auto; border:5px solid #111; display:flex; flex-direction:column;
-                min-height:265mm; min-height:99vh;}
-    .cover-inner{min-height:0; flex:1;}
+    .cover-page{width:auto; border:5px solid #111;}
     .adoc{width:auto; padding:10mm 12mm;}
   }
 
@@ -621,24 +616,40 @@
     body.printing-proposal #sec-proposal{display:block !important;}
     .cert-layout,.prop-layout{display:block;}
     .preview-col{gap:0; display:block;}
-    /* min-height:auto made the sheet collapse to the height of the text, so a
-       short certificate printed across the top half of the paper.
+    /* THE FOOTER IS PINNED OUT OF FLOW -- read this before changing it.
 
-       Do NOT pin this to a fixed millimetre height. @page asks for A4 with no
-       margin, but the print dialog's own margin setting overrides that, and a
-       rigid 295mm block then overruns the real printable area and pushes the
-       footer onto a second sheet. 100vh resolves to the actual page box at
-       print time, whatever margins end up applied, so the sheet is filled
-       exactly once; 99 leaves a hair of slack so rounding cannot emit a blank
-       second page. Laid out as a column so the signature block and footer sit
-       at the foot of whatever that page turns out to be. */
-    .page{box-shadow:none; margin:0; width:auto; padding:12mm 15mm;
-          min-height:265mm;        /* fallback: fits even if the dialog adds its own margins */
-          min-height:99vh;         /* preferred: the real page box, whatever those margins are */
-          display:flex; flex-direction:column;}
-    /* when BOTH documents are shown, the receipt starts its own sheet instead
-       of running on from the certificate (the "Both" view sets show-both, which
-       hides neither page) */
+       Three attempts failed here, all for the same reason: they tried to make
+       the sheet exactly one page tall, which means knowing the printable
+       height. min-height:auto collapsed the page to the text and left the
+       bottom half blank. min-height:295mm and min-height:99vh both overran,
+       because @page{margin:0} is only a request -- the print dialog's own
+       margin setting wins, and the block then overflowed by roughly the height
+       of the footer, pushing it onto a second sheet.
+
+       position:fixed is placed against the page box and takes no part in the
+       flow. It adds ZERO height, so it cannot push anything onto a second
+       sheet no matter what the printable height turns out to be, and it still
+       lands at the foot of the paper. No measurement required.
+
+       The page itself goes back to content height (which never overflowed),
+       with padding reserved at the bottom so the text cannot run under the
+       pinned block. */
+    .page{box-shadow:none; margin:0; width:auto; min-height:auto;
+          padding:12mm 15mm 54mm;}
+
+    /* Only when a single document is on screen. In the "Both" view two pages
+       print, and one fixed block cannot serve both -- those fall back to
+       ordinary flow. */
+    body.show-cert .page-cert .sigblock,
+    body.show-receipt .page-receipt .sigblock{
+      position:fixed; left:15mm; right:15mm; bottom:26mm; margin:0; padding:0;}
+    body.show-cert .page-cert .docfoot,
+    body.show-receipt .page-receipt .docfoot{
+      position:fixed; left:15mm; right:15mm; bottom:11mm; margin:0;}
+    /* the corner graphic belongs at the corner of the paper, not of the text */
+    body.show-cert .page-cert .pg-corner.br,
+    body.show-receipt .page-receipt .pg-corner.br{position:fixed;}
+
     .page + .page{page-break-before:always; break-before:page;}
     /* keep the whole certificate / receipt on ONE page — tighten the vertical rhythm */
     .page .body-txt{line-height:1.55; margin-top:11px;}
@@ -647,13 +658,10 @@
     .page .sec-h{margin-top:12px;}
     .page .refrow{margin-top:12px;}
     .page table.details td{padding:5px 6px; font-size:12.5px;}
-    /* margin-top:auto drops the signatures to the foot of the sheet; the small
-       padding is the gap that remains when the content is long enough to reach
-       them, so it is kept modest to protect the single-page fit. */
-    .page .sigblock{margin-top:auto; padding-top:26px;}
+    .page .sigblock{margin-top:26px;}
     .page .docfoot{margin-top:16px; page-break-inside:avoid;}
     .page .banner{margin-top:10px;}
-    .pform{box-shadow:none; margin:0; width:auto; min-height:265mm; min-height:99vh; padding:8mm 13mm;} .pform .pf-line{margin-top:4px;} .pform .pf-name{font-size:29px;margin-top:2px;} .pform .pf-title{font-size:18px;margin-top:10px;} .pform .pf-sec{margin-top:9px;} .pform .pf-note{margin-top:9px;font-size:12px;} .pform .photo-box{height:104px;}
+    .pform{box-shadow:none; margin:0; width:auto; min-height:auto; padding:8mm 13mm;} .pform .pf-line{margin-top:4px;} .pform .pf-name{font-size:29px;margin-top:2px;} .pform .pf-title{font-size:18px;margin-top:10px;} .pform .pf-sec{margin-top:9px;} .pform .pf-note{margin-top:9px;font-size:12px;} .pform .photo-box{height:104px;}
     body.show-cert .page-receipt{display:none;}
     body.show-receipt .page-cert{display:none;}
   }

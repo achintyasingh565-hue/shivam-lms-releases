@@ -196,7 +196,7 @@
   function _content(l) {
     var wm = '<div style="position:absolute;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);white-space:nowrap;font-family:Arial,Helvetica,sans-serif;font-weight:800;font-size:70px;letter-spacing:4px;color:#0b1f4b;opacity:.05;z-index:-1;pointer-events:none;">' + esc(_firm().name) + '</div>';
     var corners = _cornerSVG('top:0;left:0;') + _cornerSVG('bottom:0;right:0;transform:rotate(180deg);');
-    return '<div class="wl-cover" style="position:relative;z-index:0;min-height:248mm;min-height:99vh;">' + wm + corners + _cover(l) + '</div>' +
+    return '<div class="wl-cover" style="position:relative;z-index:0;min-height:248mm;">' + wm + corners + _cover(l) + '</div>' +
       '<div class="pgbreak" style="border-top:2px dashed #c8a02a;margin:26px 0;"></div>' +
       '<div class="wl-sched">' + _schedulePage(l) +
       '<div style="border-top:1px solid #c8a02a;margin-top:22px;padding-top:6px;text-align:center;font-size:10.5px;color:#555;font-style:italic;">This is a computer-generated document issued by ' + esc(_firm().name) + '.</div></div>';

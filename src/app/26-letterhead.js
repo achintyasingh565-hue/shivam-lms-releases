@@ -19,15 +19,16 @@
   // bottom-right frames the end, watermark sits inside page 1.
   function _brand() {
     var f = _firm();
-    var svg = function (css) {
-      return '<svg style="position:absolute;width:30mm;height:30mm;z-index:-1;pointer-events:none;' + css + '" viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+    var svg = function (css, cls) {
+      return '<svg class="' + (cls || '') + '" style="position:absolute;width:30mm;height:30mm;z-index:-1;pointer-events:none;' + css + '" viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
         + '<polygon points="0,0 150,0 0,150" fill="#0b1f4b" opacity="0.07"/>'
         + '<polygon points="0,0 105,0 0,105" fill="#c8a02a" opacity="0.22"/>'
         + '<polygon points="0,0 48,0 0,48" fill="#0b1f4b" opacity="0.9"/></svg>';
     };
     var wm = '<div style="position:absolute;top:150mm;left:50%;transform:translate(-50%,-50%) rotate(-30deg);white-space:nowrap;'
       + 'font-family:Arial,Helvetica,sans-serif;font-weight:800;font-size:70px;letter-spacing:4px;color:#0b1f4b;opacity:.05;z-index:-1;pointer-events:none;">' + esc(f.name) + '</div>';
-    return wm + svg('top:0;left:0;') + svg('bottom:0;right:0;transform:rotate(180deg);');
+    return wm + svg('top:0;left:0;')
+      + svg('bottom:0;right:0;transform:rotate(180deg);', 'lhcorner-br');
   }
 
   function _doc(bodyHTML, ref, date) {
@@ -38,9 +39,10 @@
     // enough to always land on ONE page (footer included).
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc(f.name) + ' — Letter</title><style>'
       + brandCSS
-      + '@page{size:A4;margin:10mm;} html,body{margin:0;padding:0;} body{font-family:Georgia,"Times New Roman",serif;color:#1b1b1b;position:relative;box-sizing:border-box;min-height:265mm;min-height:99vh;display:flex;flex-direction:column;}'
-      + '@media print{body{min-height:99vh;}}'
-      + '#lhpage{overflow:hidden;flex:1;display:flex;flex-direction:column;} #lhsheet{transform-origin:top left;flex:1;display:flex;flex-direction:column;}'
+      + '@page{size:A4;margin:10mm;} html,body{margin:0;padding:0;} body{font-family:Georgia,"Times New Roman",serif;color:#1b1b1b;position:relative;box-sizing:border-box;min-height:0;padding-bottom:26mm;}'
+      + '@media print{body{min-height:0;}}'
+      + '#lhpage{overflow:hidden;} #lhsheet{transform-origin:top left;}'
+      + '@media print{.lhfoot{position:fixed;left:0;right:0;bottom:0;margin:0;background:#fff;} .lhcorner-br{position:fixed;}}'
       + '.lhhead{text-align:center;padding-top:2px;}'
       + '.lhseal{width:46px;height:46px;margin:0 auto 8px;border:1.5px solid #c8a02a;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Georgia,"Times New Roman",serif;font-weight:bold;font-size:19px;letter-spacing:1px;color:#0b1f4b;}'
       + '.lhn{text-align:center;font-size:25px;font-weight:bold;letter-spacing:3px;color:#0b1f4b;font-family:Georgia,"Times New Roman",serif;text-transform:uppercase;}'
@@ -52,7 +54,7 @@
       + '.lhref{display:flex;justify-content:space-between;font-size:12px;font-weight:600;color:#0b1f4b;margin-bottom:12px;padding:6px 12px;background:#faf7ef;border:1px solid #efe4c6;border-radius:6px;font-family:-apple-system,"Segoe UI",Arial,sans-serif;}'
       + '.lhbody{font-size:12px;line-height:1.4;text-align:left;}'
       + '.lhbody ul,.lhbody ol{margin:4px 0 4px 22px;} .lhbody p{margin:3px 0;} .lhbody div{margin:1px 0;}'
-      + '.lhfoot{border-top:1.5px solid #c8a02a;margin-top:auto;padding-top:16px;padding-top:5px;text-align:center;font-size:9px;color:#555;font-family:-apple-system,"Segoe UI",Arial,sans-serif;}'
+      + '.lhfoot{border-top:1.5px solid #c8a02a;margin-top:16px;padding-top:5px;padding-top:5px;text-align:center;font-size:9px;color:#555;font-family:-apple-system,"Segoe UI",Arial,sans-serif;}'
       + '</style></head><body>'
       + _brand()
       + '<div id="lhpage"><div id="lhsheet">'
@@ -262,7 +264,9 @@
         try {
           var body = d.querySelector('.lhbody'), foot = d.querySelector('.lhfoot');
           if (!body || !foot) return;
-          _blCapacity = Math.max(0, foot.offsetTop - body.offsetTop);
+          // printable height, less the letterhead above the body and the footer
+          var frameH = f.clientHeight || d.documentElement.clientHeight || 0;
+          _blCapacity = Math.max(0, frameH - body.offsetTop - foot.offsetHeight - 10);
           _blGauge();
         } catch (e) {}
       };
