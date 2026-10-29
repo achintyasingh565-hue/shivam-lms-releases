@@ -322,7 +322,12 @@
     #reportPrint tr.tot td{font-weight:700; background:#f4f4f4;}
     #reportPrint .rep-foot{margin-top:22px; font-size:11px; color:#555; font-style:italic; text-align:center; border-top:1px solid #c8a02a; padding-top:6px;}
     .cover-page,.adoc{box-shadow:none !important; margin:0 !important;}
-    .cover-page{width:auto; border:5px solid #111;}
+    /* the cover is a bordered frame, so its height is visible on paper. A fixed
+       280mm left a blank strip under the border and overran once the dialog
+       added margins -- size it to the real page box instead. */
+    .cover-page{width:auto; border:5px solid #111; display:flex; flex-direction:column;
+                min-height:265mm; min-height:99vh;}
+    .cover-inner{min-height:0; flex:1;}
     .adoc{width:auto; padding:10mm 12mm;}
   }
 
@@ -617,15 +622,20 @@
     .cert-layout,.prop-layout{display:block;}
     .preview-col{gap:0; display:block;}
     /* min-height:auto made the sheet collapse to the height of the text, so a
-       short certificate printed across the top half of the paper and left the
-       rest blank. Hold the full A4 height (295mm, just under 297 so rounding
-       cannot spill a blank second page) and lay the page out as a column, so
-       the signature block and footer sit at the foot of the sheet. */
-    .page{box-shadow:none; margin:0; width:auto; min-height:295mm; padding:10mm 15mm;
-          display:flex; flex-direction:column;
-          /* a certificate must never be split across two sheets -- its heading,
-             body, signature block and footer belong together on one page */
-          page-break-inside:avoid; break-inside:avoid;}
+       short certificate printed across the top half of the paper.
+
+       Do NOT pin this to a fixed millimetre height. @page asks for A4 with no
+       margin, but the print dialog's own margin setting overrides that, and a
+       rigid 295mm block then overruns the real printable area and pushes the
+       footer onto a second sheet. 100vh resolves to the actual page box at
+       print time, whatever margins end up applied, so the sheet is filled
+       exactly once; 99 leaves a hair of slack so rounding cannot emit a blank
+       second page. Laid out as a column so the signature block and footer sit
+       at the foot of whatever that page turns out to be. */
+    .page{box-shadow:none; margin:0; width:auto; padding:12mm 15mm;
+          min-height:265mm;        /* fallback: fits even if the dialog adds its own margins */
+          min-height:99vh;         /* preferred: the real page box, whatever those margins are */
+          display:flex; flex-direction:column;}
     /* when BOTH documents are shown, the receipt starts its own sheet instead
        of running on from the certificate (the "Both" view sets show-both, which
        hides neither page) */
@@ -640,10 +650,10 @@
     /* margin-top:auto drops the signatures to the foot of the sheet; the small
        padding is the gap that remains when the content is long enough to reach
        them, so it is kept modest to protect the single-page fit. */
-    .page .sigblock{margin-top:auto; padding-top:18px;}
+    .page .sigblock{margin-top:auto; padding-top:26px;}
     .page .docfoot{margin-top:16px; page-break-inside:avoid;}
     .page .banner{margin-top:10px;}
-    .pform{box-shadow:none; margin:0; width:auto; min-height:auto; padding:8mm 13mm;} .pform .pf-line{margin-top:4px;} .pform .pf-name{font-size:29px;margin-top:2px;} .pform .pf-title{font-size:18px;margin-top:10px;} .pform .pf-sec{margin-top:9px;} .pform .pf-note{margin-top:9px;font-size:12px;} .pform .photo-box{height:104px;}
+    .pform{box-shadow:none; margin:0; width:auto; min-height:265mm; min-height:99vh; padding:8mm 13mm;} .pform .pf-line{margin-top:4px;} .pform .pf-name{font-size:29px;margin-top:2px;} .pform .pf-title{font-size:18px;margin-top:10px;} .pform .pf-sec{margin-top:9px;} .pform .pf-note{margin-top:9px;font-size:12px;} .pform .photo-box{height:104px;}
     body.show-cert .page-receipt{display:none;}
     body.show-receipt .page-cert{display:none;}
   }

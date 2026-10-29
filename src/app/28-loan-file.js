@@ -37,7 +37,7 @@
   function _css() {
     return ':root{--navy:#0b1f4b;--gold:#c8a02a;--ink:#1a1a1a;}*{box-sizing:border-box;margin:0;padding:0;}'
       + '@page{size:A4;margin:0;}body{font-family:Georgia,"Times New Roman",serif;color:var(--ink);font-size:12.5px;line-height:1.42;}'
-      + '.sheet{position:relative;overflow:visible;padding:11mm 14mm;page-break-before:always;}.sheet:first-child{page-break-before:avoid;}.cover-sheet{padding:0;min-height:296mm;height:296mm;overflow:hidden;}'
+      + '.sheet{position:relative;overflow:visible;padding:11mm 14mm;page-break-before:always;}.sheet:first-child{page-break-before:avoid;}.cover-sheet{padding:0;min-height:265mm;min-height:99vh;overflow:hidden;}'
       + '.sheet:last-child{page-break-after:avoid;}'
       + '.cv-frame{position:absolute;top:6mm;left:6mm;right:6mm;bottom:6mm;border:2.5px solid var(--navy);}'
       + '.cv-frame::after{content:"";position:absolute;top:4px;left:4px;right:4px;bottom:4px;border:1px solid var(--gold);}'

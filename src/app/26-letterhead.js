@@ -38,9 +38,9 @@
     // enough to always land on ONE page (footer included).
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc(f.name) + ' — Letter</title><style>'
       + brandCSS
-      + '@page{size:A4;margin:10mm;} html,body{margin:0;padding:0;} body{font-family:Georgia,"Times New Roman",serif;color:#1b1b1b;position:relative;box-sizing:border-box;min-height:0 !important;}'
-      + '@media print{body{min-height:0 !important;}}'
-      + '#lhpage{overflow:hidden;} #lhsheet{transform-origin:top left;}'
+      + '@page{size:A4;margin:10mm;} html,body{margin:0;padding:0;} body{font-family:Georgia,"Times New Roman",serif;color:#1b1b1b;position:relative;box-sizing:border-box;min-height:265mm;min-height:99vh;display:flex;flex-direction:column;}'
+      + '@media print{body{min-height:99vh;}}'
+      + '#lhpage{overflow:hidden;flex:1;display:flex;flex-direction:column;} #lhsheet{transform-origin:top left;flex:1;display:flex;flex-direction:column;}'
       + '.lhhead{text-align:center;padding-top:2px;}'
       + '.lhseal{width:46px;height:46px;margin:0 auto 8px;border:1.5px solid #c8a02a;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Georgia,"Times New Roman",serif;font-weight:bold;font-size:19px;letter-spacing:1px;color:#0b1f4b;}'
       + '.lhn{text-align:center;font-size:25px;font-weight:bold;letter-spacing:3px;color:#0b1f4b;font-family:Georgia,"Times New Roman",serif;text-transform:uppercase;}'
@@ -52,7 +52,7 @@
       + '.lhref{display:flex;justify-content:space-between;font-size:12px;font-weight:600;color:#0b1f4b;margin-bottom:12px;padding:6px 12px;background:#faf7ef;border:1px solid #efe4c6;border-radius:6px;font-family:-apple-system,"Segoe UI",Arial,sans-serif;}'
       + '.lhbody{font-size:12px;line-height:1.4;text-align:left;}'
       + '.lhbody ul,.lhbody ol{margin:4px 0 4px 22px;} .lhbody p{margin:3px 0;} .lhbody div{margin:1px 0;}'
-      + '.lhfoot{border-top:1.5px solid #c8a02a;margin-top:16px;padding-top:5px;text-align:center;font-size:9px;color:#555;font-family:-apple-system,"Segoe UI",Arial,sans-serif;}'
+      + '.lhfoot{border-top:1.5px solid #c8a02a;margin-top:auto;padding-top:16px;padding-top:5px;text-align:center;font-size:9px;color:#555;font-family:-apple-system,"Segoe UI",Arial,sans-serif;}'
       + '</style></head><body>'
       + _brand()
       + '<div id="lhpage"><div id="lhsheet">'
@@ -66,7 +66,7 @@
       + '<div class="lhbody">' + (bodyHTML || '') + '</div>'
       + '<div class="lhfoot">Proprietor: Achintya Kumar &bull; ' + esc(f.address) + ' &bull; ' + esc(f.phones) + (f.udyam ? (' &bull; Udyam Reg. No.: ' + esc(f.udyam)) : '') + '</div>'
       + '</div></div>'
-      + '<script>(function(){function fit(){try{var pg=document.getElementById("lhpage"),sh=document.getElementById("lhsheet");if(!pg||!sh)return;sh.style.transform="none";var h=sh.getBoundingClientRect().height;var TARGET=1030;if(h>TARGET){var s=TARGET/h;sh.style.transform="scale("+s+")";sh.style.width=(100/s)+"%";pg.style.height=(h*s)+"px";}else{pg.style.height=h+"px";}}catch(e){}}fit();window.addEventListener("load",fit);setTimeout(fit,120);})();<\/script>'
+      + '<script>(function(){function fit(){try{var pg=document.getElementById("lhpage"),sh=document.getElementById("lhsheet");if(!pg||!sh)return;sh.style.transform="none";sh.style.width="";/* the page box itself, whatever margins the dialog applied */var avail=pg.clientHeight,h=sh.scrollHeight;if(avail>0&&h>avail){var k=avail/h;sh.style.transform="scale("+k+")";sh.style.width=(100/k)+"%";}}catch(e){}}fit();window.addEventListener("load",fit);setTimeout(fit,120);})();<\/script>'
       + '</body></html>';
   }
 
@@ -109,6 +109,7 @@
         out = (text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
       }
       document.execCommand('insertHTML', false, out);
+      try{ _blGauge(); }catch(e){}
       _saveDraft();
     } catch (err) {}
   }
@@ -186,7 +187,14 @@
         + '<label style="font-size:13px;color:#334155;">Date <input id="blDate" type="date" oninput="blSaveDraft()" value="' + (typeof todayISO === 'function' ? todayISO() : '') + '" style="border:1px solid #cbd5e1;border-radius:6px;padding:5px 8px;font-size:13px;width:170px;"></label>'
         + '</div>'
         + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center;">' + toolbar + '</div>'
+        + '<div id="blWrap" style="position:relative;">'
         + '<div id="blBody" contenteditable="true" spellcheck="true" style="min-height:380px;max-height:58vh;overflow:auto;border:1px solid #cbd5e1;border-radius:8px;padding:16px;font-size:14px;line-height:1.7;outline:none;background:#fff;color:#111;font-family:Georgia,\'Times New Roman\',serif;"></div>'
+        + '<div id="blLimit" title="Text below this line will not fit on one page" style="display:none;position:absolute;left:8px;right:8px;height:0;border-top:1.5px dashed #dc2626;pointer-events:none;"><span style="position:absolute;right:0;top:-9px;background:#dc2626;color:#fff;font-size:9.5px;padding:1px 6px;border-radius:0 0 0 5px;font-family:-apple-system,Arial,sans-serif;">end of page 1</span></div>'
+        + '</div>'
+        + '<div style="display:flex;align-items:center;gap:9px;margin-top:8px;">'
+        + '<div style="flex:1;height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden;"><div id="blBarFill" style="height:100%;width:0;background:#16a34a;transition:width .12s;"></div></div>'
+        + '<div id="blBarTxt" style="font-size:11.5px;color:#64748b;white-space:nowrap;min-width:150px;text-align:right;"></div>'
+        + '</div>'
         + '<div style="font-size:11.5px;color:#94a3b8;margin-top:8px;">Type or paste your letter above (it auto-saves as a draft, so it is never lost). Choose the font and size from the toolbar. It prints on the Shivam Enterprises letterhead. Use “New” to start a fresh letter.</div>'
         + '</div></div>';
 
@@ -201,7 +209,9 @@
       }
       var body = document.getElementById('blBody');
       body.addEventListener('input', _saveDraft);
+      body.addEventListener('input', _blGauge);
       body.addEventListener('paste', _onPaste);
+      _blSetupGauge();
     }
     // Always sync the date to today each time the composer opens (unless the user picks another).
     try { var _dt = document.getElementById('blDate'); if (_dt && typeof todayISO === 'function') _dt.value = todayISO(); } catch (e) {}
@@ -219,11 +229,89 @@
   function _restoreSel() {
     try { var b = document.getElementById('blBody'); if (!b) return; b.focus(); if (_savedRange) { var s = window.getSelection(); s.removeAllRanges(); s.addRange(_savedRange); } } catch (e) {}
   }
+
+  /* ---- how much of page 1 is left ----------------------------------------
+     A long letter is not lost: the print path scales it down to fit. But the
+     text then comes out smaller, and the owner asked to see where the limit
+     is BEFORE that happens.
+
+     The capacity is not guessed. The real letterhead is rendered once into an
+     offscreen iframe sized to the printable area (A4 less the 10mm @page
+     margin). With an empty body and the footer pinned by margin-top:auto, the
+     gap between the body and the footer IS the usable space, measured from the
+     same markup and CSS the printer gets -- so it cannot drift from the design.
+     The letter is then re-measured in that iframe on every keystroke. */
+  var _blFrame = null, _blCapacity = 0;
+
+  function _blSetupGauge() {
+    try {
+      if (_blFrame && _blFrame.parentNode) return _blGauge();
+      var f = document.createElement('iframe');
+      // the printable area itself: A4 minus the 10mm margin declared in @page
+      // print-fit-exempt: a measuring harness, never printed. 190x277mm is A4
+      // less the 10mm this document declares in @page. If the print dialog
+      // overrides that margin the gauge is a little approximate, but the
+      // printed letter still scales to fit, so it cannot spill either way.
+      f.style.cssText = 'position:fixed;left:-10000px;top:0;width:190mm;height:277mm;border:0;visibility:hidden;';
+      f.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(f);
+      var d = f.contentWindow.document;
+      d.open(); d.write(_doc('', '', '')); d.close();
+      _blFrame = f;
+      var settle = function () {
+        try {
+          var body = d.querySelector('.lhbody'), foot = d.querySelector('.lhfoot');
+          if (!body || !foot) return;
+          _blCapacity = Math.max(0, foot.offsetTop - body.offsetTop);
+          _blGauge();
+        } catch (e) {}
+      };
+      settle();
+      setTimeout(settle, 120);
+      setTimeout(settle, 400);
+    } catch (e) {}
+  }
+
+  function _blGauge() {
+    try {
+      var ed = document.getElementById('blBody');
+      var bar = document.getElementById('blBarFill');
+      var txt = document.getElementById('blBarTxt');
+      var line = document.getElementById('blLimit');
+      if (!ed || !bar || !txt || !_blFrame || !_blCapacity) return;
+      var d = _blFrame.contentWindow.document;
+      var body = d.querySelector('.lhbody');
+      if (!body) return;
+      body.innerHTML = ed.innerHTML;             // measured exactly as it prints
+      var used = body.offsetHeight;
+      var pct = used / _blCapacity;
+
+      bar.style.width = Math.min(100, Math.round(pct * 100)) + '%';
+      bar.style.background = pct > 1 ? '#dc2626' : (pct > 0.9 ? '#d97706' : '#16a34a');
+      txt.style.color = pct > 1 ? '#dc2626' : '#64748b';
+      txt.textContent = pct > 1
+        ? '\u26a0 Over one page \u2014 it will be shrunk to fit'
+        : 'Page 1: ' + Math.round(pct * 100) + '% used';
+
+      /* Put the dashed line where the page runs out. The editor renders the
+         same text at a different size, so the limit is placed by the ratio of
+         the two heights rather than by copying a pixel figure across. */
+      if (used > 0 && pct > 0.45) {
+        var inner = ed.scrollHeight - 32;        // less the 16px padding each side
+        var at = 16 + inner * (_blCapacity / used);
+        if (at < ed.scrollHeight) {
+          line.style.display = 'block';
+          line.style.top = Math.round(at) + 'px';
+        } else { line.style.display = 'none'; }
+      } else if (line) { line.style.display = 'none'; }
+    } catch (e) {}
+  }
+  window.blGauge = _blGauge;
   window.blSaveDraft = _saveDraft;
-  window.blCmd = function (cmd) { try { var b = document.getElementById('blBody'); if (b) b.focus(); document.execCommand(cmd, false, null); _saveDraft(); } catch (e) {} };
+  window.blCmd = function (cmd) { try { var b = document.getElementById('blBody'); if (b) b.focus(); document.execCommand(cmd, false, null); _saveDraft(); _blGauge(); } catch (e) {} };
   window.blFont = function (v) {
     if (!v) return;
-    try { _restoreSel(); document.execCommand('styleWithCSS', false, true); document.execCommand('fontName', false, v); _saveDraft(); } catch (e) {}
+    try { _restoreSel(); document.execCommand('styleWithCSS', false, true); document.execCommand('fontName', false, v); _saveDraft(); _blGauge(); } catch (e) {}
     var s = document.getElementById('blFont'); if (s) s.selectedIndex = 0;   // reset to "Font ▾"
   };
   // Apply an exact point size: mark the selection with the largest built-in size, then
@@ -240,7 +328,7 @@
           el.style.fontSize = v + 'pt';
         }
       });
-      _saveDraft();
+      _saveDraft(); _blGauge();
     } catch (e) {}
     var s = document.getElementById('blSize'); if (s) s.selectedIndex = 0;    // reset to "Size ▾"
   };
