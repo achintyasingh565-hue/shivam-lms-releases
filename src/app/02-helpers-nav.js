@@ -13,6 +13,35 @@
     var d=new Date(Number(p[0]), Number(p[1])-1, Number(p[2])+(Number(n)||0));
     return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   }
+  /* Amount in words, Indian numbering (lakh / crore). The promissory note has
+     a "(Rupees ______)" blank that nothing ever filled, so every note printed
+     with the figure present and the words missing. A promissory note is a
+     negotiable instrument -- the words are the part that governs if the two
+     ever disagree, so leaving them blank weakens the document. */
+  function inrWords(n){
+    n = Math.floor(Math.abs(Number(n) || 0));
+    if (n === 0) return 'Zero Only';
+    var ones = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten',
+                'Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+    var tens = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+    function two(x){
+      if (x < 20) return ones[x];
+      return tens[Math.floor(x/10)] + (x%10 ? ' ' + ones[x%10] : '');
+    }
+    function three(x){
+      var h = Math.floor(x/100), r = x%100;
+      return (h ? ones[h] + ' Hundred' + (r ? ' and ' : '') : '') + (r ? two(r) : '');
+    }
+    var out = [];
+    var crore = Math.floor(n / 10000000); n %= 10000000;
+    var lakh  = Math.floor(n / 100000);   n %= 100000;
+    var thou  = Math.floor(n / 1000);     n %= 1000;
+    if (crore) out.push(three(crore) + ' Crore');
+    if (lakh)  out.push(three(lakh) + ' Lakh');
+    if (thou)  out.push(three(thou) + ' Thousand');
+    if (n)     out.push(three(n));
+    return out.join(' ').replace(/\s+/g, ' ').trim() + ' Only';
+  }
   function toast(msg, ms){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'), ms||2200); }
   function autoStatus(l){
     const out = Number(l.outstanding)||0;

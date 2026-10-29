@@ -31,6 +31,9 @@
     S('dv_pdesc',pdesc); S('dv_paddr',paddr); S('dv_parea',parea); S('dv_pval',num(pval));
     S('pn_loan',num(loan)); S('pn_loan2',num(loan)); S('pn_name',name); S('pn_father',father); S('pn_addr',addr);
     S('pn_guar',guar); S('pn_guarfather',gfather); S('pn_guaraddr',gaddr); S('pn_rate',rate); S('pn_place',place);
+    /* the "(Rupees ____)" blank -- never filled before */
+    S('pn_words', (typeof inrWords==='function' && Number(String(loan).replace(/[^0-9.]/g,''))>0)
+      ? inrWords(String(loan).replace(/[^0-9.]/g,'')) : '');
     S('pn_day',dd); S('pn_month',mm); S('pn_year',yy);
   }
   ['h_name','h_father','h_addr','h_guar','h_guarfather','h_guaraddr','h_code','h_ref','h_purpose','h_propdesc','h_propaddr','h_proparea','h_propvalue','h_bN','h_bS','h_bE','h_bW','h_title','h_loanamt','h_rate','h_emi','h_ninst','h_total','h_fine','h_place'].forEach(id=>{ const e=$(id); if(e) e.addEventListener('input',updateHP); });

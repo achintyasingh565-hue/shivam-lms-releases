@@ -25,6 +25,11 @@
               <span><b>Interest-only payment</b> &mdash; customer is paying only this month&rsquo;s interest.<br>
               <span class="ph-sub">Amount is pre-filled with the month&rsquo;s interest (editable). Principal does not go down; the due date moves forward one month.</span></span>
             </label>
+            <label class="pay-intonly" id="payb_principalWrap" style="display:none;">
+              <input type="checkbox" id="payb_principal" onchange="payPrincipalToggle()">
+              <span><b>Principal repayment</b> &mdash; the borrower is returning the principal on this interest-only loan.<br>
+              <span class="ph-sub">On a byaj loan the principal stands until it is returned, so only a payment marked this way brings the balance down. Pre-filled with the amount still outstanding (editable); the loan closes once it is fully returned.</span></span>
+            </label>
             <div class="pay-actions">
               <button class="btn btn-primary" onclick="recordPayTab()">&#65291; Record payment</button>
               <label class="pay-rapid" title="Press Enter to save. The date then moves forward one month and the EMI is filled in, ready for the next entry.">

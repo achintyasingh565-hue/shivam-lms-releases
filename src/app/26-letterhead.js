@@ -66,8 +66,10 @@
       + '<div class="lhrule"><span></span><span></span></div>'
       + '<div class="lhref"><div>Ref. No.: ' + esc(ref || '—') + '</div><div>Date: ' + esc(date || '') + '</div></div>'
       + '<div class="lhbody">' + (bodyHTML || '') + '</div>'
-      + '<div class="lhfoot">Proprietor: Achintya Kumar &bull; ' + esc(f.address) + ' &bull; ' + esc(f.phones) + (f.udyam ? (' &bull; Udyam Reg. No.: ' + esc(f.udyam)) : '') + '</div>'
       + '</div></div>'
+      /* outside #lhsheet on purpose: the fit script scales that element, and a
+         transformed ancestor would capture position:fixed and unpin the footer */
+      + '<div class="lhfoot">Proprietor: Achintya Kumar &bull; ' + esc(f.address) + ' &bull; ' + esc(f.phones) + (f.udyam ? (' &bull; Udyam Reg. No.: ' + esc(f.udyam)) : '') + '</div>'
       + '<script>(function(){function fit(){try{var pg=document.getElementById("lhpage"),sh=document.getElementById("lhsheet");if(!pg||!sh)return;sh.style.transform="none";sh.style.width="";/* the page box itself, whatever margins the dialog applied */var avail=pg.clientHeight,h=sh.scrollHeight;if(avail>0&&h>avail){var k=avail/h;sh.style.transform="scale("+k+")";sh.style.width=(100/k)+"%";}}catch(e){}}fit();window.addEventListener("load",fit);setTimeout(fit,120);})();<\/script>'
       + '</body></html>';
   }

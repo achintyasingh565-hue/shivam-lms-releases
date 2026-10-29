@@ -230,6 +230,7 @@
   window.monthlyInterestOf=monthlyInterestOf;
   window.payIntOnlyToggle=function(){
     var on=$('payb_intonly')&&$('payb_intonly').checked;
+    if(on && $('payb_principal')) $('payb_principal').checked=false;
     if(!on) return;
     var id=$('payb_loan')?$('payb_loan').value:''; var l=loans.find(function(x){return x.id===id;});
     if(!l){ toast('Choose a borrower first — then tick interest-only'); if($('payb_intonly')) $('payb_intonly').checked=false; return; }
@@ -261,13 +262,15 @@
       bank: mode==='Cheque'?$('payb_bank').value.trim():'',
       ref: mode==='Online'?$('payb_ref').value.trim():'',
       status: mode==='Cheque'?$('payb_status').value:'Cleared' };
-    if(isInt){ p.intOnly=true; p.type='Interest'; }   // services the month's interest; principal unchanged
+    if(isInt){ p.intOnly=true; p.type='Interest'; }
+    else if($('payb_principal') && $('payb_principal').checked){ p.kind='principal'; }   /* returns principal on a byaj loan */   // services the month's interest; principal unchanged
     if(!Array.isArray(l.payments)) l.payments=[];
     if(isDuplicatePayment(l,p) && !confirm('A payment of '+inr(amt)+' ('+mode+') on '+fmtDate(p.date)+' is ALREADY recorded for '+l.name+'.\n\nRecord it again anyway?')){ toast('Duplicate payment not recorded'); return; }
     recordPayTab._busy=true; try{
     l.payments.push(p); recomputeLoan(l); save(); logAudit(p.mode==='Cheque'?'Cheque Entry Added':'Cash Entry Added', l.name+' \u2014 '+inr(p.amount)+(p.mode==='Cheque'?(' chq '+(p.cheque||'')+' ['+p.status+']'):''));
     $('payb_amt').value=''; $('payb_cheqno').value=''; $('payb_bank').value=''; if($('payb_ref'))$('payb_ref').value='';
     if($('payb_intonly')) $('payb_intonly').checked=false;
+    if($('payb_principal')) $('payb_principal').checked=false;
     renderPayReg(); refreshPayLoanDropdown();
     toast(isInt
       ? ('Interest-only payment recorded for '+l.name+' \u2014 due date moved forward, principal unchanged')
@@ -589,6 +592,34 @@
   window.payLoanPicked=function(){
     _mirrorLoanPick('payb_loan','chg_loan');
     try{ if(typeof chgUpdateHint==='function') chgUpdateHint(); }catch(e){}
+    try{ payPrincipalUI(); }catch(e){}
+  };
+
+  /* On an interest-only (byaj) loan the principal stands until it is returned,
+     so the engine only reduces the balance for a payment tagged kind:'principal'.
+     Nothing in the Payments tab could write that tag, so recording the whole
+     amount left the loan showing the full principal and still Active.
+     This is an explicit tick rather than a guess: treating every untagged
+     payment on a byaj loan as principal would wipe the balance of every loan
+     whose monthly interest was recorded without the interest tick. */
+  function payPrincipalUI(){
+    var wrap=$('payb_principalWrap'); if(!wrap) return;
+    var id=$('payb_loan')?$('payb_loan').value:'';
+    var l=(typeof loans!=='undefined'&&Array.isArray(loans))?loans.find(function(x){return x.id===id;}):null;
+    var io=!!(l&&l.interestOnly);
+    wrap.style.display=io?'':'none';
+    if(!io && $('payb_principal')) $('payb_principal').checked=false;
+  }
+  window.payPrincipalUI=payPrincipalUI;
+  window.payPrincipalToggle=function(){
+    var on=$('payb_principal')&&$('payb_principal').checked;
+    if(!on) return;
+    if($('payb_intonly')) $('payb_intonly').checked=false;   /* a payment is one or the other */
+    var id=$('payb_loan')?$('payb_loan').value:'';
+    var l=loans.find(function(x){return x.id===id;});
+    if(!l){ toast('Choose a borrower first'); $('payb_principal').checked=false; return; }
+    var left=Math.max(0, Math.round(Number(l.outstanding)||0));
+    if($('payb_amt')) $('payb_amt').value=left>0?left:'';
   };
 
   /* Interest-only loans: record the principal being returned (in full, or the remaining

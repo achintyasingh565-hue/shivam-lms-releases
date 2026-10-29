@@ -143,5 +143,74 @@ chk('  and the principal still standing in full', current.outstanding, P);
 chk('the eight-payment loan is one month short, hence Overdue', l.status, 'Overdue');
 chk('  by exactly one month of interest', l.arrears, 10000);
 
+// ---------------------------------------------------------------------------
+// Reported: Sandeep Jaiswal's byaj loan of 2,00,000 was paid in full through
+// the Payments tab, but the loan stayed Active showing the whole principal.
+//
+// Cause: the engine only counts a payment against the principal when it is
+// tagged kind:'principal', and nothing in the Payments tab could write that
+// tag. An untagged payment was therefore treated as interest income.
+console.log('\n--- returning the principal ---');
+
+const sj = () => ({
+  id: 'L-SJ', name: 'Sandeep Jaiswal', acno: 'SE-2627-0006',
+  interestOnly: true, principal: 200000, rate: 2, tenure: 0,
+  disb: '2026-10-22', due: '2026-11-25', payments: [], charges: [],
+});
+
+// the payment exactly as the Payments tab used to record it -- no tag
+const untagged = sj();
+untagged.payments = [pay('2026-10-29', 200000)];
+ctx.recomputeLoan(untagged);
+note('untagged payment -> outstanding', untagged.outstanding);
+chk('an untagged payment is still treated as interest, not principal',
+  untagged.outstanding, 200000);
+chk('  which is why the loan stayed Active', untagged.status !== 'Closed', true);
+
+// the same payment with the new tick
+const tagged = sj();
+tagged.payments = [pay('2026-10-29', 200000, { kind: 'principal' })];
+ctx.recomputeLoan(tagged);
+chk('marked as a principal repayment, the balance clears', tagged.outstanding, 0);
+chk('  and the loan closes', tagged.status, 'Closed');
+
+// a part return moves the balance by exactly that much and keeps it open
+const part = sj();
+part.payments = [pay('2026-10-29', 75000, { kind: 'principal' })];
+ctx.recomputeLoan(part);
+chk('a part return reduces the principal by that amount', part.outstanding, 125000);
+chk('  and the loan stays open', part.status !== 'Closed', true);
+
+// two part returns adding up to the whole principal close it
+const twice = sj();
+twice.payments = [pay('2026-10-29', 75000, { kind: 'principal' }),
+                  pay('2026-11-29', 125000, { kind: 'principal' })];
+ctx.recomputeLoan(twice);
+chk('part returns totalling the principal close the loan', twice.status, 'Closed');
+chk('  with nothing outstanding', twice.outstanding, 0);
+
+// THE SAFETY PROPERTY: interest payments must never be mistaken for principal.
+// Treating untagged payments as principal would have wiped the balance of
+// every byaj loan whose monthly interest was entered without the interest tick.
+const serviced = sj();
+serviced.payments = [];
+for (let m = 1; m <= 6; m++) serviced.payments.push(pay('2026-' + String(m).padStart(2, '0') + '-22', 4000));
+ctx.recomputeLoan(serviced);
+chk('six months of interest leave the principal untouched', serviced.outstanding, 200000);
+
+// interest and a principal return side by side
+const mixed = sj();
+mixed.payments = [pay('2026-11-22', 4000, { intOnly: true, type: 'Interest' }),
+                  pay('2026-11-29', 200000, { kind: 'principal' })];
+ctx.recomputeLoan(mixed);
+chk('interest alongside a principal return still closes the loan', mixed.status, 'Closed');
+chk('  and the interest is not double-counted against the principal', mixed.outstanding, 0);
+
+// an uncleared principal payment must not close anything
+const pending = sj();
+pending.payments = [Object.assign(pay('2026-10-29', 200000, { kind: 'principal' }), { status: 'Pending' })];
+ctx.recomputeLoan(pending);
+chk('a pending principal payment does not close the loan', pending.outstanding, 200000);
+
 console.log(fails ? '\n' + fails + ' CHECK(S) FAILED' : '\nALL INTEREST-ONLY PRINCIPAL CHECKS PASS');
 process.exitCode = fails ? 1 : 0;
