@@ -2,7 +2,7 @@
   const MSG_STORE="shivam_msg_v1";
   const DEFAULT_TPL={
     reminder:"Namaste {name}, this is a friendly reminder from Shivam Enterprises. For your loan account {acno}, the EMI of {emi} is due on {due_date}. Kindly pay on time to keep your account in good standing. Thank you. - Shivam Enterprises",
-    overdue:"Namaste {name}, this is an important reminder from Shivam Enterprises. The EMI for your loan account {acno} was due on {due_date} and is now overdue. Your outstanding amount is {outstanding} and a late fee of {fine} now applies. Please clear it at the earliest to avoid further charges. Thank you. - Shivam Enterprises",
+    overdue:"Namaste {name}, this is an important reminder from Shivam Enterprises. The EMI for your loan account {acno} was due on {due_date} and is now overdue. Your outstanding amount is {outstanding}. Please clear it at the earliest to avoid further charges. Thank you. - Shivam Enterprises",
     greeting:"Namaste {name}, Shivam Enterprises warmly wishes you and your family a very happy {occasion}! Thank you for your continued trust. - Shivam Enterprises",
     holiday:"Namaste {name}, please note our office will remain closed on account of {occasion} on {date}. For urgent matters, please call us. - Shivam Enterprises",
     thanks:"Namaste {name}, we have received your payment of {amount} towards loan account {acno}. Your remaining balance is {outstanding}. Thank you for paying on time. - Shivam Enterprises",
@@ -10,7 +10,7 @@
     finalnotice:"Namaste {name}, despite earlier reminders, the overdue amount of {outstanding} on loan account {acno} is still unpaid. Please clear it immediately to avoid further action as per your loan agreement. - Shivam Enterprises",
     demandnotice:"Namaste {name}, this is a formal demand notice from Shivam Enterprises in respect of your loan account {acno}, which has fallen overdue. You are hereby called upon to pay the overdue amount of {arrears} and to regularise the said account within 7 days from the date of this message. Your total outstanding balance on this account is {outstanding}. Failing timely payment, we shall be constrained to initiate recovery proceedings as per applicable law. Please contact our office to settle the dues. - Shivam Enterprises",
     reminder_hi:"नमस्ते {name}, शिवम एंटरप्राइज़ेस की ओर से एक विनम्र अनुस्मारक। आपके लोन खाता {acno} की {emi} की किस्त {due_date} को देय है। कृपया समय पर भुगतान करें ताकि आपका खाता अच्छी स्थिति में बना रहे। धन्यवाद। - शिवम एंटरप्राइज़ेस",
-    overdue_hi:"नमस्ते {name}, शिवम एंटरप्राइज़ेस की ओर से महत्वपूर्ण सूचना। आपके लोन खाता {acno} की किस्त {due_date} को देय थी और अब बकाया है। आपकी शेष राशि {outstanding} है तथा {fine} विलंब शुल्क लागू है। कृपया अतिरिक्त शुल्क से बचने हेतु शीघ्र भुगतान करें। धन्यवाद। - शिवम एंटरप्राइज़ेस",
+    overdue_hi:"नमस्ते {name}, शिवम एंटरप्राइज़ेस की ओर से महत्वपूर्ण सूचना। आपके लोन खाता {acno} की किस्त {due_date} को देय थी और अब बकाया है। आपकी शेष राशि {outstanding} है। कृपया अतिरिक्त शुल्क से बचने हेतु शीघ्र भुगतान करें। धन्यवाद। - शिवम एंटरप्राइज़ेस",
     greeting_hi:"नमस्ते {name}, शिवम एंटरप्राइज़ेस की ओर से आपको एवं आपके परिवार को {occasion} की हार्दिक शुभकामनाएँ! आपके निरंतर विश्वास हेतु धन्यवाद। - शिवम एंटरप्राइज़ेस",
     holiday_hi:"नमस्ते {name}, कृपया ध्यान दें कि {occasion} के अवसर पर हमारा कार्यालय {date} को बंद रहेगा। किसी आवश्यक कार्य हेतु कृपया संपर्क करें। - शिवम एंटरप्राइज़ेस",
     thanks_hi:"नमस्ते {name}, आपके लोन खाता {acno} में {amount} का भुगतान प्राप्त हुआ है। आपकी शेष राशि {outstanding} है। समय पर भुगतान हेतु धन्यवाद। - शिवम एंटरप्राइज़ेस",
@@ -35,7 +35,25 @@
     launch_hi:"नमस्ते, हमें यह बताते हुए खुशी है कि शिवम एंटरप्राइज़ेस अब आरंभ हो चुका है और आपकी सेवा हेतु तत्पर है। किसी भी जानकारी हेतु कृपया हमसे संपर्क करें। - शिवम एंटरप्राइज़ेस",
     fine:100 };
   let TPL={...DEFAULT_TPL};
-  function loadTpl(){ TPL={...DEFAULT_TPL}; }
+  /* saveTemplates() writes the edited wording to MSG_STORE, but this used to
+     throw it away on every start — it reset to the defaults and never read the
+     key back, so "Templates saved" was not true past the next restart.
+     Load the saved wording over the defaults: unknown keys are ignored, and a
+     blank or missing one falls back to the default, so a template added in a
+     later version still appears for someone with an older saved set. */
+  function loadTpl(){
+    TPL={...DEFAULT_TPL};
+    try{
+      var saved=JSON.parse(localStorage.getItem(MSG_STORE)||'null');
+      if(saved && typeof saved==='object'){
+        Object.keys(DEFAULT_TPL).forEach(function(k){
+          var v=saved[k];
+          if(typeof DEFAULT_TPL[k]==='number'){ if(v!=null && isFinite(Number(v))) TPL[k]=Number(v); }
+          else if(typeof v==='string' && v.trim()) TPL[k]=v;
+        });
+      }
+    }catch(e){}
+  }
   function saveTemplates(){
     /* merge onto DEFAULT_TPL so message types without an edit field (bounce, closed,
        cleared, restructure, accwelcome, ...) keep their default text instead of being dropped */
@@ -59,11 +77,23 @@
     $('tpl_fine').value=(typeof getLateFeeRate==='function')?getLateFeeRate():TPL.fine;
   }
   function getLateFee(){ try{ if(typeof getLateFeeRate==='function') return getLateFeeRate(); }catch(e){} return TPL.fine||500; }
+  /* {fine} used to print the configured default rate for every borrower, so a
+     message could announce a fee that had never been charged (and read
+     "a late fee of Rs 0 now applies" when the rate was left at zero). Prefer
+     the late fees actually levied on THIS loan; fall back to the rate only
+     when none have been charged yet. */
+  function _lateFeeFor(l){
+    var levied=(l && Array.isArray(l.charges))
+      ? l.charges.filter(function(c){ return c && c.type==='Late fee'; })
+                 .reduce(function(a,c){ return a+(Number(c.amount)||0); },0)
+      : 0;
+    return levied>0 ? levied : getLateFee();
+  }
   function applyVars(text, l, extra){
     extra=extra||{};
     const map={
       '{name}':l?l.name:'', '{acno}':l?l.acno:'', '{emi}':l?inr(l.emi):'', '{due_date}':l?(fmtDate(l.due)||'—'):'',
-      '{outstanding}':l?inr(l.outstanding):'', '{arrears}':l?inr(l.arrears||0):'', '{amount}':l?inr(l.emi):'', '{principal}':l?inr(l.principal||0):'', '{disbursed}':l?inr(l.principal||0):'', '{fine}':inr(getLateFee()), '{rate}':l?(l.rate+'%'):'',
+      '{outstanding}':l?inr(l.outstanding):'', '{arrears}':l?inr(l.arrears||0):'', '{amount}':l?inr(l.emi):'', '{principal}':l?inr(l.principal||0):'', '{disbursed}':l?inr(l.principal||0):'', '{fine}':inr(_lateFeeFor(l)), '{rate}':l?(l.rate+'%'):'',
       '{occasion}':extra.occasion||'', '{date}':extra.date||'', '{cheque}':extra.cheque||''
     };
     // explicit extra values override the defaults (e.g. bounce amount, cheque no.)

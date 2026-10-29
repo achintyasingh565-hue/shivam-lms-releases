@@ -101,7 +101,7 @@
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.4 2.4 4.6-5"/></svg> Audit Logging Enabled</span>
       </div>
       <div class="auth-meta"><span id="lastLogin"></span></div>
-      <div class="auth-meta auth-verline">Version 2.8.1 &nbsp;·&nbsp; © Shivam Enterprises</div>
+      <div class="auth-meta auth-verline">Version 2.9.0 &nbsp;·&nbsp; © Shivam Enterprises</div>
     </div>
   </div>
 </div>
@@ -585,25 +585,27 @@
         <div class="msgview" id="mv-reminders">
           <div class="panel">
             <div class="panel-head">
-              <div class="t"><h3>All Reminders</h3><p>Everything in one place &mdash; EMI due, overdue, payments received, new loans and birthdays are gathered here automatically. Nothing is ever sent until you review and approve it.</p></div>
+              <div class="t"><h3>All Reminders</h3><p>Gathered automatically as they fall due. Nothing is sent until you review and approve it.</p></div>
               <div class="actions">
                 <button class="btn btn-sm" onclick="autoRemRunNow()">&#8635; Run scan now</button>
-                <button class="btn btn-sm" onclick="autoRemClearAll()">Clear all</button>
+                <button class="btn btn-sm" onclick="autoRemClearAll()">Clear queue</button>
               </div>
             </div>
-            <div id="autoRemToggles" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:8px 2px 12px;font-size:12.5px;color:var(--muted);border-bottom:1px solid var(--line);margin-bottom:12px;">
-              <span style="font-weight:600;color:var(--text);">Auto-generate:</span>
-              <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="arm_emi" onchange="autoRemToggle('emi',this.checked)"> EMI due</label>
-              <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="arm_overdue" onchange="autoRemToggle('overdue',this.checked)"> Overdue</label>
-              <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="arm_payment" onchange="autoRemToggle('payment',this.checked)"> Payment received</label>
-              <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="arm_approval" onchange="autoRemToggle('approval',this.checked)"> Loan sanctioned</label>
-              <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="arm_birthday" onchange="autoRemToggle('birthday',this.checked)"> Birthday</label>
-            </div>
+            <details class="chg-settings" style="margin:2px 0 12px;">
+              <summary style="cursor:pointer;font-size:12.5px;color:var(--muted);user-select:none;">Which reminders are generated automatically</summary>
+              <div id="autoRemToggles" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:10px 2px 12px;font-size:12.5px;color:var(--muted);border-bottom:1px solid var(--line);margin-bottom:4px;">
+                <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="arm_emi" onchange="autoRemToggle('emi',this.checked)"> EMI due</label>
+                <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="arm_overdue" onchange="autoRemToggle('overdue',this.checked)"> Overdue</label>
+                <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="arm_payment" onchange="autoRemToggle('payment',this.checked)"> Payment received</label>
+                <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="arm_approval" onchange="autoRemToggle('approval',this.checked)"> Loan sanctioned</label>
+                <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="arm_birthday" onchange="autoRemToggle('birthday',this.checked)"> Birthday</label>
+              </div>
+            </details>
             <div id="autoPending"></div>
           </div>
           <div class="panel">
             <div class="panel-head">
-              <div class="t"><h3>Custom reminder blast</h3><p>Pick a language and filter, then review &amp; send a due-date or overdue reminder to a whole group at once.</p></div>
+              <div class="t"><h3>Custom reminder blast</h3><p>Message a whole group at once, rather than waiting for the automatic reminders above.</p></div>
               <div class="actions">
                 <select class="filter" id="remLang" onchange="renderReminders()">
                   <option value="en">English</option>
@@ -626,7 +628,7 @@
           <div class="panel">
             <h3>Greetings &amp; Notices</h3>
             <p class="ph-sub">Pick a message type and language, then send to all.</p>
-            <div class="form-grid" style="grid-template-columns:repeat(4,1fr);">
+            <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));">
               <div class="fg"><label>Message type</label><select id="grType" onchange="renderGreetings()"><option value="greeting">Festival Greeting</option><option value="birthday">Birthday Greeting</option><option value="holiday">Holiday / Closure Notice</option><option value="thanks">Payment Received (Thanks)</option><option value="welcome">Loan Sanctioned</option><option value="finalnotice">Final Notice</option><option value="demandnotice">Default / Demand Notice</option><option value="chequepresent">Cheque Presentation Notice</option><option value="bounce">Cheque Bounce</option><option value="closed">Loan Closed (Fully Paid)</option><option value="cleared">Cheque Cleared</option><option value="restructure">Loan Restructured (EMI Revised)</option><option value="accwelcome">Welcome / Account Opened</option><option value="launch">Business Launched / Now Open</option></select></div>
               <div class="fg"><label>Language</label><select id="grLang" onchange="renderGreetings()"><option value="en">English</option><option value="hi">हिन्दी (Hindi)</option></select></div>
               <div class="fg"><label>Occasion (e.g. Diwali)</label><input id="grOccasion" oninput="renderGreetings()"></div>
@@ -641,7 +643,7 @@
         <div class="msgview" id="mv-history" style="display:none;">
           <div class="panel">
             <div class="panel-head"><div class="t"><h3>Message History</h3><p>Every message you reviewed and approved is logged here — it cannot be edited.</p></div>
-              <div class="actions"><input class="filter" id="waHistSearch" placeholder="Search…" oninput="renderWaHistory()"><select class="filter" id="waHistFilter" onchange="renderWaHistory()"><option value="all">All categories</option></select><button class="btn btn-sm" onclick="exportWaHistory()">Export to Excel</button><button class="btn btn-sm btn-danger" onclick="clearWaHistAll()">Clear all</button></div>
+              <div class="actions"><input class="filter" id="waHistSearch" placeholder="Search…" oninput="renderWaHistory()"><select class="filter" id="waHistFilter" onchange="renderWaHistory()"><option value="all">All categories</option></select><button class="btn btn-sm" onclick="exportWaHistory()">Export to Excel</button><button class="btn btn-sm btn-danger" onclick="clearWaHistAll()">Clear history</button></div>
             </div>
             <div id="waHistWrap"></div>
           </div>

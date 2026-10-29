@@ -433,6 +433,60 @@
       if(q.length!==before){ autoQueueSave(q); if(typeof renderAutoPending==='function'){ try{ renderAutoPending(); }catch(e){} } }
     }catch(e){}
   }
+  /* A queued reminder is a SNAPSHOT: autoMkItem() freezes the wording, the
+     outstanding, the due date and the late fee at the moment of the scan, and
+     the item then sits in localStorage until it is sent, dismissed, or its loan
+     is deleted. Nothing re-checked it against the ledger. So a borrower who
+     paid after the scan stayed in the "Overdue Reminder" list showing
+     August's figures, while his loan record correctly read Active — and
+     Review & send would have sent him a demand for money he no longer owed.
+
+     Re-check every EMI/Overdue item against the live loan before it is shown
+     or sent. Drop the ones the ledger no longer supports, and restate the rest
+     with today's figures instead of the ones frozen at scan time.
+
+     Payment confirmations, approvals and birthdays are records of something
+     that actually happened, so they are left exactly as they were. */
+  function autoQueueRevalidate(){
+    var q=autoQueueLoad();
+    if(!q.length) return q;
+    if(typeof loans==='undefined' || !Array.isArray(loans)) return q;   // not loaded yet: change nothing
+    var t=(typeof todayISO==='function')?todayISO():'';
+    var before=JSON.stringify(q);
+    var out=[];
+    q.forEach(function(it){
+      var parts=String((it&&it.key)||'').split(':');
+      var kind=parts[0], loanId=parts[1];
+      if(kind!=='od' && kind!=='emi'){ out.push(it); return; }
+
+      var l=loans.find(function(x){ return x && x.id===loanId; });
+      if(!l && it && it.acno) l=loans.find(function(x){ return x && (x.acno||'')===it.acno; });
+      if(!l) return;                                       // the loan is gone
+
+      var st=(typeof autoStatus==='function')?autoStatus(l):'';
+      var due=l.due||'';
+      // An overdue demand is only honest while the account is actually overdue;
+      // an "EMI due soon" note only while it is current and the date is ahead.
+      if(kind==='od'  && st!=='Overdue') return;
+      if(kind==='emi' && (st!=='Active' || !due || (t && due<t))) return;
+
+      // Still owed — restate it from the ledger as it stands today.
+      try{
+        var fresh=autoMkItem(l, it.cat, it.reason, it.key);
+        it.msg=fresh.msg; it.vars=fresh.vars;
+      }catch(e){}
+      it.name=l.name||it.name; it.phone=l.phone||it.phone||'';
+      if(t && due && typeof repDaysBetween==='function'){
+        var d=repDaysBetween(due,t);
+        if(kind==='od'  && d>0) it.reason='Overdue by '+d+' day'+(d===1?'':'s');
+        if(kind==='emi' && d<0) it.reason='EMI due in '+(-d)+' day'+(d===-1?'':'s');
+      }
+      out.push(it);
+    });
+    if(JSON.stringify(out)!==before) autoQueueSave(out);
+    return out;
+  }
+  window.autoQueueRevalidate=autoQueueRevalidate;
   function autoQueueClearAll(){ try{ localStorage.removeItem(AUTOQ_STORE); }catch(e){} if(typeof renderAutoPending==='function'){ try{ renderAutoPending(); }catch(e){} } }
   window.autoQueueDropForLoan=autoQueueDropForLoan;
   window.autoQueueClearAll=autoQueueClearAll;

@@ -4,6 +4,10 @@
   function renderAutoRemToggles(){ try{ var c=autoRemCfg(); [['arm_emi','emi'],['arm_overdue','overdue'],['arm_payment','payment'],['arm_approval','approval'],['arm_birthday','birthday']].forEach(function(p){ var el=$(p[0]); if(el) el.checked=(c[p[1]]!==false); }); }catch(e){} }
   function renderAutoPending(){
     autoQueuePrune();
+    // Figures in the queue are frozen at scan time; re-check them against the
+    // ledger so a borrower who has since paid is not still listed as overdue.
+    try{ if(typeof recomputeAll==='function') recomputeAll(); }catch(e){}
+    try{ if(typeof autoQueueRevalidate==='function') autoQueueRevalidate(); }catch(e){}
     renderAutoRemToggles();
     var q=autoQueueLoad(); var host=$('autoPending'); if(!host) return;
     if(!q.length){ host.innerHTML='<div class="empty"><div class="big">&#10003;</div><div class="empty-t">You’re all caught up</div><div class="empty-s">No reminders waiting. Run a scan after recording payments, or as EMIs approach.</div></div>'; return; }
@@ -20,7 +24,11 @@
     host.innerHTML=html;
   }
   function autoRemRunNow(){ var r={added:0}; try{ r=autoRemScan(); }catch(e){} toast('Scan complete \u2014 '+r.added+' new reminder'+(r.added===1?'':'s')); renderAutoRem(); }
-  function autoRemReview(cat){ var q=autoQueueLoad().filter(function(it){ return it.cat===cat; }); if(!q.length){ toast('Nothing to review'); return; } openReviewQueue(q.map(function(it){
+  function autoRemReview(cat){
+    // Re-check before sending too: the panel may have been on screen a while.
+    try{ if(typeof recomputeAll==='function') recomputeAll(); }catch(e){}
+    try{ if(typeof autoQueueRevalidate==='function') autoQueueRevalidate(); }catch(e){}
+    var q=autoQueueLoad().filter(function(it){ return it.cat===cat; }); if(!q.length){ toast('Nothing to review'); return; } openReviewQueue(q.map(function(it){
       var L=(typeof loans!=='undefined' && Array.isArray(loans))?loans.find(function(x){ return (x.acno||'')===(it.acno||''); }):null;
       var over=(it.cat==='Overdue Reminder');
       var tpl = over ? (it.lang==='hi'?TPL.overdue_hi:TPL.overdue) : (it.lang==='hi'?TPL.reminder_hi:TPL.reminder);
