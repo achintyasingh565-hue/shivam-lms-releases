@@ -45,7 +45,7 @@ function renderFirmPreview() {
   if (!el) return;
   const f = FIRM();
   el.innerHTML = ''
-    + '<div class="ph-sub" style="margin-bottom:8px;">This is how the top of every document will read:</div>'
+    + ''
     + '<div style="text-align:center; padding:14px 10px; background:#fff; border:1px solid var(--line); border-radius:8px; color:#141414;">'
     + '  <div style="font-size:20px; font-weight:700; letter-spacing:1px; color:#0b1f4b;">' + esc(f.name) + '</div>'
     + '  <div style="font-size:11px; color:#444; margin-top:4px;">' + esc(f.address) + ' &nbsp;|&nbsp; Mobile: ' + esc(f.phones) + '</div>'

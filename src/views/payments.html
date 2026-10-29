@@ -1,8 +1,7 @@
       <section class="section" id="sec-pay">
         <div class="panel pay-panel">
           <h3>Record a Payment</h3>
-          <p class="ph-sub">Enter a cash, cheque or online payment against a borrower &mdash; it updates that loan&rsquo;s outstanding balance automatically. Pending cheques are saved but don&rsquo;t reduce the balance until marked cleared.</p>
-          <div class="pay-form">
+119          <div class="pay-form">
             <div class="fg full"><label>Search borrower</label><input id="payb_search" type="text" placeholder="Type a name or A/C no. to filter&hellip;" oninput="filterPayLoans()"></div>
             <div class="pay-row">
               <div class="fg grow2"><label>Borrower / Loan A/C <span class="ph-sub">(A&ndash;Z)</span></label><select id="payb_loan" onchange="payLoanPicked()"><option value="">&mdash; Select a borrower &mdash;</option></select></div>
@@ -23,12 +22,12 @@
             <label class="pay-intonly">
               <input type="checkbox" id="payb_intonly" onchange="payIntOnlyToggle()">
               <span><b>Interest-only payment</b> &mdash; customer is paying only this month&rsquo;s interest.<br>
-              <span class="ph-sub">Amount is pre-filled with the month&rsquo;s interest (editable). Principal does not go down; the due date moves forward one month.</span></span>
+              2025</span>
             </label>
             <label class="pay-intonly" id="payb_principalWrap" style="display:none;">
               <input type="checkbox" id="payb_principal" onchange="payPrincipalToggle()">
               <span><b>Principal repayment</b> &mdash; the borrower is returning the principal on this interest-only loan.<br>
-              <span class="ph-sub">On a byaj loan the principal stands until it is returned, so only a payment marked this way brings the balance down. Pre-filled with the amount still outstanding (editable); the loan closes once it is fully returned.</span></span>
+              2529</span>
             </label>
             <div class="pay-actions">
               <button class="btn btn-primary" onclick="recordPayTab()">&#65291; Record payment</button>
@@ -42,15 +41,13 @@
 
         <div class="panel chg-panel">
           <h3>Charges &amp; Late Fees</h3>
-          <p class="ph-sub">One place for every charge on a borrower &mdash; late fees, cheque-bounce or other. Charges are <b>added to the outstanding balance</b> and appear in the EMI schedule, reminders and reports. Pick the borrower once, then either apply overdue charges in one click or add a single charge by hand.</p>
-
+3808
           <div class="fg full chg-borrower"><label>Borrower / Loan A/C</label><select id="chg_loan" onchange="chgLoanChange(true)"><option value="">— Select a borrower —</option></select></div>
 
           <!-- 1 · one-click overdue charges -->
           <div class="chg-card">
             <div class="chg-card-h"><span class="chg-step">1</span> Apply overdue charges automatically</div>
-            <p class="chg-card-p">Adds a late fee for every overdue month and this month&rsquo;s interest for any fully-missed month, in one click. Repeatable &mdash; it never double-charges. Leave <b>Overdue interest</b> blank to work it out from the loan automatically, or type an amount to charge exactly that for every unpaid month. <b>Charge only from</b> stops anything older than that date being charged &mdash; useful right after entering years of old history.</p>
-            <!-- Fee policy: set once, rarely touched. Collapsed so it stops
+3958            <!-- Fee policy: set once, rarely touched. Collapsed so it stops
                  competing with the buttons used every day. The inputs and their
                  ids/handlers are untouched — only the wrapper is new. -->
             <details class="chg-settings" style="margin:4px 0 10px;">
@@ -82,8 +79,7 @@
           <!-- 2 · manual charge (any type, amount and date — incl. months after the tenure) -->
           <div class="chg-card">
             <div class="chg-card-h"><span class="chg-step">2</span> Add a single charge manually</div>
-            <p class="chg-card-p">For a cheque-bounce fee or a one-off charge. Late fees and overdue interest are handled by step 1 above &mdash; including months after the tenure &mdash; and a single month can be adjusted by editing it in the register.</p>
-            <div class="pay-row">
+7214            <div class="pay-row">
               <div class="fg"><label>Charge type</label><select id="chg_type" onchange="chgTypeChange()"><option>Cheque bounce</option><option>Other</option></select></div>
               <div class="fg"><label>Amount &#8377;</label><input id="chg_amt" type="number" min="0" placeholder="0"></div>
               <div class="fg"><label>Date</label><input id="chg_date" type="date"></div>
@@ -99,8 +95,7 @@
 
         <div class="panel">
           <h3>Registers</h3>
-          <p class="ph-sub">Everything recorded, kept on its own page so this tab stays clean. Click to open.</p>
-          <div class="reg-cards">
+9062          <div class="reg-cards">
             <button type="button" class="reg-card" onclick="openPayRegister()">
               <span class="reg-card-ic pay">&#8377;</span>
               <span class="reg-card-t">

@@ -195,7 +195,7 @@
     var newAcno=(typeof nextLoanAcno==='function')?nextLoanAcno():('SE-'+Date.now());
     var due=(typeof repAddMonths==='function')?repAddMonths(rsDate,1):rsDate;
     // Carry the borrower's identity from the primary loan into the new combined loan.
-    var COPY=['name','reltype','relname','phone','addr','ids','idproof','pan','type','secured','gname','gphone','coname','cophone','corel','coid','coaddr','age','residence','occupation','designation','officeaddr','propdesc','propaddr','proparea','propvalue','bN','bS','bE','bW','title','dealer','officer'];
+    var COPY=['name','reltype','relname','phone','addr','dob','ids','idproof','pan','type','secured','gname','gphone','coname','cophone','corel','coid','coaddr','residence','occupation','designation','officeaddr','propdesc','propaddr','proparea','propvalue','bN','bS','bE','bW','title','dealer','officer'];
     var rec={ id:'L'+Date.now()+Math.random().toString(36).slice(2,6), acno:newAcno };
     COPY.forEach(function(k){ if(L[k]!=null) rec[k]=L[k]; });
     rec.principal=Math.max(0, Math.round(c.newOut));

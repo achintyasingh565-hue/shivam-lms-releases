@@ -112,7 +112,7 @@
       + '<tr><td>Adjustment ₹: ' + fv(_r(l.downpay)) + '</td><td>Financed Amount ₹: ' + fv(_r(l.principal)) + '</td></tr>'
       + '<tr><td>Interest @ (%): ' + fv(l.rate) + '</td><td></td></tr></table>'
       + '<div class="sec-h">APPLICANT</div>'
-      + '<p class="cl">1. (a) Name of the Applicant: ' + fv(l.name, 'bl') + ' &nbsp; Age: ' + fv(l.age) + '</p>'
+      + '<p class="cl">1. (a) Name of the Applicant: ' + fv(l.name, 'bl') + ' &nbsp; Date of Birth: ' + fv(_d(l.dob)) + '</p>'
       + '<p class="cl">(b) Father’s / Husband’s Name: ' + fv(l.relname, 'bxl') + '</p>'
       + '<p class="cl">(c) Permanent House Address in Full: ' + fv(l.addr, 'bfull') + '</p>'
       + '<p class="cl">Telephone: ' + fv(l.phone, 'bl') + '</p>'
@@ -163,7 +163,7 @@
       + '<div style="margin-top:8px;">Borrower (sign): <span class="b bl"></span><br><br>Name: ' + fv(l.name, 'bl') + '</div>'
       + '<div class="rule" style="margin-top:30px;"></div><div class="doctitle" style="margin-top:6px;">PROMISSORY NOTE</div>'
       + '<p class="cl"><b>Rs. ' + fv(_r(l.principal)) + '</b></p>'
-      + '<p class="cl">On demand I, (Borrower) ' + fv(l.name, 'bl') + ' Son / Daughter / Wife of ' + fv(l.relname, 'bw') + ', resident of ' + fv(l.addr, 'bl') + ', and (Guarantor) ' + fv(l.gname, 'bl') + ' Son / Daughter / Wife of <span class="b bw"></span>, resident of <span class="b bl"></span>, jointly and severally promise to pay <b>Shivam Enterprises, ' + esc(FIRM().address) + '</b>, or order, the sum of Rs. ' + fv(_r(l.principal)) + ' (Rupees <span class="b bl"></span>) together with interest at ' + fv(l.rate) + ' % per month, for value received. Dated this ' + fv(l.disb ? new Date(l.disb).getDate() : '') + ' day of ' + fv(l.disb ? new Date(l.disb).toLocaleString('en-IN', { month: 'long' }) : '') + ' 20' + fv(l.disb ? String(new Date(l.disb).getFullYear()).slice(2) : '') + '.</p>'
+      + '<p class="cl">On demand I, (Borrower) ' + fv(l.name, 'bl') + ' Son / Daughter / Wife of ' + fv(l.relname, 'bw') + ', resident of ' + fv(l.addr, 'bl') + ', and (Guarantor) ' + fv(l.gname, 'bl') + ' Son / Daughter / Wife of <span class="b bw"></span>, resident of <span class="b bl"></span>, jointly and severally promise to pay <b>Shivam Enterprises, ' + esc(FIRM().address) + '</b>, or order, the sum of Rs. ' + fv(_r(l.principal)) + ' (Rupees ' + fv((typeof inrWords==='function') ? inrWords(l.principal) : '', 'bl') + ') together with interest at ' + fv(l.rate) + ' % per month, for value received. Dated this ' + fv(l.disb ? new Date(l.disb).getDate() : '') + ' day of ' + fv(l.disb ? new Date(l.disb).toLocaleString('en-IN', { month: 'long' }) : '') + ' 20' + fv(l.disb ? String(new Date(l.disb).getFullYear()).slice(2) : '') + '.</p>'
       + '<div style="display:flex;justify-content:space-between;margin-top:26px;gap:40px;font-size:12.5px;"><div style="text-align:left;">Place: <b>Lucknow</b></div><div style="text-align:center;flex:0 0 45%;"><div class="sig-line" style="margin-top:6px;">Signature of Borrower</div><div class="sig-line" style="margin-top:34px;">Signature of Guarantor</div></div></div>'
       + '</section>'
 

@@ -107,7 +107,7 @@
      rate, dates, account number, status, payments, charges — is ever copied;
      carrying those over would silently create a wrong loan. */
   var LOAN_COPY_FIELDS = [
-    'reltype','relname','phone','addr','age','residence','occupation',
+    'reltype','relname','phone','addr','dob','residence','occupation',
     'designation','officeaddr','gname','gphone',
     'coname','cophone','corel','coid','coaddr'
   ];
@@ -193,7 +193,7 @@
     // flagged that way. Otherwise the due date auto-follows the disbursement/schedule.
     window._dueUserEdited = !!f.dueManual;
     $('m_status').value=f.status||'Active'; $('m_gname').value=f.gname||''; $('m_gphone').value=f.gphone||''; if($('m_coname'))$('m_coname').value=f.coname||''; if($('m_cophone'))$('m_cophone').value=f.cophone||''; if($('m_corel'))$('m_corel').value=f.corel||''; if($('m_coid'))$('m_coid').value=f.coid||''; if($('m_coaddr'))$('m_coaddr').value=f.coaddr||''; $('m_remarks').value=f.remarks||'';
-    $('m_age').value=f.age||''; $('m_residence').value=f.residence||''; $('m_occupation').value=f.occupation||''; $('m_designation').value=f.designation||''; $('m_officeaddr').value=f.officeaddr||'';
+    $('m_dob').value=f.dob||''; $('m_residence').value=f.residence||''; $('m_occupation').value=f.occupation||''; $('m_designation').value=f.designation||''; $('m_officeaddr').value=f.officeaddr||'';
     $('m_caseno').value=f.caseno||''; $('m_refno').value=f.refno||''; $('m_product').value=f.product||''; $('m_dealer').value=f.dealer||''; $('m_downpay').value=f.downpay||''; $('m_officer').value=f.officer||'';
     $('m_deductions').value=(f.deductions!=null?f.deductions:''); $('m_remaining').value=Math.max(0,(Number(f.principal)||0)-(Number(f.deductions)||0)-(Number(f.downpay)||0));
     $('m_propdesc').value=f.propdesc||''; $('m_propaddr').value=f.propaddr||''; $('m_proparea').value=f.proparea||''; $('m_propvalue').value=f.propvalue||''; $('m_bN').value=f.bN||''; $('m_bS').value=f.bS||''; $('m_bE').value=f.bE||''; $('m_bW').value=f.bW||''; $('m_title').value=f.title||'';
@@ -259,7 +259,7 @@
       var body=document.querySelector('#loanOverlay .modal-body'); if(body) body.scrollTop=0;
     }catch(e){}
   };
-  var LOAN_TAB_OF={ m_name:'borrower',m_acno:'borrower',m_reltype:'borrower',m_relname:'borrower',m_phone:'borrower',m_addr:'borrower',m_idlist:'borrower',m_type:'borrower',m_age:'borrower',m_residence:'borrower',m_occupation:'borrower',m_designation:'borrower',m_officeaddr:'borrower',
+  var LOAN_TAB_OF={ m_name:'borrower',m_acno:'borrower',m_reltype:'borrower',m_relname:'borrower',m_phone:'borrower',m_addr:'borrower',m_idlist:'borrower',m_type:'borrower',m_dob:'borrower',m_residence:'borrower',m_occupation:'borrower',m_designation:'borrower',m_officeaddr:'borrower',
     m_caseno:'terms',m_refno:'terms',m_product:'terms',m_dealer:'terms',m_downpay:'terms',m_officer:'terms',m_principal:'terms',m_deductions:'terms',m_remaining:'terms',m_rate:'terms',m_disb:'terms',m_tenure:'terms',m_tint:'terms',m_tpay:'terms',m_emi:'terms',m_due:'terms',
     m_propdesc:'property',m_propaddr:'property',m_proparea:'property',m_propvalue:'property',m_bN:'property',m_bS:'property',m_bE:'property',m_bW:'property',m_title:'property',
     m_coname:'coapp',m_cophone:'coapp',m_corel:'coapp',m_coid:'coapp',m_coaddr:'coapp',m_gname:'coapp',m_gphone:'coapp',m_remarks:'coapp',
@@ -465,7 +465,7 @@
       tpay:_safeTotals().tpay, emi:_safeTotals().emi, due:$('m_due').value,
       paid:Number($('m_paid').value)||0, outstanding:out, status:$('m_status').value, payments:(modalPayments||[]).map(p=>({...p})),
       gname:$('m_gname').value.trim(), gphone:$('m_gphone').value.trim(), coname:($('m_coname')||{}).value?.trim()||'', cophone:($('m_cophone')||{}).value?.trim()||'', corel:($('m_corel')||{}).value?.trim()||'', coid:($('m_coid')||{}).value?.trim()||'', coaddr:($('m_coaddr')||{}).value?.trim()||'', remarks:$('m_remarks').value.trim(),
-      age:$('m_age').value, residence:$('m_residence').value, occupation:$('m_occupation').value.trim(), designation:$('m_designation').value.trim(), officeaddr:$('m_officeaddr').value.trim(), idtype:_idMir.idtype,
+      dob:$('m_dob').value, residence:$('m_residence').value, occupation:$('m_occupation').value.trim(), designation:$('m_designation').value.trim(), officeaddr:$('m_officeaddr').value.trim(), idtype:_idMir.idtype,
       caseno:$('m_caseno').value.trim(), refno:$('m_refno').value.trim(), product:$('m_product').value.trim(), dealer:$('m_dealer').value.trim(), downpay:Number($('m_downpay').value)||0, deductions:Number($('m_deductions').value)||0, officer:$('m_officer').value.trim(),
       propdesc:$('m_propdesc').value.trim(), propaddr:$('m_propaddr').value.trim(), proparea:$('m_proparea').value.trim(), propvalue:Number($('m_propvalue').value)||0, bN:$('m_bN').value.trim(), bS:$('m_bS').value.trim(), bE:$('m_bE').value.trim(), bW:$('m_bW').value.trim(), title:$('m_title').value.trim(),
       createdAt: editId ? (loans.find(l=>l.id===editId)||{}).createdAt||todayISO() : todayISO()

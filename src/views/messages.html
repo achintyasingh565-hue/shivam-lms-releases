@@ -9,7 +9,7 @@
         <div class="msgview" id="mv-reminders">
           <div class="panel">
             <div class="panel-head">
-              <div class="t"><h3>All Reminders</h3><p>Gathered automatically as they fall due. Nothing is sent until you review and approve it.</p></div>
+              <div class="t"><h3>All Reminders</h3></div>
               <div class="actions">
                 <button class="btn btn-sm" onclick="autoRemRunNow()">&#8635; Run scan now</button>
                 <button class="btn btn-sm" onclick="autoRemClearAll()">Clear queue</button>
@@ -29,7 +29,7 @@
           </div>
           <div class="panel">
             <div class="panel-head">
-              <div class="t"><h3>Custom reminder blast</h3><p>Message a whole group at once, rather than waiting for the automatic reminders above.</p></div>
+              <div class="t"><h3>Custom reminder blast</h3></div>
               <div class="actions">
                 <select class="filter" id="remLang" onchange="renderReminders()">
                   <option value="en">English</option>
@@ -51,8 +51,7 @@
         <div class="msgview" id="mv-greetings" style="display:none;">
           <div class="panel">
             <h3>Greetings &amp; Notices</h3>
-            <p class="ph-sub">Pick a message type and language, then send to all.</p>
-            <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));">
+3685            <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));">
               <div class="fg"><label>Message type</label><select id="grType" onchange="renderGreetings()"><option value="greeting">Festival Greeting</option><option value="birthday">Birthday Greeting</option><option value="holiday">Holiday / Closure Notice</option><option value="thanks">Payment Received (Thanks)</option><option value="welcome">Loan Sanctioned</option><option value="finalnotice">Final Notice</option><option value="demandnotice">Default / Demand Notice</option><option value="chequepresent">Cheque Presentation Notice</option><option value="bounce">Cheque Bounce</option><option value="closed">Loan Closed (Fully Paid)</option><option value="cleared">Cheque Cleared</option><option value="restructure">Loan Restructured (EMI Revised)</option><option value="accwelcome">Welcome / Account Opened</option><option value="launch">Business Launched / Now Open</option></select></div>
               <div class="fg"><label>Language</label><select id="grLang" onchange="renderGreetings()"><option value="en">English</option><option value="hi">हिन्दी (Hindi)</option></select></div>
               <div class="fg"><label>Occasion (e.g. Diwali)</label><input id="grOccasion" oninput="renderGreetings()"></div>
@@ -66,7 +65,7 @@
 
         <div class="msgview" id="mv-history" style="display:none;">
           <div class="panel">
-            <div class="panel-head"><div class="t"><h3>Message History</h3><p>Every message you reviewed and approved is logged here — it cannot be edited.</p></div>
+            <div class="panel-head"><div class="t"><h3>Message History</h3></div>
               <div class="actions"><input class="filter" id="waHistSearch" placeholder="Search…" oninput="renderWaHistory()"><select class="filter" id="waHistFilter" onchange="renderWaHistory()"><option value="all">All categories</option></select><button class="btn btn-sm" onclick="exportWaHistory()">Export to Excel</button><button class="btn btn-sm btn-danger" onclick="clearWaHistAll()">Clear history</button></div>
             </div>
             <div id="waHistWrap"></div>

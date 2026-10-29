@@ -277,7 +277,7 @@
       + '<tr class="tot"><td colspan="3"><b>Total expenses</b></td><td class="right num"><b>'+inr(D.expTotal)+'</b></td><td></td></tr>'
       +'</tbody></table></div>';
     var form='<div class="bk-card" style="margin-top:12px;"><b style="font-size:13px;">Record an expense</b>'
-      +'<p class="ph-sub" style="margin:4px 0 8px;">Rent, salaries, electricity, travel \u2014 anything you spend to run the business. These are saved with your backups.</p>'
+      +''
       +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
       +'<input type="date" id="expDate" value="'+todayISO()+'" style="border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-size:12.5px;background:var(--field);color:var(--text);font-family:inherit;">'
       +'<select id="expCat" class="filter"><option>Rent</option><option>Salaries</option><option>Electricity</option><option>Travel</option><option>Office</option><option>Legal / Professional</option><option>Other</option></select>'

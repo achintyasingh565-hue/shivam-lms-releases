@@ -101,7 +101,7 @@
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.4 2.4 4.6-5"/></svg> Audit Logging Enabled</span>
       </div>
       <div class="auth-meta"><span id="lastLogin"></span></div>
-      <div class="auth-meta auth-verline">Version 2.11.0 &nbsp;·&nbsp; © Shivam Enterprises</div>
+      <div class="auth-meta auth-verline">Version 2.12.1 &nbsp;·&nbsp; © Shivam Enterprises</div>
     </div>
   </div>
 </div>
@@ -167,14 +167,14 @@
         <div id="dashMain">
           <div class="kpi-row" id="kpiRow"></div>
           <div class="an-row">
-            <div class="panel"><div class="panel-head"><div class="t"><h3>Monthly Disbursement</h3><p>Loan amount disbursed per month</p></div></div><div id="chartDisb"></div></div>
-            <div class="panel"><div class="panel-head"><div class="t"><h3>Portfolio by Status</h3><p>Active, overdue &amp; closed</p></div></div><div id="chartStatus"></div></div>
+            <div class="panel"><div class="panel-head"><div class="t"><h3>Monthly Disbursement</h3></div></div><div id="chartDisb"></div></div>
+            <div class="panel"><div class="panel-head"><div class="t"><h3>Portfolio by Status</h3></div></div><div id="chartStatus"></div></div>
           </div>
           <div class="panel">
-            <div class="panel-head"><div class="t"><h3>Top Delinquencies</h3><p>Highest-risk overdue accounts — manage the full list in Loan Records</p></div><div class="actions"><button class="btn btn-ghost btn-sm" onclick="go('loans')">View all loans →</button></div></div>
+            <div class="panel-head"><div class="t"><h3>Top Delinquencies</h3></div><div class="actions"><button class="btn btn-ghost btn-sm" onclick="go('loans')">View all loans →</button></div></div>
             <div id="delinqWrap"></div>
           </div>
-          <div class="panel"><div class="panel-head"><div class="t"><h3>Collections Center</h3><p>Today, upcoming &amp; missed payments</p></div></div><div class="coll-row" id="collRow"></div></div>
+          <div class="panel"><div class="panel-head"><div class="t"><h3>Collections Center</h3></div></div><div class="coll-row" id="collRow"></div></div>
         </div>
       </section>
 
@@ -304,7 +304,7 @@
             <div class="fg2"><label>Date</label><input id="p_date" type="date"></div>
 
             <div class="grp2">Applicant</div>
-            <div class="fg2" style="display:flex;gap:8px;"><div style="flex:2"><label>Name of Applicant</label><input id="p_name"></div><div style="flex:1"><label>Age</label><input id="p_age" type="number"></div></div>
+            <div class="fg2" style="display:flex;gap:8px;"><div style="flex:2"><label>Name of Applicant</label><input id="p_name"></div><div style="flex:1"><label>Date of Birth</label><input id="p_dob" type="date"></div></div>
             <div class="fg2"><label>Father's / Husband's Name</label><input id="p_father"></div>
             <div class="fg2"><label>Permanent House Address</label><textarea id="p_addr"></textarea></div>
             <div class="fg2" style="display:flex;gap:8px;"><div style="flex:1"><label>Telephone</label><input id="p_tel"></div><div style="flex:1"><label>Residence</label><select id="p_res"><option value="">—</option><option>Own</option><option>Rental</option><option>Parent's / Spouse</option><option>Employee Leased</option></select></div></div>
@@ -349,7 +349,7 @@
               <div class="pf-line"><span class="lab">Interest@</span><span class="pf-fill" id="pv_interest"></span></div>
               <div class="pf-line" style="margin-top:12px;justify-content:flex-end;"><span class="lab">Date</span><span class="pf-fill" style="flex:0 0 200px;" id="pv_date"></span></div>
 
-              <div class="pf-line" style="margin-top:14px;"><span class="lab">1. (a) Name of the Applicant</span><span class="pf-fill" id="pv_name"></span><span class="lab">(Age)</span><span class="pf-fill" style="flex:0 0 60px;" id="pv_age"></span></div>
+              <div class="pf-line" style="margin-top:14px;"><span class="lab">1. (a) Name of the Applicant</span><span class="pf-fill" id="pv_name"></span><span class="lab">(Age)</span><span class="pf-fill" style="flex:0 0 60px;" id="pv_dob"></span></div>
               <div class="pf-line"><span class="lab">(b) Father's / Husband's Name</span><span class="pf-fill" id="pv_father"></span></div>
               <div class="pf-line"><span class="lab">(c) Permanent House Address in Full</span><span class="pf-fill" id="pv_addr"></span></div>
               <div class="pf-line"><span class="lab" style="margin-left:auto;">Telephone</span><span class="pf-fill" style="flex:0 0 220px;" id="pv_tel"></span></div>
@@ -523,7 +523,7 @@
       <!-- ===== REMINDERS & MESSAGES ===== -->
       <section class="section" id="sec-defaults">
         <div class="panel">
-          <div class="panel-head"><div class="t"><h3>Default / Demand Notice</h3><p>Auto-fill from a loan record, edit any value, then preview or print — on your firm letterhead. The figures come straight from the customer's loan record.</p></div></div>
+          <div class="panel-head"><div class="t"><h3>Default / Demand Notice</h3></div></div>
 
           <div class="seg2" id="defTypeSeg" style="max-width:440px;margin:4px 2px 12px;">
             <button data-dnt="demand" class="active" onclick="setDnType('demand')">Demand Notice</button>
@@ -562,7 +562,7 @@
         </div>
 
         <div class="panel">
-          <div class="panel-head"><div class="t"><h3>Overdue accounts</h3><p>Borrowers who have fallen overdue — click <b>Load into notice</b> to fill the form above.</p></div></div>
+          <div class="panel-head"><div class="t"><h3>Overdue accounts</h3></div></div>
           <div class="table-wrap">
             <table class="data">
               <thead><tr><th>Borrower</th><th>Loan A/c</th><th>Phone</th><th class="right">Outstanding</th><th class="right">Overdue</th><th class="right">Days late</th><th></th></tr></thead>
@@ -585,7 +585,7 @@
         <div class="msgview" id="mv-reminders">
           <div class="panel">
             <div class="panel-head">
-              <div class="t"><h3>All Reminders</h3><p>Gathered automatically as they fall due. Nothing is sent until you review and approve it.</p></div>
+              <div class="t"><h3>All Reminders</h3></div>
               <div class="actions">
                 <button class="btn btn-sm" onclick="autoRemRunNow()">&#8635; Run scan now</button>
                 <button class="btn btn-sm" onclick="autoRemClearAll()">Clear queue</button>
@@ -605,7 +605,7 @@
           </div>
           <div class="panel">
             <div class="panel-head">
-              <div class="t"><h3>Custom reminder blast</h3><p>Message a whole group at once, rather than waiting for the automatic reminders above.</p></div>
+              <div class="t"><h3>Custom reminder blast</h3></div>
               <div class="actions">
                 <select class="filter" id="remLang" onchange="renderReminders()">
                   <option value="en">English</option>
@@ -627,8 +627,7 @@
         <div class="msgview" id="mv-greetings" style="display:none;">
           <div class="panel">
             <h3>Greetings &amp; Notices</h3>
-            <p class="ph-sub">Pick a message type and language, then send to all.</p>
-            <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));">
+3685            <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));">
               <div class="fg"><label>Message type</label><select id="grType" onchange="renderGreetings()"><option value="greeting">Festival Greeting</option><option value="birthday">Birthday Greeting</option><option value="holiday">Holiday / Closure Notice</option><option value="thanks">Payment Received (Thanks)</option><option value="welcome">Loan Sanctioned</option><option value="finalnotice">Final Notice</option><option value="demandnotice">Default / Demand Notice</option><option value="chequepresent">Cheque Presentation Notice</option><option value="bounce">Cheque Bounce</option><option value="closed">Loan Closed (Fully Paid)</option><option value="cleared">Cheque Cleared</option><option value="restructure">Loan Restructured (EMI Revised)</option><option value="accwelcome">Welcome / Account Opened</option><option value="launch">Business Launched / Now Open</option></select></div>
               <div class="fg"><label>Language</label><select id="grLang" onchange="renderGreetings()"><option value="en">English</option><option value="hi">हिन्दी (Hindi)</option></select></div>
               <div class="fg"><label>Occasion (e.g. Diwali)</label><input id="grOccasion" oninput="renderGreetings()"></div>
@@ -642,7 +641,7 @@
 
         <div class="msgview" id="mv-history" style="display:none;">
           <div class="panel">
-            <div class="panel-head"><div class="t"><h3>Message History</h3><p>Every message you reviewed and approved is logged here — it cannot be edited.</p></div>
+            <div class="panel-head"><div class="t"><h3>Message History</h3></div>
               <div class="actions"><input class="filter" id="waHistSearch" placeholder="Search…" oninput="renderWaHistory()"><select class="filter" id="waHistFilter" onchange="renderWaHistory()"><option value="all">All categories</option></select><button class="btn btn-sm" onclick="exportWaHistory()">Export to Excel</button><button class="btn btn-sm btn-danger" onclick="clearWaHistAll()">Clear history</button></div>
             </div>
             <div id="waHistWrap"></div>
@@ -668,8 +667,7 @@
       <section class="section" id="sec-pay">
         <div class="panel pay-panel">
           <h3>Record a Payment</h3>
-          <p class="ph-sub">Enter a cash, cheque or online payment against a borrower &mdash; it updates that loan&rsquo;s outstanding balance automatically. Pending cheques are saved but don&rsquo;t reduce the balance until marked cleared.</p>
-          <div class="pay-form">
+119          <div class="pay-form">
             <div class="fg full"><label>Search borrower</label><input id="payb_search" type="text" placeholder="Type a name or A/C no. to filter&hellip;" oninput="filterPayLoans()"></div>
             <div class="pay-row">
               <div class="fg grow2"><label>Borrower / Loan A/C <span class="ph-sub">(A&ndash;Z)</span></label><select id="payb_loan" onchange="payLoanPicked()"><option value="">&mdash; Select a borrower &mdash;</option></select></div>
@@ -690,12 +688,12 @@
             <label class="pay-intonly">
               <input type="checkbox" id="payb_intonly" onchange="payIntOnlyToggle()">
               <span><b>Interest-only payment</b> &mdash; customer is paying only this month&rsquo;s interest.<br>
-              <span class="ph-sub">Amount is pre-filled with the month&rsquo;s interest (editable). Principal does not go down; the due date moves forward one month.</span></span>
+              2025</span>
             </label>
             <label class="pay-intonly" id="payb_principalWrap" style="display:none;">
               <input type="checkbox" id="payb_principal" onchange="payPrincipalToggle()">
               <span><b>Principal repayment</b> &mdash; the borrower is returning the principal on this interest-only loan.<br>
-              <span class="ph-sub">On a byaj loan the principal stands until it is returned, so only a payment marked this way brings the balance down. Pre-filled with the amount still outstanding (editable); the loan closes once it is fully returned.</span></span>
+              2529</span>
             </label>
             <div class="pay-actions">
               <button class="btn btn-primary" onclick="recordPayTab()">&#65291; Record payment</button>
@@ -709,15 +707,13 @@
 
         <div class="panel chg-panel">
           <h3>Charges &amp; Late Fees</h3>
-          <p class="ph-sub">One place for every charge on a borrower &mdash; late fees, cheque-bounce or other. Charges are <b>added to the outstanding balance</b> and appear in the EMI schedule, reminders and reports. Pick the borrower once, then either apply overdue charges in one click or add a single charge by hand.</p>
-
+3808
           <div class="fg full chg-borrower"><label>Borrower / Loan A/C</label><select id="chg_loan" onchange="chgLoanChange(true)"><option value="">— Select a borrower —</option></select></div>
 
           <!-- 1 · one-click overdue charges -->
           <div class="chg-card">
             <div class="chg-card-h"><span class="chg-step">1</span> Apply overdue charges automatically</div>
-            <p class="chg-card-p">Adds a late fee for every overdue month and this month&rsquo;s interest for any fully-missed month, in one click. Repeatable &mdash; it never double-charges. Leave <b>Overdue interest</b> blank to work it out from the loan automatically, or type an amount to charge exactly that for every unpaid month. <b>Charge only from</b> stops anything older than that date being charged &mdash; useful right after entering years of old history.</p>
-            <!-- Fee policy: set once, rarely touched. Collapsed so it stops
+3958            <!-- Fee policy: set once, rarely touched. Collapsed so it stops
                  competing with the buttons used every day. The inputs and their
                  ids/handlers are untouched — only the wrapper is new. -->
             <details class="chg-settings" style="margin:4px 0 10px;">
@@ -749,8 +745,7 @@
           <!-- 2 · manual charge (any type, amount and date — incl. months after the tenure) -->
           <div class="chg-card">
             <div class="chg-card-h"><span class="chg-step">2</span> Add a single charge manually</div>
-            <p class="chg-card-p">For a cheque-bounce fee or a one-off charge. Late fees and overdue interest are handled by step 1 above &mdash; including months after the tenure &mdash; and a single month can be adjusted by editing it in the register.</p>
-            <div class="pay-row">
+7214            <div class="pay-row">
               <div class="fg"><label>Charge type</label><select id="chg_type" onchange="chgTypeChange()"><option>Cheque bounce</option><option>Other</option></select></div>
               <div class="fg"><label>Amount &#8377;</label><input id="chg_amt" type="number" min="0" placeholder="0"></div>
               <div class="fg"><label>Date</label><input id="chg_date" type="date"></div>
@@ -766,8 +761,7 @@
 
         <div class="panel">
           <h3>Registers</h3>
-          <p class="ph-sub">Everything recorded, kept on its own page so this tab stays clean. Click to open.</p>
-          <div class="reg-cards">
+9062          <div class="reg-cards">
             <button type="button" class="reg-card" onclick="openPayRegister()">
               <span class="reg-card-ic pay">&#8377;</span>
               <span class="reg-card-t">
@@ -902,8 +896,7 @@
         <div class="adm-tab active" data-adm="data">
         <div class="panel">
           <h3>Backup &amp; Restore</h3>
-          <p class="ph-sub">Your loan records are stored inside this browser. To keep them safe — and to move them between computers — download a backup file regularly.</p>
-          <div class="backup-grid">
+893          <div class="backup-grid">
             <div class="bk-card">
               <h4>⤓ Download Backup</h4>
               <p>Saves all your loan records as a single file. Keep it somewhere safe (pen drive, email, cloud).</p>
@@ -965,8 +958,7 @@
         <div class="adm-tab" data-adm="security">
         <div class="panel">
           <h3>App Lock &amp; Security</h3>
-          <p class="ph-sub">Login is required every time the app opens. Manage your password and team members here.</p>
-          <div id="secDisabled">
+5949          <div id="secDisabled">
             <div class="form-grid" style="grid-template-columns:1fr 1fr; max-width:460px;">
               <div class="fg"><label>New password</label><input id="secNew" type="password" autocomplete="new-password"></div>
               <div class="fg"><label>Confirm password</label><input id="secNew2" type="password" autocomplete="new-password"></div>
@@ -991,18 +983,15 @@
             </div>
             <div id="usersAdmin" style="margin-top:18px; border-top:1px solid var(--line); padding-top:16px;">
               <h4 style="font-size:13.5px; margin:0 0 4px;">Team Members</h4>
-              <p class="ph-sub" style="margin-bottom:10px;">Add staff accounts so colleagues can sign in with their own username and password <b>on this computer</b>.</p>
-              <div style="margin:0 0 14px; padding:10px 12px; border:1px solid var(--line); border-radius:9px;">
+8375              <div style="margin:0 0 14px; padding:10px 12px; border:1px solid var(--line); border-radius:9px;">
                 <h4 style="font-size:13px; margin:0 0 4px;">Recovery Password <span id="recStatus" class="wa-stat off" style="margin-left:6px;">Not set</span></h4>
-                <p class="ph-sub" style="margin:0 0 8px;">Choose a <b>second password only you know</b>. If you ever forget your login password, type this at the sign-in screen to get back in and set a new one. Nothing is deleted &mdash; your records, staff accounts and settings stay exactly as they are. It is stored scrambled on this Mac, so nobody can read it out of the app.</p>
-                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+8823                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
                   <input id="recSet1" type="password" placeholder="New recovery password" autocomplete="new-password" style="border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:13px;background:var(--field);color:var(--text);font-family:inherit;min-width:180px;">
                   <input id="recSet2" type="password" placeholder="Confirm recovery password" autocomplete="new-password" style="border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:13px;background:var(--field);color:var(--text);font-family:inherit;min-width:180px;">
                   <button class="btn btn-sm btn-primary" onclick="saveRecoveryPassword()">Save recovery password</button>
                 </div>
                 <h4 style="font-size:13px; margin:12px 0 4px;">Or generate a one-time code</h4>
-                <p class="ph-sub" style="margin:0 0 8px;">Generate a one-time recovery code. If the Administrator password is ever forgotten, this code resets it from the sign-in screen &mdash; no data loss. Each code can be used once; generate a new one after use.</p>
-                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;"><input id="recPwConfirm" type="password" placeholder="Confirm your admin password" autocomplete="off" style="border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:12.5px;background:var(--field);color:var(--text);font-family:inherit;min-width:220px;"><button class="btn btn-ghost" onclick="genRecoveryCode()">Generate recovery code</button></div>
+10131                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;"><input id="recPwConfirm" type="password" placeholder="Confirm your admin password" autocomplete="off" style="border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:12.5px;background:var(--field);color:var(--text);font-family:inherit;min-width:220px;"><button class="btn btn-ghost" onclick="genRecoveryCode()">Generate recovery code</button></div>
                 <div id="recOut" class="ph-sub" style="display:none; margin-top:8px;"></div>
               </div>
               <div id="userList" class="user-list"></div>
@@ -1015,8 +1004,7 @@
               <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="addUser()">＋ Add team member</button>
               <div id="rosterAdmin" style="margin-top:16px; padding:12px 14px; border:1px solid var(--line); border-radius:9px; background:var(--field,#f6f8fc);">
                 <h4 style="font-size:13px; margin:0 0 4px;">Central user list (all devices)</h4>
-                <p class="ph-sub" style="margin:0 0 10px;">Publish this user list as the <b>master copy</b>. Every signed-in device then adopts these accounts and roles on its next sync, so a person has the <b>same role everywhere</b>. It updates roles and adds missing users — it never deletes an account or changes a password, so no one gets locked out. Publish from the <b>owner-administrator's</b> computer.</p>
-                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+12034                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                   <button class="btn btn-sm btn-primary" onclick="publishUserRoster()">Publish user list to all devices</button>
                   <span id="rosterMsg" class="ph-sub" style="margin:0;"></span>
                 </div>
@@ -1025,8 +1013,7 @@
           </div>
           <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
             <b style="font-size:13px;">Auto-lock when idle</b>
-            <p class="ph-sub" style="margin:4px 0 8px;">If the app is left open and untouched, it locks itself and asks for the password again. Set 0 to turn off.</p>
-            <div style="display:flex; gap:8px; align-items:center;">
+12985            <div style="display:flex; gap:8px; align-items:center;">
               <input id="autoLockMins" type="number" min="0" max="240" style="width:90px;">
               <span style="font-size:12.5px; color:var(--muted);">minutes</span>
               <button class="btn btn-sm" onclick="setAutoLockMins($('autoLockMins').value)">Save</button>
@@ -1051,8 +1038,7 @@
         <div id="waSettingsWrap">
           <div class="panel">
             <h3>WhatsApp Business Settings <span id="waStatus" class="wa-stat off">Not configured</span></h3>
-            <p class="ph-sub">Enter your WhatsApp Business Cloud API details. Real sending runs through the Mac desktop app; in the browser, approved messages open in WhatsApp for you to send.</p>
-            <div class="form-grid" style="grid-template-columns:1fr 1fr;max-width:680px;">
+15502            <div class="form-grid" style="grid-template-columns:1fr 1fr;max-width:680px;">
               <div class="fg"><label>WhatsApp Business Number</label><input id="wa_bnumber" placeholder=""></div>
               <div class="fg"><label>Phone Number ID</label><input id="wa_pnid"></div>
               <div class="fg"><label>Access Token (permanent)</label><input id="wa_token" type="password" autocomplete="off"></div>
@@ -1065,18 +1051,15 @@
               <div class="fg" style="margin:0;"><label>Test number</label><input id="wa_testnum" placeholder="" style="width:160px;"></div>
               <button class="btn btn-sm btn-ghost" onclick="waSendTest()">Send Test (hello_world)</button>
             </div>
-            <p class="ph-sub" style="margin-top:10px;font-size:11.5px;">Your access token is stored only on this device. Test/Send work in the desktop app (the browser can't call Meta directly).</p>
-          </div>
+16991          </div>
           <div class="panel">
             <h3>WhatsApp Message Templates</h3>
-            <p class="ph-sub">WhatsApp only sends proactive messages using templates Meta has approved. For each type, enter the <b>exact approved template name</b>, its language code (e.g. <code>en</code>, <code>en_US</code>, <code>hi</code>), and the variable order matching your template's {{1}}, {{2}}… Available variables: <code>name</code> <code>acno</code> <code>emi</code> <code>due_date</code> <code>outstanding</code> <code>arrears</code> <code>fine</code> <code>rate</code> <code>amount</code> <code>cheque</code> <code>bank</code> <code>loanid</code> <code>occasion</code> <code>date</code>.</p>
-            <div id="waTplWrap"></div>
+17285            <div id="waTplWrap"></div>
             <button class="btn btn-primary" style="margin-top:12px;" onclick="saveWaTemplates()">Save Templates</button>
           </div>
           <div class="panel">
             <h3>Message Wording Templates</h3>
-            <p class="ph-sub">Edit the wording in English and Hindi. Use the tags below — they get replaced automatically for each customer.</p>
-            <div class="varbox">Available tags: <code>{name}</code> <code>{acno}</code> <code>{emi}</code> <code>{due_date}</code> <code>{outstanding}</code> <code>{arrears}</code> <code>{fine}</code> <code>{rate}</code> <code>{occasion}</code> <code>{date}</code></div>
+18147            <div class="varbox">Available tags: <code>{name}</code> <code>{acno}</code> <code>{emi}</code> <code>{due_date}</code> <code>{outstanding}</code> <code>{arrears}</code> <code>{fine}</code> <code>{rate}</code> <code>{occasion}</code> <code>{date}</code></div>
             <div class="tpl-grid">
               <div><div class="tpl-h">Due-date reminder · English</div><textarea id="tpl_reminder" rows="3"></textarea></div>
               <div><div class="tpl-h">किस्त याद-पत्र · हिन्दी</div><textarea id="tpl_reminder_hi" rows="3" dir="auto"></textarea></div>
@@ -1106,8 +1089,7 @@
         <div class="adm-tab" data-adm="notices">
         <div class="panel">
           <h3>Default notice wording</h3>
-          <p class="ph-sub">This is the master wording for your Demand &amp; Final Demand notices. Every notice you prepare on the <b>Default Notice</b> page starts from the text you save here — placeholders like <code>{name}</code>, <code>{arrears}</code> and <code>{amounts_table}</code> are filled in automatically from each borrower's loan record. Editing here does not change notices you have already printed.</p>
-          <div class="seg2" id="dnTplTypeSeg" style="max-width:440px;margin:6px 0 10px;">
+21467          <div class="seg2" id="dnTplTypeSeg" style="max-width:440px;margin:6px 0 10px;">
             <button data-dnt="demand" class="active" onclick="setDnTplType('demand')">Demand Notice</button>
             <button data-dnt="final" onclick="setDnTplType('final')">Final Demand Notice</button>
           </div>
@@ -1127,15 +1109,13 @@
         <div class="adm-tab" data-adm="maint">
         <div class="panel" id="selfTestPanel">
           <h3>Health Check</h3>
-          <p class="ph-sub">Runs a safe check of the app's core parts &mdash; calculations, saving, backups, documents and screens. It uses a temporary copy of your data and <b>never changes your records</b>. Run this after installing an update.</p>
-          <button class="btn btn-primary btn-sm" onclick="runSelfTest()">&#9654; Run health check</button>
+23407          <button class="btn btn-primary btn-sm" onclick="runSelfTest()">&#9654; Run health check</button>
           <div id="selfTestOut" style="margin-top:12px;"></div>
         </div>
 
         <div class="panel" id="auditPanel">
           <h3>Audit Logs <span id="auditCount" style="font-weight:400;font-size:12px;color:var(--muted);"></span></h3>
-          <p class="ph-sub">A record of important actions taken in this app &mdash; loans, payments, users, documents, prints and exports. Visible to administrators only.</p>
-          <div class="toolbar" style="margin:10px 0;">
+24007          <div class="toolbar" style="margin:10px 0;">
             <div class="search"><span class="si">&#9013;</span><input id="auditSearch" placeholder="Search by user, action or detail&hellip;" oninput="renderAudit()"></div>
             <button class="btn btn-ghost btn-sm" onclick="exportAudit()">Export log (.csv)</button>
             <button class="btn btn-danger btn-sm" onclick="clearAudit()">Clear log</button>
@@ -1145,8 +1125,7 @@
 
         <div class="panel" id="dangerPanel">
           <h3>Danger Zone</h3>
-          <p class="ph-sub">Permanently delete all loan records from this browser. Make sure you have a backup first.</p>
-          <button class="btn btn-danger" onclick="clearAll()">🗑 Delete All Records</button>
+24822          <button class="btn btn-danger" onclick="clearAll()">🗑 Delete All Records</button>
         </div>
         </div>
       </section>
@@ -1184,7 +1163,7 @@
         </div>
         <div class="fg"><label>Loan Type</label><select id="m_type"><option>Personal</option><option>Housing</option><option>Business</option><option>Mortgage</option></select></div>
         <div class="fg"><label>Loan Security</label><select id="m_secured"><option value="no">Unsecured</option><option value="yes">Secured / Mortgaged</option></select></div>
-        <div class="fg"><label>Age</label><input id="m_age" type="number" min="0"></div>
+        <div class="fg"><label>Date of Birth</label><input id="m_dob" type="date"></div>
         <div class="fg"><label>Residence</label><select id="m_residence"><option value="">—</option><option>Own</option><option>Rental</option><option>Parent's / Spouse</option><option>Employee Leased</option></select></div>
         <div class="fg"><label>Occupation</label><input id="m_occupation"></div>
         <div class="fg"><label>Designation</label><input id="m_designation"></div>

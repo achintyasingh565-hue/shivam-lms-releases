@@ -94,7 +94,7 @@
     updateHP();
     set('p_case',l.caseno); set('p_ref',l.refno); set('p_product',l.product||l.type);
     set('p_dealer',l.dealer); set('p_downpay',l.downpay||''); set('p_financed',l.principal||'');
-    set('p_interest',l.rate||''); set('p_name',l.name); set('p_age',l.age); set('p_father',l.relname);
+    set('p_interest',l.rate||''); set('p_name',l.name); set('p_dob',l.dob); set('p_father',l.relname);
     set('p_addr',l.addr); set('p_tel',l.phone); set('p_res',l.residence); set('p_occ',l.occupation);
     set('p_desig',l.designation); set('p_office',l.officeaddr); set('p_id',(l.idtype?l.idtype+' ':'')+(l.idproof||'')); set('p_guarantor',l.gname);
     updateProp(); lastDocLoan=l; fillDocPhoto(l);

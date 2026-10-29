@@ -44,7 +44,7 @@
       if(!c.pan&&l.pan) c.pan=l.pan;
       if((!c.ids||!c.ids.length)&&Array.isArray(l.ids)&&l.ids.length) c.ids=l.ids;
       if(!c.relname&&l.relname){ c.relname=l.relname; c.reltype=l.reltype||c.reltype; }
-      if(!c.occupation&&l.occupation)c.occupation=l.occupation; if(!c.age&&l.age)c.age=l.age;
+      if(!c.occupation&&l.occupation)c.occupation=l.occupation; if(!c.dob&&l.dob)c.dob=l.dob;
       c.loans.push(l);
     });
     return Object.values(map).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
@@ -99,7 +99,7 @@
                       : [].concat(c.idproof?[{t:(c.idtype||'ID Proof'),n:c.idproof}]:[], c.pan?[{t:'PAN',n:c.pan}]:[]);
           _idrows.forEach(function(id){ if(id&&id.n) f.push('<div><label>'+esc(id.t||'ID')+'</label><div>'+esc(id.n)+'</div></div>'); });
           if(c.occupation) f.push('<div><label>Occupation</label><div>'+esc(c.occupation)+'</div></div>');
-          if(c.age) f.push('<div><label>Age</label><div>'+esc(c.age)+'</div></div>');
+          if(c.dob) f.push('<div><label>Date of Birth</label><div>'+esc(fmtDate(c.dob)||c.dob)+'</div></div>');
           return f.length ? '<div class="cust-grid">'+f.join('')+'</div>' : '';
         })()}
         <div class="pay-tiles" style="margin-top:14px;">
@@ -113,10 +113,10 @@
       <div class="panel"><h3>Active Loans</h3><div style="overflow-x:auto;"><table class="data"><thead><tr><th>A/C</th><th>Type</th><th class="right">Principal</th><th class="right">Outstanding</th><th>Next Due</th><th>Status</th><th></th></tr></thead><tbody>${lrows(active)}</tbody></table></div></div>
       <div class="panel"><h3>Closed Loans</h3><div style="overflow-x:auto;"><table class="data"><thead><tr><th>A/C</th><th>Type</th><th class="right">Principal</th><th class="right">Outstanding</th><th>Next Due</th><th>Status</th><th></th></tr></thead><tbody>${lrows(closed)}</tbody></table></div></div>
       <div class="panel"><h3>Payment History</h3><div style="overflow-x:auto;"><table class="data"><thead><tr><th>Date</th><th>A/C</th><th>Mode</th><th>Cheque / Bank</th><th class="right">Amount</th><th>Status</th></tr></thead><tbody>${pays.length?pays.map(p=>`<tr><td>${fmtDate(p.date)||'\u2014'}</td><td>${esc(p.acno)}</td><td>${esc(p.mode)}</td><td>${p.mode==='Cheque'?(esc(p.cheque||'\u2014')+(p.bank?(' / '+esc(p.bank)):'')):(p.mode==='Online'?('Ref '+esc(p.ref||'\u2014')):'\u2014')}</td><td class="right num">${inr(p.amount)}</td><td>${p.status==='Cleared'?'<span class="pp ok">Cleared</span>':'<span class="pp pend">Pending</span>'}</td></tr>`).join(''):'<tr><td colspan="6" class="muted" style="padding:10px;">No payments recorded</td></tr>'}</tbody></table></div></div>
-      ${chgs.length?`<div class="panel"><h3>Charges <span style="font-weight:400;font-size:12px;color:var(--muted);">— late fees, overdue interest &amp; cheque bounces (added to the outstanding balance)</span></h3><div style="overflow-x:auto;"><table class="data"><thead><tr><th>Date</th><th>A/C</th><th>Type</th><th>Note</th><th class="right">Amount</th></tr></thead><tbody>${chgs.map(x=>`<tr><td>${fmtDate(x.date)||'\u2014'}</td><td>${esc(x.acno)}</td><td>${esc(x.type||'\u2014')}${x.cheque?(' <span class="muted">(chq '+esc(x.cheque)+')</span>'):''}</td><td class="muted">${esc(x.note||'\u2014')}</td><td class="right num">${inr(x.amount)}</td></tr>`).join('')}<tr class="tot"><td colspan="4" style="font-weight:700;">Total charges recorded</td><td class="right num" style="font-weight:700;">${inr(chgs.reduce((a,x)=>a+(Number(x.amount)||0),0))}</td></tr></tbody></table></div><p class="ph-sub" style="margin-top:8px;">These are already included in the outstanding shown above — manage them in Payments &rarr; Charges &amp; Late Fees.</p></div>`:''}
+      ${chgs.length?`<div class="panel"><h3>Charges <span style="font-weight:400;font-size:12px;color:var(--muted);">— late fees, overdue interest &amp; cheque bounces (added to the outstanding balance)</span></h3><div style="overflow-x:auto;"><table class="data"><thead><tr><th>Date</th><th>A/C</th><th>Type</th><th>Note</th><th class="right">Amount</th></tr></thead><tbody>${chgs.map(x=>`<tr><td>${fmtDate(x.date)||'\u2014'}</td><td>${esc(x.acno)}</td><td>${esc(x.type||'\u2014')}${x.cheque?(' <span class="muted">(chq '+esc(x.cheque)+')</span>'):''}</td><td class="muted">${esc(x.note||'\u2014')}</td><td class="right num">${inr(x.amount)}</td></tr>`).join('')}<tr class="tot"><td colspan="4" style="font-weight:700;">Total charges recorded</td><td class="right num" style="font-weight:700;">${inr(chgs.reduce((a,x)=>a+(Number(x.amount)||0),0))}</td></tr></tbody></table></div></div>`:''}
       <div class="panel"><h3>Guarantor(s)</h3><div style="font-size:13.5px;">${guars.length?guars.map(g=>esc(g)).join('<br>'):'<span class="muted">None recorded</span>'}</div></div>
       <div class="panel"><h3>Document Vault</h3>
-        <p class="ph-sub">Securely store this customer&rsquo;s documents (Aadhaar, PAN, photos, agreements). Files are kept on this computer.</p>
+        
         <div class="vault-up">
           <select id="vaultCat"><option>Aadhaar</option><option>PAN</option><option>Bank Statement</option><option>Property Document</option><option>Photograph</option><option>Signed Agreement</option><option>Other</option></select>
           <input type="file" id="vaultFile" multiple accept="image/*,application/pdf">
@@ -302,7 +302,7 @@
     const head = failed.length
       ? '<div style="font-weight:700;color:#b91c1c;margin-bottom:6px;">'+failed.length+' of '+results.length+' checks failed</div>'
       : '<div style="font-weight:700;color:#166534;margin-bottom:6px;">All '+results.length+' checks passed \u2014 the app is healthy</div>';
-    out.innerHTML='<div class="bk-card">'+head+rows+'<div class="ph-sub" style="margin-top:8px;">Your records were not modified by this check.</div></div>';
+    out.innerHTML='<div class="bk-card">'+head+rows+'</div>';
     try{ logAudit('Health Check', failed.length? (failed.length+' check(s) failed') : 'all checks passed'); }catch(e){}
   };
   function renderAudit(){
@@ -345,7 +345,7 @@
   function exportJSON(){ try{recomputeAll();}catch(e){} download('shivam-loans-backup-'+todayISO()+'.json', JSON.stringify(loans,null,2), 'application/json'); logAudit('Data Exported','Backup JSON'); toast('Backup downloaded'); }
   function exportCSV(){
     try{recomputeAll();}catch(e){}
-    const cols=['caseno','refno','acno','name','reltype','relname','age','phone','addr','idtype','idproof','pan','type','product','dealer','occupation','designation','officeaddr','residence','principal','downpay','deductions','rate','tenure','tint','tpay','emi','disb','due','paid','outstanding','status','officer','gname','gphone','remarks','propdesc','propaddr','proparea','propvalue','bN','bS','bE','bW','title'];
+    const cols=['caseno','refno','acno','name','reltype','relname','dob','phone','addr','idtype','idproof','pan','type','product','dealer','occupation','designation','officeaddr','residence','principal','downpay','deductions','rate','tenure','tint','tpay','emi','disb','due','paid','outstanding','status','officer','gname','gphone','remarks','propdesc','propaddr','proparea','propvalue','bN','bS','bE','bW','title'];
     const head=['Case No','Reference','A/C No','Name','Relation','Relation Name','Age','Phone','Address','ID Type','ID No','PAN','Type','Loan Purpose','Referred By','Occupation','Designation','Office Address','Residence','Principal','Adjustment','Deductions','Rate %','Tenure(mo)','Total Interest','Total Payable','EMI','Disbursed','Next Due','Paid','Outstanding','Status','Account Officer','Guarantor','Guarantor Phone','Remarks','Property Desc','Property Address','Area','Property Value','Boundary N','Boundary S','Boundary E','Boundary W','Title/Reg'];
     const rows=loans.map(l=>cols.map(c=>{ let v=l[c]==null?'':String(l[c]); if(/[",\n]/.test(v)) v='"'+v.replace(/"/g,'""')+'"'; return v; }).join(','));
     download('shivam-loans-'+todayISO()+'.csv', head.join(',')+'\n'+rows.join('\n'), 'text/csv'); logAudit('Data Exported','Loans CSV'); toast('Excel file exported');
