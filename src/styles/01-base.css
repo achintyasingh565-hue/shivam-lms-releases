@@ -616,7 +616,20 @@
     body.printing-proposal #sec-proposal{display:block !important;}
     .cert-layout,.prop-layout{display:block;}
     .preview-col{gap:0; display:block;}
-    .page{box-shadow:none; margin:0; width:auto; min-height:auto; padding:12mm 15mm;}
+    /* min-height:auto made the sheet collapse to the height of the text, so a
+       short certificate printed across the top half of the paper and left the
+       rest blank. Hold the full A4 height (295mm, just under 297 so rounding
+       cannot spill a blank second page) and lay the page out as a column, so
+       the signature block and footer sit at the foot of the sheet. */
+    .page{box-shadow:none; margin:0; width:auto; min-height:295mm; padding:10mm 15mm;
+          display:flex; flex-direction:column;
+          /* a certificate must never be split across two sheets -- its heading,
+             body, signature block and footer belong together on one page */
+          page-break-inside:avoid; break-inside:avoid;}
+    /* when BOTH documents are shown, the receipt starts its own sheet instead
+       of running on from the certificate (the "Both" view sets show-both, which
+       hides neither page) */
+    .page + .page{page-break-before:always; break-before:page;}
     /* keep the whole certificate / receipt on ONE page — tighten the vertical rhythm */
     .page .body-txt{line-height:1.55; margin-top:11px;}
     .page .body-txt.cert{margin-top:12px;}
@@ -624,7 +637,10 @@
     .page .sec-h{margin-top:12px;}
     .page .refrow{margin-top:12px;}
     .page table.details td{padding:5px 6px; font-size:12.5px;}
-    .page .sigblock{margin-top:26px;}
+    /* margin-top:auto drops the signatures to the foot of the sheet; the small
+       padding is the gap that remains when the content is long enough to reach
+       them, so it is kept modest to protect the single-page fit. */
+    .page .sigblock{margin-top:auto; padding-top:18px;}
     .page .docfoot{margin-top:16px; page-break-inside:avoid;}
     .page .banner{margin-top:10px;}
     .pform{box-shadow:none; margin:0; width:auto; min-height:auto; padding:8mm 13mm;} .pform .pf-line{margin-top:4px;} .pform .pf-name{font-size:29px;margin-top:2px;} .pform .pf-title{font-size:18px;margin-top:10px;} .pform .pf-sec{margin-top:9px;} .pform .pf-note{margin-top:9px;font-size:12px;} .pform .photo-box{height:104px;}
