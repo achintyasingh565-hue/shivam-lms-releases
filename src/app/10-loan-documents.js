@@ -18,6 +18,15 @@
     let dd='',mm='',yy='';
     if($('h_date').value){ const d=new Date($('h_date').value+'T00:00:00');  /* a bare ISO string parses as UTC, so before 05:30 IST it read as the previous day */ dd=String(d.getDate()); mm=MONTHS[d.getMonth()]; yy=String(d.getFullYear()).slice(2); }
     const S=(id,v)=>setText(id,v);
+    /* Which product this document is for. A byaj loan has no instalment count
+       and no final date, so clause 2 and the schedule row have byaj wordings
+       that are swapped in here — otherwise the agreement printed a blank (or a
+       bare 0) where the number of instalments belongs. */
+    const _byaj=!!window._hpByaj;
+    const _show=(id,on)=>{ const e=$(id); if(e) e.style.display=on?'':'none'; };
+    _show('av_c2emi', !_byaj); _show('av_c2byaj', _byaj);
+    _show('av_rowemi', !_byaj); _show('av_rowbyaj', _byaj);
+    if(_byaj){ S('avb_emi',num(emi)); S('avb_emi2',num(emi)); S('avb_rate',rate); S('avb_from',from); S('avb_loan',num(loan)); }
     // cover is filled independently via loadCover()
     // agreement
     S('av_day',dd); S('av_month',mm); S('av_year',yy);
@@ -55,6 +64,7 @@
     set('h_guar',l.gname); set('h_guarfather',l.grelname); set('h_guaraddr',l.gaddr); set('h_code',l.acno); set('h_date',l.disb||todayISO()); set('h_ref',l.refno||l.caseno); set('h_purpose',l.product||l.type);
     set('h_propdesc',l.propdesc); set('h_propaddr',l.propaddr); set('h_proparea',l.proparea); set('h_propvalue',l.propvalue||'');
     set('h_bN',l.bN); set('h_bS',l.bS); set('h_bE',l.bE); set('h_bW',l.bW); set('h_title',l.title);
+    window._hpByaj=!!l.interestOnly;
     set('h_loanamt',l.principal||''); set('h_rate',l.rate||''); set('h_emi',l.emi||''); set('h_ninst',l.tenure||'');
     set('h_total',l.tpay||''); /* first EMI date and the final one, not the disbursement date, and not
        l.due which moves forward as instalments are paid */
@@ -92,6 +102,7 @@
     set('h_guar',l.gname); set('h_guarfather',l.grelname); set('h_guaraddr',l.gaddr); set('h_code',l.acno); set('h_date',l.disb||todayISO()); set('h_ref',l.refno||l.caseno); set('h_purpose',l.product||l.type);
     set('h_propdesc',l.propdesc); set('h_propaddr',l.propaddr); set('h_proparea',l.proparea); set('h_propvalue',l.propvalue||'');
     set('h_bN',l.bN); set('h_bS',l.bS); set('h_bE',l.bE); set('h_bW',l.bW); set('h_title',l.title);
+    window._hpByaj=!!l.interestOnly;
     set('h_loanamt',l.principal||''); set('h_rate',l.rate||''); set('h_emi',l.emi||''); set('h_ninst',l.tenure||'');
     set('h_total',l.tpay||''); /* first EMI date and the final one, not the disbursement date, and not
        l.due which moves forward as instalments are paid */
@@ -110,6 +121,7 @@
     logAudit('Document Filled','Full file \u2014 '+l.name); toast('All documents filled from '+l.name);
   }
   function resetHP(){
+    window._hpByaj=false;
     ['h_name','h_father','h_addr','h_guar','h_guarfather','h_guaraddr','h_code','h_ref','h_purpose','h_propdesc','h_propaddr','h_proparea','h_propvalue','h_bN','h_bS','h_bE','h_bW','h_title','h_loanamt','h_rate','h_emi','h_ninst','h_total','h_fine'].forEach(id=>{ if($(id)) $(id).value=''; });
     $('h_place').value='Lucknow'; $('h_date').value=todayISO(); $('h_from').value=''; $('h_to').value=''; if($('fileLoad')) $('fileLoad').value=''; ['cv_name','cv_code','cv_amt','cv_date','cv_purpose'].forEach(id=>setText(id,'')); updateHP();
   }

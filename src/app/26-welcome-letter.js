@@ -176,10 +176,18 @@
       _kv('Product Description', (l.secured ? 'SECURED' : 'UNSECURED') + (l.type ? (' · ' + esc(l.type)) : '')) +
       _kv('Sanctioned Amount', _r(l.principal)) +
       _kv('Disbursed Amount', _r(_net(l))) +
-      _kv('Total Amount Payable', _r(l.tpay)) +
-      _kv('Monthly EMI', _r(l.emi)) +
-      _kv('Tenure / Total Instalments', (Number(l.tenure) || 0) + ' months / ' + (s ? s.months : (Number(l.tenure) || 0))) +
-      _kv('Balance Instalments', s ? String(s.balanceInstl) : String(Number(l.tenure) || 0)) +
+      /* A byaj loan has no tenure and no instalment count: it printed
+         "0 months / 0" and "Balance Instalments 0" beside a live account. Say
+         what is actually owed instead. */
+      (l.interestOnly
+        ? (_kv('Principal Repayable', _r(l.principal)) +
+           _kv('Monthly Interest', _r(l.emi)) +
+           _kv('Tenure / Total Instalments', 'Monthly, until the principal is repaid') +
+           _kv('Principal Outstanding', _r(l.outstanding)))
+        : (_kv('Total Amount Payable', _r(l.tpay)) +
+           _kv('Monthly EMI', _r(l.emi)) +
+           _kv('Tenure / Total Instalments', (Number(l.tenure) || 0) + ' months / ' + (s ? s.months : (Number(l.tenure) || 0))) +
+           _kv('Balance Instalments', s ? String(s.balanceInstl) : String(Number(l.tenure) || 0)))) +
       _kv('Loan Status', esc(l.status || 'Active')) +
       _kv('Frequency', 'Monthly') +
       '</table>' +

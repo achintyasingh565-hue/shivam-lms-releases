@@ -9,6 +9,28 @@ charged, and the instalment itself moves forward, extending the schedule.
 
 ---
 
+## 2.20.1
+
+### Fixed
+
+- **Byaj (interest-only) loans printed a bare "0" where the instalment count belongs.** A byaj
+  loan has no tenure — the borrower services the monthly interest and the principal stands until
+  he returns it — so every document that printed `tenure` put a zero on a page meant to be signed:
+  *"repay the Loan with interest in **0** monthly instalments of Rs. 2,000"*, *"Monthly instalment
+  Rs. 2,000 × **0**"*, *"Tenure 0 months"*, *"Balance Instalments 0"*, *"This loan has 0 EMIs"*.
+  A clause stating zero instalments states nothing.
+
+  Byaj loans now get their own wording everywhere: the Loan File agreement, the Loan Documents
+  agreement, the Schedule of Loan, the Statement of Account, the Welcome Letter, the EMI schedule
+  legend and the WhatsApp `{tenure}` variable. The agreement clause now reads that interest of
+  Rs. X is payable monthly until the principal of Rs. Y is repaid in full, and that the principal
+  does not stand reduced by any payment of interest — which is what was actually agreed.
+
+  **Wording only. No stored figure changed** — `tenure` is still 0 in the data, and the monthly
+  interest, the principal and the outstanding are all exactly as before.
+
+---
+
 ## 2.20.0
 
 Sixteen defects from two independent reviews of 2.19.0 (Codex, 9 findings; Gemini, 7). Every one

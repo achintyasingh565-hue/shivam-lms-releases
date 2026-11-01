@@ -1,5 +1,26 @@
   /* ---------- helpers ---------- */
   function inr(n){ n=Number(n)||0; return "₹" + n.toLocaleString('en-IN',{maximumFractionDigits:0}); }
+  /* A byaj (interest-only) loan has no fixed tenure: the borrower services the
+     monthly interest and the principal stands until he returns it. Printing
+     `l.tenure` therefore put a bare "0" on signed documents — "0 monthly
+     instalments", "Rs. 2,000 x 0", "Tenure 0 months" — which reads as an error
+     on a legal page. These give every document the same wording for it. */
+  function tenureText(l){
+    if(l && l.interestOnly) return 'Monthly, until the principal is repaid';
+    var n=Math.round(Number(l&&l.tenure)||0);
+    return n>0 ? (n+' month'+(n===1?'':'s')) : '\u2014';
+  }
+  function tenureShort(l){
+    if(l && l.interestOnly) return 'Monthly (interest only)';
+    var n=Math.round(Number(l&&l.tenure)||0);
+    return n>0 ? (n+' mo') : '\u2014';
+  }
+  /* What one instalment IS. On a byaj loan that is the month's interest. */
+  function instalmentCountText(l){
+    if(l && l.interestOnly) return 'every month until the principal is repaid';
+    var n=Math.round(Number(l&&l.tenure)||0);
+    return n>0 ? String(n) : '\u2014';
+  }
   function inrPlain(n){ n=Number(n)||0; return n.toLocaleString('en-IN',{maximumFractionDigits:0}); }
   function fmtDate(v){ if(!v) return ""; const [y,m,d]=v.split("-"); return d+"-"+m+"-"+y.slice(2); }
   /* Local-time "today" (toISOString() is UTC: in IST it reports YESTERDAY before 05:30 AM,
@@ -458,7 +479,7 @@
       +'<tr><th>Borrower</th><td>'+esc(l.name)+'</td><th>A/C No.</th><td>'+esc(l.acno||'')+'</td></tr>'
       +'<tr><th>Phone</th><td>'+esc(l.phone||'')+'</td><th>Type</th><td>'+esc(l.type||'')+'</td></tr>'
       +'<tr><th>Principal</th><td>'+inr(l.principal)+'</td><th>Interest rate</th><td>'+(Number(l.rate)>0?esc(String(l.rate))+'%':'&mdash;')+'</td></tr>'
-      +'<tr><th>Tenure</th><td>'+esc(String(l.tenure||''))+' months</td><th>EMI</th><td>'+inr(l.emi)+'</td></tr>'
+      +'<tr><th>Tenure</th><td>'+esc(tenureText(l))+'</td><th>'+(l.interestOnly?'Monthly interest':'EMI')+'</th><td>'+inr(l.emi)+'</td></tr>'
       +'<tr><th>Disbursed</th><td>'+(l.disb?fmtDate(l.disb):'&mdash;')+'</td><th>Status</th><td>'+esc(autoStatus(l))+'</td></tr>'
       +'</tbody></table></div>';
     host.innerHTML = terms + meta + rsHtml
@@ -523,7 +544,7 @@
     var recon='<div style="margin-top:14px;font-size:12px;color:#333;border:1px solid #ddd;background:#faf7ef;border-radius:6px;padding:8px 11px;">'
       +'Total payable '+inr(payable)+(chgTot>0?(' + charges '+inr(chgTot)):'')+' &minus; '+(_sp.interest>0?'principal repaid ':'paid ')+inr(_sp.principal)+' = <b>Outstanding '+inr(Number(l.outstanding)||0)+'</b>'+(_sp.interest>0?('<br><span style="font-size:11px;color:#666;">Interest serviced '+inr(_sp.interest)+' is income on the loan and does not reduce the balance, so it is not subtracted above.</span>'):'')+(ded?('<br><span style="font-size:11px;color:#666;">Processing/deductions '+inr(ded)+' were withheld at disbursement; the customer owes the full amount, so this does not reduce the outstanding.</span>'):'')+'</div>';
     var inner = rsT + '<div style="font-weight:700;margin:14px 0 4px;color:#0b1f4b;">Payment Ledger</div>' + t + chgT + recon;
-    var meta=[['Principal',inr(l.principal)],['Rate',(Number(l.rate)>0?String(l.rate)+'%':'\u2014')],['Tenure',String(l.tenure||'')+' mo'],['EMI',inr(l.emi)],['Total payable',inr(payable)],['Paid (cleared)',inr(run)]];
+    var meta=[['Principal',inr(l.principal)],['Rate',(Number(l.rate)>0?String(l.rate)+'%':'\u2014')],['Tenure',tenureShort(l)],[(l.interestOnly?'Monthly interest':'EMI'),inr(l.emi)],['Total payable',inr(payable)],['Paid (cleared)',inr(run)]];
     if(_sp.interest>0){ meta.push(['of which interest serviced',inr(_sp.interest)]); meta.push(['Principal repaid',inr(_sp.principal)]); }
     if(chgTot>0) meta.push(['Charges & late fees',inr(chgTot)]);
     if(ded) meta.push(['Processing/Deductions',inr(ded)]);

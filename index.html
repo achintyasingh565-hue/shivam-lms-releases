@@ -101,7 +101,7 @@
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.4 2.4 4.6-5"/></svg> Audit Logging Enabled</span>
       </div>
       <div class="auth-meta"><span id="lastLogin"></span></div>
-      <div class="auth-meta auth-verline">Version 2.20.0 &nbsp;·&nbsp; © Shivam Enterprises</div>
+      <div class="auth-meta auth-verline">Version 2.20.1 &nbsp;·&nbsp; © Shivam Enterprises</div>
     </div>
   </div>
 </div>
@@ -460,7 +460,11 @@
                 <p class="ad-p">WHEREAS the Borrower has applied to the Lender for a loan, and the Lender has agreed to advance the same against the security of the immovable property described in the Schedule of Property hereunder, on the terms following.</p>
                 <p class="ad-h">NOW THIS AGREEMENT WITNESSES AS FOLLOWS:</p>
                 <p class="ad-c"><b>1.</b> The Lender has advanced / agreed to advance to the Borrower the sum of Rs. <span class="af" id="av_loan"></span> ("the Loan"), together with interest at the rate of <span class="af sm" id="av_rate"></span>% per month.</p>
-                <p class="ad-c"><b>2.</b> The Borrower shall repay the Loan with interest in <span class="af sm" id="av_ninst"></span> monthly instalments of Rs. <span class="af" id="av_emi"></span> each, commencing from <span class="af" id="av_from"></span> and continuing until <span class="af" id="av_to"></span>, payable at the Lender's office at Lucknow, for which a printed receipt shall be obtained.</p>
+                <p class="ad-c" id="av_c2emi"><b>2.</b> The Borrower shall repay the Loan with interest in <span class="af sm" id="av_ninst"></span> monthly instalments of Rs. <span class="af" id="av_emi"></span> each, commencing from <span class="af" id="av_from"></span> and continuing until <span class="af" id="av_to"></span>, payable at the Lender's office at Lucknow, for which a printed receipt shall be obtained.</p>
+                <!-- A byaj (interest-only) loan has no instalment count and no end date, so the
+                     clause above printed a blank where the count belongs and a blank end date.
+                     Only one of these two paragraphs is ever shown. -->
+                <p class="ad-c" id="av_c2byaj" style="display:none;"><b>2.</b> The Borrower shall pay interest on the Loan at Rs. <span class="af" id="avb_emi"></span> per month, being <span class="af sm" id="avb_rate"></span> % per month on the principal sum, commencing from <span class="af" id="avb_from"></span> and continuing every month thereafter until the principal sum of Rs. <span class="af" id="avb_loan"></span> is repaid in full. The principal shall remain due and payable in full and shall not stand reduced by any payment of interest. Both interest and principal are payable at the Lender's office at Lucknow, for which a printed receipt shall be obtained.</p>
                 <p class="ad-c"><b>3.</b> As and by way of security for the due repayment of the Loan, interest and all charges, the Borrower hereby mortgages and charges in favour of the Lender the immovable property described in the Schedule of Property below, and has deposited / shall deposit with the Lender the original title documents thereof with intent to create security over the said property, which shall remain so charged until the entire dues are fully repaid.</p>
                 <p class="ad-c"><b>4.</b> The Borrower covenants and declares: <b>(a)</b> that the Borrower is the sole, lawful and absolute owner of the said property and that it is free from any prior mortgage, charge or encumbrance; <b>(b)</b> to pay every instalment punctually on its due date; <b>(c)</b> to keep the property in good condition and duly insured, and to pay all taxes, rates and outgoings in respect thereof; <b>(d)</b> not to sell, transfer, lease, gift or further encumber the property, nor part with possession thereof, without the prior written consent of the Lender, until the entire dues are cleared.</p>
                 <p class="ad-c"><b>5.</b> In the event of default in payment of any instalment on its due date, a late-payment surcharge as applicable shall be payable; and the Lender may, by notice in writing, declare the entire outstanding amount immediately due and payable, and shall be entitled to enforce the security and recover the dues by sale of the mortgaged property in accordance with law, the Borrower and the Guarantor remaining jointly and severally liable for any shortfall.</p>
@@ -476,7 +480,8 @@
                 <table class="sch">
                   <tr><td>Loan amount</td><td>Rs. <span class="af" id="av_loan2"></span></td></tr>
                   <tr><td>Rate of interest</td><td><span class="af sm" id="av_rate2"></span>% per month</td></tr>
-                  <tr><td>Monthly instalment</td><td>Rs. <span class="af" id="av_emi2"></span> × <span class="af sm" id="av_ninst2"></span></td></tr>
+                  <tr id="av_rowemi"><td>Monthly instalment</td><td>Rs. <span class="af" id="av_emi2"></span> × <span class="af sm" id="av_ninst2"></span></td></tr>
+                  <tr id="av_rowbyaj" style="display:none;"><td>Monthly interest</td><td>Rs. <span class="af" id="avb_emi2"></span>, payable every month until the principal is repaid</td></tr>
                   <tr><td>Total amount repayable</td><td>Rs. <span class="af" id="av_total"></span></td></tr>
                 </table>
                 <div class="ad-sign">

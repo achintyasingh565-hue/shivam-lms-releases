@@ -462,7 +462,9 @@
                   sum:'margin-top:10px;padding:10px 13px;background:#faf7ef;border:1px solid #efe4c6;border-radius:9px;font-size:12.5px;color:#3a2f10;'};
     var pt=function(term,desc){ return '<div style="margin:'+(pr?'1px':'2px')+' 0;"><b style="color:'+C.b+';">'+term+'</b> &mdash; '+desc+'</div>'; };
     var body=''
-      + pt('EMI', 'the fixed monthly instalment of '+inr(D.emi)+'. This loan has '+D.n+' EMIs, '+inr(D.total)+' in all.')
+      + (l && l.interestOnly
+        ? pt('Monthly interest', 'the byaj of '+inr(D.emi)+' a month on the principal of '+inr(Number(l.principal)||0)+'. There is no fixed number of instalments — the interest is payable every month until the principal is returned, and the principal itself does not reduce.')
+        : pt('EMI', 'the fixed monthly instalment of '+inr(D.emi)+'. This loan has '+D.n+' EMIs, '+inr(D.total)+' in all.'))
       + pt('Paid / Partial', 'the instalment for that month was received in full / in part.')
       + pt('Deferred &middot; EMI moved forward', 'nothing was paid that month, so only that month&rsquo;s interest'+(monthInt>0?(' ('+inr(monthInt)+')'):'')+' and a late fee were added, and the instalment was pushed to a later month &mdash; the loan simply takes longer to close.')
       + pt('Upcoming / Due soon', 'an instalment that is still to fall due.')
