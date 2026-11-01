@@ -1,5 +1,5 @@
 /* ===========================================================================
- * src/app/31-search-palette.js
+ * src/app/34-search-palette.js
  *
  * Makes the existing top-bar search actually useful:
  *   • Ctrl/Cmd + K  (and the existing "/") jumps straight to it.

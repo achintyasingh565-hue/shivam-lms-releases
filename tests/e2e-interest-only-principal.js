@@ -94,10 +94,33 @@ partRepaid.payments = partRepaid.payments.concat([pay('2026-10-01', 100000, { ki
 ctx.recomputeLoan(partRepaid);
 chk('a payment tagged as principal reduces the balance', partRepaid.outstanding, P - 100000);
 
-const fullyRepaid = ioLoan();
-fullyRepaid.payments = fullyRepaid.payments.concat([pay('2026-10-01', P, { kind: 'principal' })]);
+// Interest stops the day the principal comes back, so the principal here is
+// returned on 20 October — AFTER the 9 October instalment fell due. Eight
+// months are in and the ninth is not: returning the principal must NOT wipe
+// interest that had already fallen due.
+//   (This fixture used to return the principal on 1 October and still expect a
+//    ninth month of interest. That month only existed because accrual ran to
+//    today rather than to the day the money came back — the very defect Codex 1
+//    and Gemini 1 reported.)
+const shortOnInterest = ioLoan();
+shortOnInterest.payments = shortOnInterest.payments.concat([pay('2026-10-20', P, { kind: 'principal' })]);
+ctx.recomputeLoan(shortOnInterest);
+chk('principal back but a month of interest unpaid -> still open', shortOnInterest.status, 'Overdue');
+chk('  the unpaid interest survives the principal return', shortOnInterest.outstanding, 10000);
+chk('  and is reported as arrears', shortOnInterest.arrears, 10000);
+
+// The mirror case: return the principal BEFORE the next instalment falls due
+// and that month is never charged — the borrower no longer has the money.
+const repaidEarly = ioLoan();
+repaidEarly.payments = repaidEarly.payments.concat([pay('2026-10-01', P, { kind: 'principal' })]);
+ctx.recomputeLoan(repaidEarly);
+chk('principal back before the next due date -> Closed', repaidEarly.status, 'Closed');
+chk('  no interest is charged for a month he did not hold the money', repaidEarly.outstanding, 0);
+
+const fullyRepaid = ioLoan({ payments: interestMonths.concat([pay('2026-10-09', 10000)]) });
+fullyRepaid.payments = fullyRepaid.payments.concat([pay('2026-10-10', P, { kind: 'principal' })]);
 ctx.recomputeLoan(fullyRepaid);
-chk('returning the whole principal closes the loan', fullyRepaid.status, 'Closed');
+chk('interest fully serviced AND principal returned -> Closed', fullyRepaid.status, 'Closed');
 chk('  and clears the balance', fullyRepaid.outstanding, 0);
 
 // --- 5. WHERE 4,62,000 COMES FROM.
@@ -211,6 +234,28 @@ const pending = sj();
 pending.payments = [Object.assign(pay('2026-10-29', 200000, { kind: 'principal' }), { status: 'Pending' })];
 ctx.recomputeLoan(pending);
 chk('a pending principal payment does not close the loan', pending.outstanding, 200000);
+
+// ---------------------------------------------------------------------------
+// Combining loans used to hard-clear interestOnly, so merging two byaj loans
+// handed back an amortising EMI loan: the principal started coming down and
+// the borrower's product had silently changed.
+console.log('\n--- combining loans keeps the product ---');
+{
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'src', 'app', '18-docgen.js'), 'utf8');
+  const line = (src.match(/rec\.interestOnly\s*=[\s\S]*?;/) || [''])[0].replace(/\s+/g, ' ');
+  chk('the product type is derived, not hard-cleared', /every/.test(line), true);
+  chk('  and it is no longer forced to false', /interestOnly\s*=\s*false/.test(src), false);
+
+  // the derived rule itself
+  const derive = (list) => list.length > 0 && list.every(x => x && x.interestOnly);
+  chk('two byaj loans combine into a byaj loan',
+    derive([{ interestOnly: true }, { interestOnly: true }]), true);
+  chk('two EMI loans combine into an EMI loan',
+    derive([{ interestOnly: false }, { interestOnly: false }]), false);
+  chk('a mixed set becomes an EMI loan', derive([{ interestOnly: true }, {}]), false);
+  chk('an empty set is not byaj', derive([]), false);
+}
 
 console.log(fails ? '\n' + fails + ' CHECK(S) FAILED' : '\nALL INTEREST-ONLY PRINCIPAL CHECKS PASS');
 process.exitCode = fails ? 1 : 0;

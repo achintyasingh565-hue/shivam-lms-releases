@@ -91,6 +91,13 @@
             <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
               <button class="btn btn-ghost btn-sm" onclick="lockNow()">🔒 Lock now</button>
               <button class="btn btn-ghost btn-sm" onclick="toggleChange()">Change password</button>
+              <button class="btn btn-ghost btn-sm" onclick="toggleOff()">Turn off app lock</button>
+            </div>
+            <div id="secOff" style="display:none; margin-top:14px;">
+              <div class="form-grid" style="grid-template-columns:1fr; max-width:320px;">
+                <div class="fg"><label>Administrator password</label><input id="offPass" type="password" autocomplete="current-password"></div>
+              </div>
+              <button class="btn btn-danger btn-sm" style="margin-top:10px;" onclick="doDisable()">Turn off app lock</button>
             </div>
             <div id="secChange" style="display:none; margin-top:14px;">
               <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; max-width:620px;">

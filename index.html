@@ -101,7 +101,7 @@
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.4 2.4 4.6-5"/></svg> Audit Logging Enabled</span>
       </div>
       <div class="auth-meta"><span id="lastLogin"></span></div>
-      <div class="auth-meta auth-verline">Version 2.12.2 &nbsp;·&nbsp; © Shivam Enterprises</div>
+      <div class="auth-meta auth-verline">Version 2.20.0 &nbsp;·&nbsp; © Shivam Enterprises</div>
     </div>
   </div>
 </div>
@@ -687,13 +687,11 @@
             </div>
             <label class="pay-intonly">
               <input type="checkbox" id="payb_intonly" onchange="payIntOnlyToggle()">
-              <span><b>Interest-only payment</b> &mdash; customer is paying only this month&rsquo;s interest.<br>
-              2025</span>
+              <span><b>Interest-only payment</b> &mdash; customer is paying only this month&rsquo;s interest.</span>
             </label>
             <label class="pay-intonly" id="payb_principalWrap" style="display:none;">
               <input type="checkbox" id="payb_principal" onchange="payPrincipalToggle()">
-              <span><b>Principal repayment</b> &mdash; the borrower is returning the principal on this interest-only loan.<br>
-              2529</span>
+              <span><b>Principal repayment</b> &mdash; the borrower is returning the principal on this interest-only loan.</span>
             </label>
             <div class="pay-actions">
               <button class="btn btn-primary" onclick="recordPayTab()">&#65291; Record payment</button>
@@ -972,6 +970,13 @@
             <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
               <button class="btn btn-ghost btn-sm" onclick="lockNow()">🔒 Lock now</button>
               <button class="btn btn-ghost btn-sm" onclick="toggleChange()">Change password</button>
+              <button class="btn btn-ghost btn-sm" onclick="toggleOff()">Turn off app lock</button>
+            </div>
+            <div id="secOff" style="display:none; margin-top:14px;">
+              <div class="form-grid" style="grid-template-columns:1fr; max-width:320px;">
+                <div class="fg"><label>Administrator password</label><input id="offPass" type="password" autocomplete="current-password"></div>
+              </div>
+              <button class="btn btn-danger btn-sm" style="margin-top:10px;" onclick="doDisable()">Turn off app lock</button>
             </div>
             <div id="secChange" style="display:none; margin-top:14px;">
               <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; max-width:620px;">
@@ -1218,6 +1223,8 @@
           <div class="grp-title" style="grid-column:1/-1;">Guarantor &amp; Notes</div>
         <div class="fg"><label>Guarantor Name</label><input id="m_gname"></div>
         <div class="fg"><label>Guarantor Phone</label><input id="m_gphone"></div>
+        <div class="fg"><label>Guarantor Father's / Husband's Name</label><input id="m_grelname"></div>
+        <div class="fg"><label>Guarantor Address</label><input id="m_gaddr"></div>
         <div class="fg full"><label>Remarks</label><textarea id="m_remarks" placeholder=""></textarea></div>
         </div>
       </div>

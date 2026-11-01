@@ -1,5 +1,5 @@
 /* ===========================================================================
- * src/app/28-loan-file.js
+ * src/app/31-loan-file.js
  *
  * LOAN FILE — the full printable loan booklet (Cover, Proposal Form, Loan
  * Agreement, Security & Declaration Letter + Promissory Note) in the firm's
@@ -79,9 +79,14 @@
   var OM = '|| ॐ नमः शिवाय ||';
 
   function _html(l) {
-    var untilD = (l.tenure && (l.due || l.disb)) ? _addM(l.due || _addM(l.disb, 1), (Number(l.tenure) || 1) - 1) : '';
+    /* recomputeLoan moves l.due forward as instalments are paid. Using it here
+       meant a Loan File printed after three paid EMIs stated a start and end
+       date three months later than the agreement the borrower signed.
+       Anchor to the disbursement date, which does not move. */
+    var firstDue = l.disb ? _addM(l.disb, 1) : (l.due || '');
+    var untilD = (l.tenure && firstDue) ? _addM(firstDue, (Number(l.tenure) || 1) - 1) : '';
     var nameAddr = (l.name || '') + (l.relname ? (' ' + (l.reltype || 's/o') + ' ' + l.relname) : '') + (l.addr ? (', ' + l.addr) : '');
-    return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc((l.name || 'Loan') + ' - Loan File') + '</title><style>' + _css() + '</style></head><body>'
+    return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc(_docFileName(l.name, l.acno, 'Loan_File')) + '</title><style>' + _css() + '</style></head><body>'
 
       /* ---- Page 1: Cover ---- */
       + '<section class="sheet cover-sheet">'
@@ -132,11 +137,11 @@
       + '<div class="om">' + OM + '</div><div class="doctitle">LOAN AGREEMENT</div>'
       + '<div class="docsub">(Secured by Mortgage of Immovable Property)</div>'
       + '<div class="addr">Shivam Enterprises, ' + esc(FIRM().address) + ' &nbsp;|&nbsp; ' + esc(firmRegLine()) + '</div><div class="rule"></div>'
-      + '<p class="cl">Memorandum of agreement made this ' + fv(l.disb ? new Date(l.disb).getDate() : '') + ' day of ' + fv(l.disb ? new Date(l.disb).toLocaleString('en-IN', { month: 'long' }) : '') + ' 20' + fv(l.disb ? String(new Date(l.disb).getFullYear()).slice(2) : '') + ' between <b>Shivam Enterprises, ' + esc(FIRM().address) + '</b>, hereinafter called the “Lender” (which expression shall include its successors and assigns) of the first part, and Shri ' + fv(l.name, 'bl') + ' Son / Daughter / Wife of Shri ' + fv(l.relname, 'bw') + ' residing at ' + fv(l.addr, 'bl') + ', hereinafter called the “Borrower”, and Shri ' + fv(l.gname, 'bl') + ' Son / Daughter / Wife of Shri <span class="b bw"></span> residing at <span class="b bl"></span>, hereinafter called the “Guarantor”, of the second part.</p>'
+      + '<p class="cl">Memorandum of agreement made this ' + fv(l.disb ? new Date(l.disb+'T00:00:00').getDate() : '') + ' day of ' + fv(l.disb ? new Date(l.disb+'T00:00:00').toLocaleString('en-IN', { month: 'long' }) : '') + ' 20' + fv(l.disb ? String(new Date(l.disb+'T00:00:00').getFullYear()).slice(2) : '') + ' between <b>Shivam Enterprises, ' + esc(FIRM().address) + '</b>, hereinafter called the “Lender” (which expression shall include its successors and assigns) of the first part, and Shri ' + fv(l.name, 'bl') + ' Son / Daughter / Wife of Shri ' + fv(l.relname, 'bw') + ' residing at ' + fv(l.addr, 'bl') + ', hereinafter called the “Borrower”, and Shri ' + fv(l.gname, 'bl') + ' Son / Daughter / Wife of Shri <span class="b bw"></span> residing at <span class="b bl"></span>, hereinafter called the “Guarantor”, of the second part.</p>'
       + '<p class="cl">WHEREAS the Borrower has applied to the Lender for a loan, and the Lender has agreed to advance the same against the security of the immovable property described in the Schedule of Property hereunder, on the terms following.</p>'
       + '<p class="cl"><b>NOW THIS AGREEMENT WITNESSES AS FOLLOWS:</b></p><ol class="clauses">'
       + '<li>The Lender has advanced / agreed to advance to the Borrower the sum of Rs. ' + fv(_r(l.principal)) + ' (“the Loan”), together with interest at the rate of ' + fv(l.rate) + ' % per month.</li>'
-      + '<li>The Borrower shall repay the Loan with interest in ' + fv(l.tenure) + ' monthly instalments of Rs. ' + fv(_r(l.emi)) + ' each, commencing from ' + fv(_d(l.due || _addM(l.disb, 1))) + ' and continuing until ' + fv(_d(untilD)) + ', payable at the Lender’s office at Lucknow, for which a printed receipt shall be obtained.</li>'
+      + '<li>The Borrower shall repay the Loan with interest in ' + fv(l.tenure) + ' monthly instalments of Rs. ' + fv(_r(l.emi)) + ' each, commencing from ' + fv(_d(firstDue)) + ' and continuing until ' + fv(_d(untilD)) + ', payable at the Lender’s office at Lucknow, for which a printed receipt shall be obtained.</li>'
       + '<li>As and by way of security for the due repayment of the Loan, interest and all charges, the Borrower hereby mortgages and charges in favour of the Lender the immovable property described in the Schedule of Property below, and has deposited / shall deposit with the Lender the original title documents thereof with intent to create security over the said property, which shall remain so charged until the entire dues are fully repaid.</li>'
       + '<li>The Borrower covenants and declares: (a) that the Borrower is the sole, lawful and absolute owner of the said property and that it is free from any prior mortgage, charge or encumbrance; (b) to pay every instalment punctually on its due date; (c) to keep the property in good condition and duly insured, and to pay all taxes, rates and outgoings in respect thereof; (d) not to sell, transfer, lease, gift or further encumber the property, nor part with possession thereof, without the prior written consent of the Lender, until the entire dues are cleared.</li>'
       + '<li>In the event of default in payment of any instalment on its due date, a late-payment surcharge as applicable shall be payable; and the Lender may, by notice in writing, declare the entire outstanding amount immediately due and payable, and shall be entitled to enforce the security and recover the dues by sale of the mortgaged property in accordance with law, the Borrower and the Guarantor remaining jointly and severally liable for any shortfall.</li>'
@@ -163,7 +168,7 @@
       + '<div style="margin-top:8px;">Borrower (sign): <span class="b bl"></span><br><br>Name: ' + fv(l.name, 'bl') + '</div>'
       + '<div class="rule" style="margin-top:30px;"></div><div class="doctitle" style="margin-top:6px;">PROMISSORY NOTE</div>'
       + '<p class="cl"><b>Rs. ' + fv(_r(l.principal)) + '</b></p>'
-      + '<p class="cl">On demand I, (Borrower) ' + fv(l.name, 'bl') + ' Son / Daughter / Wife of ' + fv(l.relname, 'bw') + ', resident of ' + fv(l.addr, 'bl') + ', and (Guarantor) ' + fv(l.gname, 'bl') + ' Son / Daughter / Wife of <span class="b bw"></span>, resident of <span class="b bl"></span>, jointly and severally promise to pay <b>Shivam Enterprises, ' + esc(FIRM().address) + '</b>, or order, the sum of Rs. ' + fv(_r(l.principal)) + ' (Rupees ' + fv((typeof inrWords==='function') ? inrWords(l.principal) : '', 'bl') + ') together with interest at ' + fv(l.rate) + ' % per month, for value received. Dated this ' + fv(l.disb ? new Date(l.disb).getDate() : '') + ' day of ' + fv(l.disb ? new Date(l.disb).toLocaleString('en-IN', { month: 'long' }) : '') + ' 20' + fv(l.disb ? String(new Date(l.disb).getFullYear()).slice(2) : '') + '.</p>'
+      + '<p class="cl">On demand I, (Borrower) ' + fv(l.name, 'bl') + ' Son / Daughter / Wife of ' + fv(l.relname, 'bw') + ', resident of ' + fv(l.addr, 'bl') + ', and (Guarantor) ' + fv(l.gname, 'bl') + ' Son / Daughter / Wife of ' + fv(l.grelname, 'bw') + ', resident of ' + fv(l.gaddr, 'bl') + ', jointly and severally promise to pay <b>Shivam Enterprises, ' + esc(FIRM().address) + '</b>, or order, the sum of Rs. ' + fv(_r(l.principal)) + ' (Rupees ' + fv((typeof inrWords==='function') ? inrWords(l.principal) : '', 'bl') + ') together with interest at ' + fv(l.rate) + ' % per month, for value received. Dated this ' + fv(l.disb ? new Date(l.disb+'T00:00:00').getDate() : '') + ' day of ' + fv(l.disb ? new Date(l.disb+'T00:00:00').toLocaleString('en-IN', { month: 'long' }) : '') + ' 20' + fv(l.disb ? String(new Date(l.disb+'T00:00:00').getFullYear()).slice(2) : '') + '.</p>'
       + '<div style="display:flex;justify-content:space-between;margin-top:26px;gap:40px;font-size:12.5px;"><div style="text-align:left;">Place: <b>Lucknow</b></div><div style="text-align:center;flex:0 0 45%;"><div class="sig-line" style="margin-top:6px;">Signature of Borrower</div><div class="sig-line" style="margin-top:34px;">Signature of Guarantor</div></div></div>'
       + '</section>'
 

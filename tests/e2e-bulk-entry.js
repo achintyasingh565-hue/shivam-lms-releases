@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', '29-bulk-entry.js'), 'utf8');
+const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', '32-bulk-entry.js'), 'utf8');
 function slice(decl) {
   const i = src.indexOf(decl);
   if (i < 0) throw new Error('not found: ' + decl);

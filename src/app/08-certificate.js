@@ -13,9 +13,17 @@
   function calcLoanTotals(principal, ratePctPerMonth, months){
     var p=Number(principal), r=Number(ratePctPerMonth), n=Number(months);
     p=(isFinite(p)&&p>0)?p:0; r=(isFinite(r)&&r>0)?r:0; n=(isFinite(n)&&n>0)?Math.round(n):0;
-    const tint=Math.round(p*r/100*n);
-    const tpay=Math.round(p)+tint;
-    const emi=n>0?Math.round(tpay/n):0;
+    /* Each input can be finite while the PRODUCT is not: 1e308 x 100 x 600
+       overflows to Infinity, and Infinity/NaN must never reach a printed
+       document or a stored balance. Clamp to the largest exactly-representable
+       integer rather than zeroing — a zero would quietly turn an absurd figure
+       into a free loan, which is the more dangerous failure. The loan form caps
+       principal far below this; the clamp is a backstop for imports, restored
+       backups and cloud rows. */
+    var _cap=function(x){ return isFinite(x) ? Math.min(Math.max(x,0), Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER; };
+    const tint=Math.round(_cap(p*r/100*n));
+    const tpay=Math.round(_cap(Math.round(p)+tint));
+    const emi=n>0?Math.round(_cap(tpay/n)):0;
     return {tint:tint, tpay:tpay, emi:emi};
   }
   /* Strict validator for loan terms — used at entry points (form save / import).
@@ -51,10 +59,38 @@
     l.paid=clearedAll;
     l.outstanding=Math.max(0, P - principalPaid + fees);
     l.lateFees=(Array.isArray(l.charges)?l.charges:[]).filter(function(c){return c&&c.type==='Late fee';}).reduce(function(a,c){return a+(Number(c.amount)||0);},0);
-    var t=todayISO(), monthsElapsed=0;
-    try{ var anchor=l.baseDate||l.disb; if(anchor){ var d0=new Date(anchor+'T00:00:00'), dn=new Date(t+'T00:00:00'); monthsElapsed=(dn.getFullYear()-d0.getFullYear())*12+(dn.getMonth()-d0.getMonth()); if(dn.getDate()<d0.getDate()) monthsElapsed--; monthsElapsed=Math.max(0,monthsElapsed); } }catch(e){}
+    /* Interest stops on the day the principal came back, not today. Measuring
+       to today meant a settled byaj loan grew by another month's interest every
+       month: it re-opened as Overdue and charged interest forever on principal
+       already returned. */
+    var t=todayISO(), endIso=t, monthsElapsed=0;
+    if(P>0 && principalPaid>=P){
+      var _pSorted=pays.filter(function(p){ return p && p.status==='Cleared' && p.kind==='principal' && p.date; })
+        .slice().sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
+      var _pCum=0;
+      for(var _pi=0; _pi<_pSorted.length; _pi++){
+        _pCum += Number(_pSorted[_pi].amount)||0;
+        if(_pCum >= P){ endIso = String(_pSorted[_pi].date); break; }
+      }
+      if(endIso > t) endIso = t;
+    }
+    try{ var anchor=l.baseDate||l.disb; if(anchor){ var d0=new Date(anchor+'T00:00:00'), dn=new Date(endIso+'T00:00:00'); monthsElapsed=(dn.getFullYear()-d0.getFullYear())*12+(dn.getMonth()-d0.getMonth()); if(dn.getDate()<d0.getDate()) monthsElapsed--; monthsElapsed=Math.max(0,monthsElapsed); } }catch(e){}
     var intArr=Math.max(0, monthlyInt*monthsElapsed - interestPaid);   // interest due but unpaid
-    if(P>0 && principalPaid>=P){ l.status='Closed'; l.arrears=0; }
+    if(P>0 && principalPaid>=P){
+      /* The principal is back, so interest stops accruing from here — but
+         interest that had ALREADY fallen due before it came back is still owed
+         and used to vanish: arrears were rebuilt from principal+fees only, so a
+         borrower who had serviced nothing for months was marked Closed with
+         nothing outstanding the moment the principal was returned. */
+      /* A loan merged into another has had its dues — including any unpaid
+         interest — folded into the combined account. Carrying them here too
+         would bill the borrower twice for the same money. */
+      var _carry = l.mergedInto ? 0 : Math.max(0, Math.round(intArr));
+      var stillOwed=Math.max(0, Math.round(Number(l.outstanding)||0)) + _carry;
+      l.outstanding=Math.max(0, Math.round(Number(l.outstanding)||0)) + _carry;
+      l.arrears=stillOwed;
+      l.status=stillOwed>0?'Overdue':'Closed';
+    }
     else {
       l.arrears=Math.round(intArr + fees);
       if(!l.dueManual && (l.baseDate||l.disb) && monthlyInt>0){
@@ -75,7 +111,12 @@
     const intPaid=pays.filter(p=>p.status==='Cleared' && _isInt(p)).reduce((a,p)=>a+(Number(p.amount)||0),0);
     const cleared=Math.max(0, clearedAll-intPaid);
     l.paid=cleared;
-    l.intServiced=pays.filter(p=>p.status==='Cleared' && _isInt(p)).length;   // months serviced by interest only
+    /* Only interest serviced on the CURRENT plan shifts the schedule. After a
+       restructure the dates are anchored to l.baseDate, so counting
+       pre-restructure interest here pushed every post-restructure due date
+       forward by one month per old payment. */
+    var _afterBase=function(p){ return !l.baseDate || String(p.date||'') > String(l.baseDate); };
+    l.intServiced=pays.filter(p=>p.status==='Cleared' && _isInt(p) && _afterBase(p)).length;   // months serviced by interest only
     l.intIncome=Math.round(intPaid);                                          // total interest received this way
     const tpay=Number(l.tpay)||0;
     // Extra charges the customer must repay — late fees, cheque-bounce fees, etc. — are
@@ -132,20 +173,89 @@
   // payments array, chronological). Used so a "Payment Received" message shows the
   // running balance as of THAT payment — e.g. after ₹75,000 on an ₹87,000 loan it
   // reads ₹12,000, and only the next ₹12,000 payment reads ₹0.
+  /* Running balance as at payment `idx` — the figure printed on a receipt.
+     It MUST agree with recomputeLoan(), so it follows the same product rules:
+       flat-interest : interest-only payments are income and do not reduce the
+                       balance (this used to subtract them, so a receipt showed
+                       a balance lower than the ledger by every interest paid);
+       byaj          : only a payment tagged kind:'principal' reduces principal.
+     Charges are added on both paths. */
   function balanceAtPayment(l, idx){
     if(!l) return 0;
     var pays=Array.isArray(l.payments)?l.payments:[];
-    var clearedThrough=0;
-    for(var i=0;i<=idx && i<pays.length;i++){ var p=pays[i]; if(p && p.status==='Cleared') clearedThrough+=Number(p.amount)||0; }
-    var fees=(Array.isArray(l.charges)?l.charges:[]).reduce(function(a,c){return a+(c?(Number(c.amount)||0):0);},0);
-    return Math.max(0, (Number(l.tpay)||0) + fees - clearedThrough);
+    /* Only charges that existed BY this payment. Counting every current charge
+       meant reprinting an old receipt showed a balance that included fees raised
+       months later — the reprint disagreed with the receipt first handed over.
+       An undated charge is treated as already levied, the same rule dueToDate
+       uses, so legacy rows keep their present behaviour. */
+    var asOf=(pays[idx] && pays[idx].date) ? String(pays[idx].date) : '';
+    var fees=(Array.isArray(l.charges)?l.charges:[]).reduce(function(a,c){
+      if(!c) return a;
+      var cd=c.date?String(c.date):'';
+      if(asOf && cd && cd>asOf) return a;          // raised after this receipt
+      return a+(Number(c.amount)||0);
+    },0);
+    var isInt=function(p){ return p && (p.intOnly===true || p.type==='Interest'); };
+    /* Count by DATE, not by position in the array. Payments are appended in the
+       order they are entered, and the user picks the date — so entering a March
+       payment and then backdating a February one made the February receipt
+       subtract the March money too. Same-day payments entered earlier in the
+       array still count, which keeps a receipt consistent with the one handed
+       over at the time. */
+    var through=0;
+    for(var i=0;i<pays.length;i++){
+      var p=pays[i];
+      if(!p || p.status!=='Cleared') continue;
+      var pd=p.date?String(p.date):'';
+      if(asOf && pd){
+        if(pd>asOf) continue;                 // after this receipt
+        if(pd===asOf && i>idx) continue;      // same day, entered after it
+      } else if(i>idx) continue;              // undated: fall back to order
+      var amt=Number(p.amount)||0;
+      if(l.interestOnly){ if(p.kind==='principal') through+=amt; }
+      else if(!isInt(p)) through+=amt;
+    }
+    var base=l.interestOnly ? (Math.max(0,Number(l.principal)||0)) : (Number(l.tpay)||0);
+    /* On a byaj loan the ledger also carries interest that has fallen due and
+       not been serviced. Without it a final principal receipt printed a balance
+       of zero while the ledger still showed arrears. Accrue on the same rule as
+       _recomputeInterestOnly, up to this receipt's date. */
+    var owedInt=0;
+    if(l.interestOnly){
+      var _P=Math.max(0,Number(l.principal)||0), _r=Math.max(0,Number(l.rate)||0);
+      var _mi=Math.round(_P*_r/100);
+      var _anchor=l.baseDate||l.disb, _m=0;
+      try{
+        if(_anchor && asOf){
+          var _d0=new Date(_anchor+'T00:00:00'), _dn=new Date(asOf+'T00:00:00');
+          _m=(_dn.getFullYear()-_d0.getFullYear())*12+(_dn.getMonth()-_d0.getMonth());
+          if(_dn.getDate()<_d0.getDate()) _m--;
+          _m=Math.max(0,_m);
+        }
+      }catch(e){}
+      var _intPaid=0;
+      for(var _k=0;_k<pays.length;_k++){
+        var _q=pays[_k]; if(!_q || _q.status!=='Cleared' || _q.kind==='principal') continue;
+        var _qd=_q.date?String(_q.date):'';
+        if(asOf && _qd && _qd>asOf) continue;
+        if(!_qd && _k>idx) continue;
+        _intPaid += Number(_q.amount)||0;
+      }
+      owedInt=Math.max(0, Math.round(_mi*_m-_intPaid));
+    }
+    return Math.max(0, base + fees + owedInt - through);
   }
   window.balanceAtPayment=balanceAtPayment;
   function recomputeAll(){ if(typeof loans!=='undefined' && Array.isArray(loans)) loans.forEach(recomputeLoan); }
 
   /* ===== Sample / Test data (admin) — merges labelled (TEST) loans, removable in one click ===== */
   function _testLoans(){
-    function aDays(iso,n){ var d=new Date(iso+'T00:00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+    /* Parsed local midnight and read back as UTC, so every sample date came out
+       one day early in IST. addDaysISO() is the shared local-time helper. */
+    function aDays(iso,n){ return (typeof addDaysISO==='function')
+      ? addDaysISO(iso,n)
+      : (function(){ var p=String(iso).split('-'); var d=new Date(+p[0],+p[1]-1,+p[2]+(Number(n)||0));
+          return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); })(); }
     var T=todayISO(), M=function(n){ return repAddMonths(T,n); };
     function mk(o){
       var p=o.principal, r=o.rate, n=o.tenure;
@@ -356,15 +466,16 @@
     var modeLine=esc(p.mode||'\u2014');
     if(p.mode==='Cheque') modeLine+=' \u2014 Cheque No. '+esc(p.cheque||'\u2014')+(p.bank?(', '+esc(p.bank)):'');
     if(p.mode==='Online') modeLine+=' \u2014 Ref/UTR '+esc(p.ref||'\u2014');
-    var cum=0; for(var i=0;i<=idx && i<(l.payments||[]).length;i++){ var q=l.payments[i]; if(q && q.status==='Cleared') cum+=Number(q.amount)||0; }
-    var bal=Math.max(0,(Number(l.tpay)||0)-cum);
+    /* one shared calculation — the receipt used to duplicate this and got a
+       different answer from the ledger (no charges, interest counted twice) */
+    var bal=balanceAtPayment(l, idx);
     var pending=(p.status!=='Cleared');
     /* reuse the same authorised-signature image the certificate / notices use, if one is set */
     var sigImg=''; try{ var _im=document.querySelector('#sec-cert .sigcol img'); var _src=_im&&_im.getAttribute('src'); if(_src) sigImg='<img src="'+_src+'" alt="signature" style="max-height:52px;max-width:170px;display:block;margin:8px auto 2px;">'; }catch(e){}
     var sigInner = sigImg
       ? '<div>For <b>Shivam Enterprises</b></div>'+sigImg+'<div class="ln" style="margin-top:2px;">Authorised Signatory</div>'
       : '<div>For <b>Shivam Enterprises</b></div><div class="ln">Authorised Signatory</div>';
-    return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Payment Receipt \u2014 '+esc(l.name||'')+'</title><style>'+
+    return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+esc(_docFileName(l.name,l.acno,'Payment_Receipt_'+(p&&p.date?p.date:'')))+'</title><style>'+
       (typeof docBrandCSS==='function'?docBrandCSS():'')+
       'body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#141414;margin:32px;line-height:1.6;}'+
       '.name{font-size:24px;font-weight:bold;letter-spacing:1px;text-align:center;color:#0b1f4b;}'+
@@ -457,7 +568,11 @@
     var total=(l&&l.baseOut!=null)?Math.max(0,Number(l.baseOut)):((Number(l&&l.tpay)>0)?Number(l.tpay):emi*n);
     var alloc=[]; for(var k=0;k<=n;k++) alloc[k]=0;
     if(!l || n<=0) return alloc;
-    var _isInt=function(p){ return p && (p.intOnly===true || p.type==='Interest'); };  // interest-only payments don't cover EMIs
+    var _isInt=function(p){ if(!p) return false;
+      /* byaj: everything that is not kind:'principal' is interest — same rule
+         as _recomputeInterestOnly and repScheduleData. */
+      if(l && l.interestOnly) return p.kind!=='principal';
+      return (p.intOnly===true || p.type==='Interest'); };  // interest-only payments don't cover EMIs
     var emiOf=function(i){ return (i<n)?emi:Math.max(0,total-emi*(n-1)); };
     var paidBase=Number(l.paidBase)||0;
     var clearedTot=Math.max(0,(l.payments||[]).filter(function(p){return p.status==='Cleared' && !_isInt(p);}).reduce(function(a,p){return a+(Number(p.amount)||0);},0)-paidBase);
@@ -656,7 +771,13 @@
      payment so the loan closes with a zero balance. */
   function _foreclosePreview(l){
     var tpay0=Number(l.tpay)||0, principal=Number(l.principal)||0, emi=Math.round(Number(l.emi)||0);
-    var cleared0=(Array.isArray(l.payments)?l.payments:[]).filter(function(p){return p.status==='Cleared';}).reduce(function(a,p){return a+(Number(p.amount)||0);},0);
+    /* Interest-only payments service the month's interest and repay no
+       principal — recomputeLoan excludes them from `cleared`. Counting them
+       here made remainingPrincipal too small, so the borrower was
+       UNDERCHARGED to foreclose, and the settlement left l.outstanding
+       equal to the interest received, so the loan never closed. */
+    var _isIntF=function(p){ return p && (p.intOnly===true || p.type==='Interest'); };
+    var cleared0=(Array.isArray(l.payments)?l.payments:[]).filter(function(p){return p && p.status==='Cleared' && !_isIntF(p);}).reduce(function(a,p){return a+(Number(p.amount)||0);},0);
     var remainingAll=Math.max(0, tpay0-cleared0);
     var remainingPrincipal=Math.round(principal*(tpay0>0?(tpay0-cleared0)/tpay0:0));
     if(remainingPrincipal>remainingAll) remainingPrincipal=remainingAll;
@@ -1173,6 +1294,26 @@
     try {
       var _cid = ($('loadLoan') || {}).value;
       var _cl = _cid && typeof loans !== 'undefined' ? loans.find(function (x) { return x.id === _cid; }) : null;
+      /* A No Dues Certificate states that NOTHING is owed. The dues-to-date
+         check below answers a different question — "is he behind on what has
+         fallen due so far" — and a brand-new loan with the first instalment
+         still in the future passes it while the whole balance is outstanding.
+         The certificate would then say, on headed paper, that a borrower who
+         owes the entire loan owes nothing. Check the full balance first. */
+      if (_cl) {
+        var _bal = Math.round(Number(_cl.outstanding) || 0);
+        if (_bal > 0) {
+          var _arr = Math.round(Number(_cl.arrears) || 0);
+          var _msg = '\u26a0  CANNOT ISSUE \u2014 THE LOAN IS NOT SETTLED\n\n'
+            + (_cl.name || 'This borrower') + ' (A/C ' + (_cl.acno || '') + ')\n\n'
+            + 'Balance still outstanding: ' + inr(_bal) + '\n'
+            + (_arr > 0 ? ('Of which overdue now:      ' + inr(_arr) + '\n') : '')
+            + '\nA No Dues Certificate and an Acknowledgement Receipt both state in '
+            + 'writing that the account is fully repaid and nothing remains owing. '
+            + 'They cannot be issued while a balance stands.';
+          if (!confirm(_msg + '\n\nIssue them anyway? (not recommended)')) return;
+        }
+      }
       if (_cl && typeof warnUnpaidEmis === 'function' &&
           !warnUnpaidEmis(_cl, 'issuing these documents anyway', {
             heading: '\u26a0  CANNOT ISSUE \u2014 AMOUNT OUTSTANDING',
@@ -1190,4 +1331,16 @@
        Guarded on l.outstanding (the WHOLE loan repaid), not on dues to date —
        a borrower who is merely up to date still has instalments to come. */
     try { _offerCloseIfSettled(); } catch (e) {}
-    logAudit('Document Printed','No Dues / Receipt'); window._docTitleBak=document.title; document.title=_docFileName(($('f_name')||{}).value, ($('f_loan')||{}).value, 'Certificate'); document.body.classList.add('printing-cert'); window.print(); }
+    logAudit('Document Printed','No Dues / Receipt'); window._docTitleBak=document.title;
+    /* f_loan is the loan TYPE, not the account number, and both documents were
+       called 'Certificate' — so every download arrived under the same name.
+       Name it for the document actually being printed, with the real A/C no. */
+    (function(){
+      var _cl=null; try{ _cl=loans.find(function(x){ return x.id===(($('loadLoan')||{}).value); }); }catch(e){}
+      var _nm=(_cl&&_cl.name)||($('f_name')||{}).value||'';
+      var _ac=(_cl&&_cl.acno)||($('f_ref')||{}).value||'';
+      var _kind=document.body.classList.contains('show-receipt') ? 'Acknowledgement_Receipt'
+              : document.body.classList.contains('show-cert')    ? 'No_Dues_Certificate'
+              : 'No_Dues_and_Acknowledgement';
+      document.title=_docFileName(_nm, _ac, _kind);
+    })(); document.body.classList.add('printing-cert'); window.print(); }

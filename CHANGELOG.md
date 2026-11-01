@@ -9,6 +9,91 @@ charged, and the instalment itself moves forward, extending the schedule.
 
 ---
 
+## 2.20.0
+
+Sixteen defects from two independent reviews of 2.19.0 (Codex, 9 findings; Gemini, 7). Every one
+was reproduced in the source before anything was changed. None of them altered the lending model:
+the 15 core rules were re-asserted before and after this batch.
+
+### Fixed — money
+
+- **A settled byaj loan re-opened itself every month.** Interest accrued up to *today* rather than
+  to the day the principal came back, so a loan closed in January was Overdue again in February and
+  grew by another month's interest every month after that. Interest now stops on the repayment
+  date. A loan whose interest was genuinely short still owes exactly that shortfall, and the figure
+  no longer climbs.
+- **A byaj payoff receipt printed ₹0 while the ledger showed arrears.** The receipt balance counted
+  only principal and charges. It now carries the interest that had fallen due and not been
+  serviced, so the receipt and the ledger agree.
+- **Combining byaj loans deleted the pending dues typed into the merge.** The byaj engine resets
+  total payable to the principal, so anything folded into the plan was wiped the moment the new
+  loan was recomputed. Those dues are now carried as a named charge, which the engine does add to
+  the balance.
+- **A restructure charged late fees twice.** The re-planned balance already contained the unpaid
+  charges, and the recompute added them again — a ₹500 fee reappeared as ₹500 of extra balance
+  after every restructure.
+- **A restructure also lost repaid principal.** Remaining principal was read as
+  `total payable − outstanding`, which is short by every unpaid charge, so a ₹500 fee made ₹500 of
+  repaid principal vanish and the combined loan carried that much too much principal forward.
+- **Two schedule paths read a byaj interest receipt as an instalment paid**, so the modal schedule
+  disagreed with the ledger.
+
+### Fixed — what the borrower is shown
+
+- **The statement's own arithmetic did not add up.** "Total payable + charges − paid = outstanding"
+  was wrong by every rupee of interest ever serviced, because interest is income and does not
+  reduce the balance. The line now subtracts principal repaid and reports interest serviced beside
+  it; each interest receipt is labelled on the printed statement, on screen and in the CSV.
+- **The welcome letter's schedule ignored a restructure.** The final instalment came out as the
+  re-planned balance *plus everything already paid*, and every due date was anchored to the
+  original disbursement rather than the restructure date.
+- **The closing advisory told the owner nothing about a byaj loan** — it printed "instalments to
+  date (0)" and "received ₹0" beside a figure he was being asked to override. It now reports the
+  real months elapsed, interest payable and interest received, and the three reconcile.
+- **Deleting a byaj loan with the whole principal still out passed silently**, because the advisory
+  only asks whether the borrower is behind on dues *to date*. Any loan with a balance is now named
+  before it leaves the books.
+- **The loan modal contradicted itself in two places**: a hand-entered Total Payable left the Total
+  Interest box showing a figure derived from the rate instead, and "Amount paid" counted
+  interest-only receipts, making the modal's Outstanding lower than the ledger's until the next
+  recompute silently corrected it.
+- **Document dates could slip a day.** Three places parsed a bare ISO date, which JavaScript reads
+  as UTC — before 05:30 IST the agreement and the letterhead printed yesterday's date.
+
+### Fixed — cloud sync
+
+- **A loan deleted while its upload was in flight came back from the dead.** The upsert landed
+  after the tombstone and wrote `deleted:false` on every device. Rows are now re-checked against
+  the live book after the last network wait.
+- **Resolving a conflict by taking the server's copy re-recorded the same conflict**, for ever —
+  the baseline was never moved on, so the next push compared against the pre-conflict version
+  again.
+- **A snapshot restore left queued edits for loans it had just removed**, which re-created them on
+  the next flush.
+- **`pushDelete` reported nothing at all**, so a restore announced success on every device even
+  when a tombstone had failed.
+- **A regression of my own, caught by Codex:** the per-version fix shipped in 2.19.0 wrote `_hash`
+  onto the row object serialised into the Supabase request. `public.loans` has no such column, so
+  PostgREST would have rejected **every** loan upsert. The version now lives in a side map that
+  never leaves the device.
+
+### Still open, deliberately
+
+- **Atomic cross-device writes.** The precheck is read-then-write, so two devices writing in the
+  same instant can both still succeed. Closing that needs a Postgres function doing the version
+  check inside the UPDATE — a schema change on the live database holding real borrower records.
+  Not done without an explicit go-ahead, a fresh backup and a test project.
+- **No conflict-resolution panel.** `cloudConflicts()` and `cloudResolveConflict()` work; there is
+  no UI, so a clash needs the console.
+
+### Tests
+
+`tests/e2e-round6-fixes.js` — 70 checks over all sixteen fixes. Three existing fixtures had to be
+corrected rather than the code: they encoded the over-accrual this release fixes, expecting interest
+for a month in which the borrower no longer held the money.
+
+---
+
 ## 2.2.1
 
 ### Fixed

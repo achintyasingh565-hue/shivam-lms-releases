@@ -25,11 +25,6 @@
     const mx=Math.max(...series.map(x=>x.amount),1);
     return `<div class="bars">`+series.map(x=>`<div class="bar-col"><div class="bar" style="height:${Math.max(3,x.amount/mx*100).toFixed(0)}%;" title="${x.label}: ${inr(x.amount)}"></div><div class="bar-lab">${x.label}</div></div>`).join('')+`</div>`;
   }
-  function riskChart(b){
-    const rows=[{lab:'Current (standard)',n:b.cur,c:'#16A34A'},{lab:'1–30 DPD (SMA)',n:b.b1,c:'#F59E0B'},{lab:'31–60 DPD (Substandard)',n:b.b2,c:'#F97316'},{lab:'61–90 DPD (Doubtful)',n:b.b3,c:'#DC2626'},{lab:'90+ DPD (Critical)',n:b.b4,c:'#991B1B'}];
-    const mx=Math.max(...rows.map(r=>r.n),1);
-    return rows.map(r=>`<div class="rk"><div class="rk-lab">${r.lab}</div><div class="rk-bar"><i style="width:${(r.n/mx*100).toFixed(0)}%;background:${r.c};"></i></div><div class="rk-n">${r.n}</div></div>`).join('');
-  }
   function renderDash(){
     if(!loans.length){ $('dashMain').style.display='none'; $('dashEmpty').style.display='block';
       $('dashEmpty').innerHTML=`<div class="empty-hero"><div class="eh-ic">${SVG.bank}</div><h3>No loans on the books yet</h3><p>Add your first loan to unlock portfolio analytics, risk monitoring and collections.</p><button class="btn btn-primary" onclick="openLoan()">＋ Create a loan record</button></div>`;
@@ -72,7 +67,6 @@
     ].join('');
     $('chartDisb').innerHTML=barsChart(series);
     $('chartStatus').innerHTML=donutSvg([{value:active,color:'#6366F1',label:'Active'},{value:overdue,color:'#E5484D',label:'Overdue'},{value:closed,color:'#10B981',label:'Closed'}]);
-    { var _rc=$('chartRisk'); if(_rc) _rc.innerHTML=riskChart(b); }
     renderDelinq(now); renderCollections(today); refreshBell();
   }
   function renderDelinq(now){

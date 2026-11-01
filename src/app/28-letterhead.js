@@ -1,5 +1,5 @@
 /* ===========================================================================
- * src/app/26-letterhead.js
+ * src/app/28-letterhead.js
  *
  * BLANK LETTERHEAD COMPOSER — a free-form letter on the firm letterhead. Rich
  * text (font family & size, bold / italic / underline, bullet & numbered lists,
@@ -37,7 +37,7 @@
     // A real 10mm @page margin makes the printable area predictable regardless of the
     // print dialog's "Default" margins, and a fit-to-page script shrinks the letter just
     // enough to always land on ONE page (footer included).
-    return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc(f.name) + ' — Letter</title><style>'
+    return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc(_docFileName('Letter', ref || '', date || '')) + '</title><style>'
       + brandCSS
       + '@page{size:A4;margin:10mm;} html,body{margin:0;padding:0;} body{font-family:Georgia,"Times New Roman",serif;color:#1b1b1b;position:relative;box-sizing:border-box;min-height:0;padding-bottom:26mm;}'
       + '@media print{body{min-height:0;}}'

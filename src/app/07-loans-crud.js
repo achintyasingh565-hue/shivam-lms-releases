@@ -107,7 +107,7 @@
      rate, dates, account number, status, payments, charges — is ever copied;
      carrying those over would silently create a wrong loan. */
   var LOAN_COPY_FIELDS = [
-    'reltype','relname','phone','addr','dob','residence','occupation',
+    'reltype','relname','phone','addr','dob','residence','occupation','grelname','gaddr',
     'designation','officeaddr','gname','gphone',
     'coname','cophone','corel','coid','coaddr'
   ];
@@ -193,7 +193,7 @@
     // flagged that way. Otherwise the due date auto-follows the disbursement/schedule.
     window._dueUserEdited = !!f.dueManual;
     $('m_status').value=f.status||'Active'; $('m_gname').value=f.gname||''; $('m_gphone').value=f.gphone||''; if($('m_coname'))$('m_coname').value=f.coname||''; if($('m_cophone'))$('m_cophone').value=f.cophone||''; if($('m_corel'))$('m_corel').value=f.corel||''; if($('m_coid'))$('m_coid').value=f.coid||''; if($('m_coaddr'))$('m_coaddr').value=f.coaddr||''; $('m_remarks').value=f.remarks||'';
-    $('m_dob').value=f.dob||''; $('m_residence').value=f.residence||''; $('m_occupation').value=f.occupation||''; $('m_designation').value=f.designation||''; $('m_officeaddr').value=f.officeaddr||'';
+    $('m_dob').value=f.dob||''; if($('m_grelname'))$('m_grelname').value=f.grelname||''; if($('m_gaddr'))$('m_gaddr').value=f.gaddr||''; $('m_residence').value=f.residence||''; $('m_occupation').value=f.occupation||''; $('m_designation').value=f.designation||''; $('m_officeaddr').value=f.officeaddr||'';
     $('m_caseno').value=f.caseno||''; $('m_refno').value=f.refno||''; $('m_product').value=f.product||''; $('m_dealer').value=f.dealer||''; $('m_downpay').value=f.downpay||''; $('m_officer').value=f.officer||'';
     $('m_deductions').value=(f.deductions!=null?f.deductions:''); $('m_remaining').value=Math.max(0,(Number(f.principal)||0)-(Number(f.deductions)||0)-(Number(f.downpay)||0));
     $('m_propdesc').value=f.propdesc||''; $('m_propaddr').value=f.propaddr||''; $('m_proparea').value=f.proparea||''; $('m_propvalue').value=f.propvalue||''; $('m_bN').value=f.bN||''; $('m_bS').value=f.bS||''; $('m_bE').value=f.bE||''; $('m_bW').value=f.bW||''; $('m_title').value=f.title||'';
@@ -299,8 +299,17 @@
       if(!window._emiManual)  $('m_emi').value=_mi;
     } else if(p>0 && r>=0 && n>0){
       const _t=calcLoanTotals(p,r,n);
-      $('m_tint').value=_t.tint;
-      if(!window._tpayManual) $('m_tpay').value=_t.tpay;   // keep a hand-entered Total Payable
+      if(window._tpayManual){
+        /* Total Payable was typed by hand. Overwriting Total Interest from the
+           rate then showed a figure that did not reconcile with it — the two
+           boxes on screen disagreed by the amount of the override. Derive it
+           from what the owner actually entered. */
+        var _mtp=Number($('m_tpay').value)||0;
+        $('m_tint').value=Math.max(0, Math.round(_mtp-p));
+      } else {
+        $('m_tint').value=_t.tint;
+        $('m_tpay').value=_t.tpay;
+      }
       if(!window._emiManual)  $('m_emi').value=_t.emi;      // keep a hand-entered Monthly EMI
     }
     // A hand-set EMI drives the Total Payable (= EMI × tenure) unless Total Payable was
@@ -372,7 +381,7 @@
   window.dueEdited=function(){ window._dueUserEdited=true; recalc(); };   // user typed a custom due date
   window.dueUseSchedule=function(){ window._dueUserEdited=false; recalc(); };   // "↻ use schedule" — drop the manual override
   function updatePaySummary(out){
-    const cleared=Number($('m_paid').value)||0;
+    const cleared=(typeof window._mClearedAll==='number') ? window._mClearedAll : (Number($('m_paid').value)||0);
     const pending=(modalPayments||[]).filter(p=>p.status==='Pending').reduce((a,p)=>a+(Number(p.amount)||0),0);
     if($('m_recv')) $('m_recv').textContent=inr(cleared);
     if($('m_pend')) $('m_pend').textContent=inr(pending);
@@ -396,8 +405,19 @@
   function removePayment(i){ modalPayments.splice(i,1); renderPayments(); }
   function togglePayStatus(i){ const p=modalPayments[i]; if(!p||p.mode!=='Cheque') return; p.status=(p.status==='Cleared')?'Pending':'Cleared'; renderPayments(); }
   function renderPayments(){
-    const cleared=(modalPayments||[]).filter(p=>p.status==='Cleared').reduce((a,p)=>a+(Number(p.amount)||0),0);
+    /* `m_paid` is saved as l.paid, which recomputeLoan defines as cleared money
+       that REDUCES THE BALANCE. Interest-only receipts are income and leave the
+       principal untouched, so counting them here made the modal's Outstanding
+       (tpay − paid) lower than the ledger's by every interest payment ever
+       taken, until the next recompute silently corrected it. */
+    const _io=!!(($('m_intonly')||{}).checked);
+    const _isIntM=function(p){ if(!p) return false;
+      if(_io) return p.kind!=='principal';
+      return (p.intOnly===true || p.type==='Interest'); };
+    const _clearedAll=(modalPayments||[]).filter(p=>p.status==='Cleared').reduce((a,p)=>a+(Number(p.amount)||0),0);
+    const cleared=(modalPayments||[]).filter(p=>p.status==='Cleared' && !_isIntM(p)).reduce((a,p)=>a+(Number(p.amount)||0),0);
     $('m_paid').value=cleared;
+    window._mClearedAll=_clearedAll;   // all money in, for the Received line
     const rows=(modalPayments||[]).map((p,i)=>{
       const chq=p.mode==='Cheque'?` · Chq ${esc(p.cheque||'—')}${p.bank?(' / '+esc(p.bank)):''}`:(p.mode==='Online'?` · Ref ${esc(p.ref||'—')}`:'');
       const badge=p.status==='Cleared'?'<span class="pp ok">Cleared</span>':(p.status==='Bounced'?'<span class="pp" style="background:#fde8e8;color:#b42318;">Bounced</span>':'<span class="pp pend">Pending</span>');
@@ -465,7 +485,7 @@
       tpay:_safeTotals().tpay, emi:_safeTotals().emi, due:$('m_due').value,
       paid:Number($('m_paid').value)||0, outstanding:out, status:$('m_status').value, payments:(modalPayments||[]).map(p=>({...p})),
       gname:$('m_gname').value.trim(), gphone:$('m_gphone').value.trim(), coname:($('m_coname')||{}).value?.trim()||'', cophone:($('m_cophone')||{}).value?.trim()||'', corel:($('m_corel')||{}).value?.trim()||'', coid:($('m_coid')||{}).value?.trim()||'', coaddr:($('m_coaddr')||{}).value?.trim()||'', remarks:$('m_remarks').value.trim(),
-      dob:$('m_dob').value, residence:$('m_residence').value, occupation:$('m_occupation').value.trim(), designation:$('m_designation').value.trim(), officeaddr:$('m_officeaddr').value.trim(), idtype:_idMir.idtype,
+      dob:$('m_dob').value, grelname:(($('m_grelname')||{}).value||'').trim(), gaddr:(($('m_gaddr')||{}).value||'').trim(), residence:$('m_residence').value, occupation:$('m_occupation').value.trim(), designation:$('m_designation').value.trim(), officeaddr:$('m_officeaddr').value.trim(), idtype:_idMir.idtype,
       caseno:$('m_caseno').value.trim(), refno:$('m_refno').value.trim(), product:$('m_product').value.trim(), dealer:$('m_dealer').value.trim(), downpay:Number($('m_downpay').value)||0, deductions:Number($('m_deductions').value)||0, officer:$('m_officer').value.trim(),
       propdesc:$('m_propdesc').value.trim(), propaddr:$('m_propaddr').value.trim(), proparea:$('m_proparea').value.trim(), propvalue:Number($('m_propvalue').value)||0, bN:$('m_bN').value.trim(), bS:$('m_bS').value.trim(), bE:$('m_bE').value.trim(), bW:$('m_bW').value.trim(), title:$('m_title').value.trim(),
       createdAt: editId ? (loans.find(l=>l.id===editId)||{}).createdAt||todayISO() : todayISO()
@@ -532,6 +552,17 @@
     const l=loans.find(x=>x.id===id);
     // Advisory: flag instalments already due but unpaid. Warns only — never blocks.
     if(typeof warnUnpaidEmis==='function' && !warnUnpaidEmis(l,'deleting this loan')) return;
+    /* warnUnpaidEmis asks "is he behind on dues TO DATE". A byaj borrower whose
+       interest is fully serviced is not behind on anything, yet the whole
+       principal is still out on loan — deleting that record passed silently.
+       Anything with a balance now gets named before it leaves the books. */
+    var _bal=Math.max(0, Math.round(Number(l&&l.outstanding)||0));
+    if(_bal>0 && !(typeof warnUnpaidEmis==='function' && (dueToDate(l).outstanding>0))){
+      if(!confirm('⚠  THIS LOAN STILL HAS A BALANCE\n\n'
+        +((l&&l.name)||'This borrower')+((l&&l.acno)?(' — A/C '+l.acno):'')+'\n\n'
+        +'Outstanding on the books:   '+inr(_bal)+'\n\n'
+        +'Deleting the record does not collect the money. Continue?')) return;
+    }
     if(confirm('Move loan record for '+ (l?l.name:'this borrower') +' to the Recycle Bin? You can restore it within 30 days from Administration.')){
       snapBefore('Before delete: '+(l?l.acno:''));
       if(l){ const bin=recyclePurgeOld(); bin.unshift(Object.assign({}, l, {deletedAt:Date.now(), deletedBy:(currentUser&&currentUser.user)||'system'})); recycleSave(bin); }
@@ -612,6 +643,10 @@
     if(!item){ toast('Not found in Recycle Bin'); return; }
     if(loans.some(x=>x.acno && item.acno && x.acno.toLowerCase()===item.acno.toLowerCase())){ toast('\u26a0 A loan with A/C "'+item.acno+'" already exists. Change or remove it first, then restore.'); return; }
     const clean=Object.assign({}, item); delete clean.deletedAt; delete clean.deletedBy; delete clean._fromCloud;
+    /* Cancel any queued delete for this loan and clear its upload hash,
+       or the next outbox flush tombstones the record we just restored and
+       the restore is skipped as an unchanged upload. */
+    try{ if(typeof cloudUndelete==='function') cloudUndelete(id); }catch(e){}
     loans.unshift(clean); try{recomputeAll();}catch(e){} save(); bin=bin.filter(x=>x.id!==id); recycleSave(bin);
     _cloudBin=(_cloudBin||[]).filter(x=>x.id!==id);   // save() already wrote deleted=false upstream
     logAudit('Loan Restored from Recycle Bin', (item.name||'')+' ('+(item.acno||'')+')');

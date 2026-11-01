@@ -16,7 +16,7 @@
     const total=Number(g('h_total'))||0, fine=Number(g('h_fine'))||0, from=fmtDate($('h_from').value), to=fmtDate($('h_to').value), place=g('h_place');
     const num=v=>v?Number(v).toLocaleString('en-IN'):'';
     let dd='',mm='',yy='';
-    if($('h_date').value){ const d=new Date($('h_date').value); dd=String(d.getDate()); mm=MONTHS[d.getMonth()]; yy=String(d.getFullYear()).slice(2); }
+    if($('h_date').value){ const d=new Date($('h_date').value+'T00:00:00');  /* a bare ISO string parses as UTC, so before 05:30 IST it read as the previous day */ dd=String(d.getDate()); mm=MONTHS[d.getMonth()]; yy=String(d.getFullYear()).slice(2); }
     const S=(id,v)=>setText(id,v);
     // cover is filled independently via loadCover()
     // agreement
@@ -52,11 +52,15 @@
     const id=$(selId).value; if(!id) return; const l=loans.find(x=>x.id===id); if(!l) return;
     const set=(i,v)=>{ if($(i)) $(i).value=(v==null?'':v); };
     set('h_name',l.name); set('h_father',(l.reltype?l.reltype.replace(' of',' '):'')+(l.relname||'')); set('h_addr',l.addr);
-    set('h_guar',l.gname); set('h_code',l.acno); set('h_date',l.disb||todayISO()); set('h_ref',l.refno||l.caseno); set('h_purpose',l.product||l.type);
+    set('h_guar',l.gname); set('h_guarfather',l.grelname); set('h_guaraddr',l.gaddr); set('h_code',l.acno); set('h_date',l.disb||todayISO()); set('h_ref',l.refno||l.caseno); set('h_purpose',l.product||l.type);
     set('h_propdesc',l.propdesc); set('h_propaddr',l.propaddr); set('h_proparea',l.proparea); set('h_propvalue',l.propvalue||'');
     set('h_bN',l.bN); set('h_bS',l.bS); set('h_bE',l.bE); set('h_bW',l.bW); set('h_title',l.title);
     set('h_loanamt',l.principal||''); set('h_rate',l.rate||''); set('h_emi',l.emi||''); set('h_ninst',l.tenure||'');
-    set('h_total',l.tpay||''); set('h_from',l.disb||'');
+    set('h_total',l.tpay||''); /* first EMI date and the final one, not the disbursement date, and not
+       l.due which moves forward as instalments are paid */
+    var _fd=l.disb?repAddMonths(l.disb,1):(l.due||'');
+    var _td=(l.tenure&&_fd)?repAddMonths(_fd,(Number(l.tenure)||1)-1):'';
+    set('h_from',_fd); set('h_to',_td);
     if(!hpVal('h_fine')) set('h_fine', getLateFee());
     const other = selId==='agrLoad'?'delLoad':'agrLoad'; if($(other)) $(other).value=id;
     updateHP(); logAudit('Document Filled','Agreement/Security \u2014 '+l.name); toast('Document filled from '+l.name);
@@ -85,11 +89,15 @@
     const set=(i,v)=>{ if($(i)) $(i).value=(v==null?'':v); };
     setText('cv_name',(l.name||'')+(l.addr?(', '+l.addr):'')); setText('cv_code',l.acno||''); setText('cv_amt',(Number(l.principal)||0).toLocaleString('en-IN')); setText('cv_date',fmtDate(l.disb||todayISO())); setText('cv_purpose',l.product||l.type||'');
     set('h_name',l.name); set('h_father',(l.reltype?l.reltype.replace(' of',' '):'')+(l.relname||'')); set('h_addr',l.addr);
-    set('h_guar',l.gname); set('h_code',l.acno); set('h_date',l.disb||todayISO()); set('h_ref',l.refno||l.caseno); set('h_purpose',l.product||l.type);
+    set('h_guar',l.gname); set('h_guarfather',l.grelname); set('h_guaraddr',l.gaddr); set('h_code',l.acno); set('h_date',l.disb||todayISO()); set('h_ref',l.refno||l.caseno); set('h_purpose',l.product||l.type);
     set('h_propdesc',l.propdesc); set('h_propaddr',l.propaddr); set('h_proparea',l.proparea); set('h_propvalue',l.propvalue||'');
     set('h_bN',l.bN); set('h_bS',l.bS); set('h_bE',l.bE); set('h_bW',l.bW); set('h_title',l.title);
     set('h_loanamt',l.principal||''); set('h_rate',l.rate||''); set('h_emi',l.emi||''); set('h_ninst',l.tenure||'');
-    set('h_total',l.tpay||''); set('h_from',l.disb||'');
+    set('h_total',l.tpay||''); /* first EMI date and the final one, not the disbursement date, and not
+       l.due which moves forward as instalments are paid */
+    var _fd=l.disb?repAddMonths(l.disb,1):(l.due||'');
+    var _td=(l.tenure&&_fd)?repAddMonths(_fd,(Number(l.tenure)||1)-1):'';
+    set('h_from',_fd); set('h_to',_td);
     if(!hpVal('h_fine')) set('h_fine', getLateFee());
     updateHP();
     set('p_case',l.caseno); set('p_ref',l.refno); set('p_product',l.product||l.type);

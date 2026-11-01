@@ -1,5 +1,5 @@
 /* ===========================================================================
- * src/app/27-cheque-notice.js
+ * src/app/29-cheque-notice.js
  *
  * CHEQUE PRESENTATION NOTICE — a WhatsApp message telling the customer that
  * their cheque (number, bank, amount) will be presented in the bank on a chosen

@@ -1,5 +1,5 @@
 /* ===========================================================================
- * src/app/30-ux-polish.js
+ * src/app/33-ux-polish.js
  *
  * Interaction polish that applies app-wide without touching any screen's
  * markup. Everything here is additive and fail-safe: if an element isn't

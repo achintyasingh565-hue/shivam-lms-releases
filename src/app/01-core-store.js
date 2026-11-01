@@ -58,7 +58,13 @@
       try{ localStorage.removeItem('shivam_backup_snapshot'); localStorage.setItem(STORE, JSON.stringify(loans)); }
       catch(e2){ lsOK=false; window._mem = loans; if(!window._storageWarned){ window._storageWarned=true; toast('\u26a0 Device fast-storage is full. Your records are still saved in the app database \u2014 please take a backup now (Administration \u2192 Backup), then contact support to expand storage.'); } }
     }
-    try{ localStorage.setItem(STORE_TS, String(_ts)); }catch(_){ }
+    /* Only stamp the timestamp when the loan book itself was actually written.
+       Stamping it after a failed write (storage full) made localStorage look as
+       fresh as the IndexedDB mirror on the next boot, so bootStore kept the
+       STALE local book and copied it over the newer durable mirror. Leaving the
+       timestamp behind keeps the mirror strictly newer, which is what triggers
+       the restore. */
+    if(lsOK){ try{ localStorage.setItem(STORE_TS, String(_ts)); }catch(_){ } }
     if(lsOK){ try{ localStorage.setItem('shivam_backup_snapshot', JSON.stringify({at:_ts, data:loans})); }catch(_){ } }
     try{ if(typeof idbSetLoans==='function') idbSetLoans(loans, _ts); }catch(_){ }
     /* Shared cloud copy (Supabase) — pushes changed loans to the other device.

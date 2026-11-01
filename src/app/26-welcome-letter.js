@@ -1,5 +1,5 @@
 /* ===========================================================================
- * src/app/25-welcome-letter.js
+ * src/app/26-welcome-letter.js
  *
  * COMBINED LOAN DOCUMENT — one document the owner generates when a loan is
  * issued and hands to the customer (print / Save-as-PDF / WhatsApp). It has:
@@ -19,7 +19,10 @@
   function _longDate(iso) { try { return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }); } catch (e) { return _d(iso); } }
   function _addM(iso, n) { try { return (typeof repAddMonths === 'function') ? repAddMonths(iso, n) : iso; } catch (e) { return iso; } }
   function _firm() { return (typeof FIRM === 'function') ? FIRM() : { name: 'Shivam Enterprises', phones: '', address: '' }; }
-  function _firstDue(l) { return l.due || _addM(l.disb || l.due || _today(), 1); }
+  /* The FIRST instalment date, not the next unpaid one. l.due advances as
+     EMIs are paid, so a welcome letter reprinted later quoted a start date
+     months after the one the borrower agreed to. */
+  function _firstDue(l) { return l.disb ? _addM(l.disb, 1) : (l.due || _addM(_today(), 1)); }
   function _net(l) { return Math.max(0, (Number(l.principal) || 0) - (Number(l.downpay) || 0) - (Number(l.deductions) || 0)); }
 
   /* ---- amortising installment schedule with principal/interest split (flat interest) ---- */
@@ -28,19 +31,39 @@
         tpay = Number(l.tpay) || 0, emiApp = Number(l.emi) || 0;
     if (l.interestOnly || N <= 0 || emiApp <= 0 || tpay <= 0) return null;
     if (N > 600) N = 600;
-    var start = l.disb || l.due || _today();
-    var intPM = Math.round(tint / N);
-    var rows = [], bal = P;
+    /* After a restructure the loan runs on a NEW baseline: baseOut over tenure
+       months from baseDate, with everything paid before that recorded in
+       paidBase. Reading tpay and disb instead meant the last row was
+       `tpay - emi*(N-1)`, which is the re-planned balance PLUS every rupee
+       already paid — a final instalment several times the real one — and every
+       due date was anchored to the original disbursement. */
+    var _rs = (l.baseOut != null);
+    var fwdTotal = _rs ? Math.max(0, Number(l.baseOut) || 0) : tpay;
+    if (fwdTotal <= 0) return null;
+    /* A re-planned balance is one pot: its interest content is not separable
+       from the original contract's tint, so the rows carry no interest split. */
+    var fwdInt = _rs ? 0 : tint;
+    var start = (_rs && l.baseDate) ? l.baseDate : (l.disb || l.due || _today());
+    var intPM = Math.round(fwdInt / N);
+    var rows = [], bal = _rs ? fwdTotal : P;
     for (var i = 1; i <= N; i++) {
-      var emi_i = (i < N) ? emiApp : (tpay - emiApp * (N - 1));
-      var int_i = (i < N) ? intPM : (tint - intPM * (N - 1));
+      var emi_i = (i < N) ? emiApp : (fwdTotal - emiApp * (N - 1));
+      if (emi_i <= 0) emi_i = emiApp;
+      var int_i = (i < N) ? intPM : (fwdInt - intPM * (N - 1));
       if (int_i < 0) int_i = 0;
       var prin_i = emi_i - int_i;
       var opening = bal;
       bal = Math.max(0, bal - prin_i);
       rows.push({ i: i, due: _d(_addM(start, i)), opening: opening, emi: emi_i, prin: prin_i, int: int_i, close: bal });
     }
-    var cleared = (l.payments || []).filter(function (p) { return p.status === 'Cleared'; }).reduce(function (a, p) { return a + (Number(p.amount) || 0); }, 0);
+    /* Only money that counts against THIS schedule: cleared, not an
+       interest-only receipt (those service interest and tick no instalment),
+       and — on a restructured loan — net of paidBase, which belongs to the old
+       plan and would otherwise mark future instalments as already paid. */
+    var cleared = (l.payments || []).filter(function (p) {
+      return p && p.status === 'Cleared' && !(p.intOnly === true || p.type === 'Interest');
+    }).reduce(function (a, p) { return a + (Number(p.amount) || 0); }, 0);
+    if (_rs) cleared = Math.max(0, cleared - (Number(l.paidBase) || 0));
     var paid = emiApp > 0 ? Math.min(N, Math.floor(cleared / emiApp)) : 0;
     return { rows: rows, months: N, paidCount: paid, balanceInstl: Math.max(0, N - paid) };
   }
@@ -206,7 +229,7 @@
     var brandCSS = (typeof docBrandCSS === 'function') ? docBrandCSS() : '';
     // Corners live inside the cover page itself (see _content) so they frame page 1
     // and never spill onto the schedule pages.
-    return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc((l.name || 'Customer') + ' - Welcome Letter') + '</title>' +
+    return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc(_docFileName(l.name, l.acno, 'Welcome_Letter')) + '</title>' +
       '<style>' + brandCSS + '@page{size:A4;margin:16mm 14mm;} body{font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;color:#141414;} .pgbreak{page-break-before:always;border:0 !important;margin:0 !important;} table{page-break-inside:auto;} tr{page-break-inside:avoid;}</style>' +
       '</head><body>' + _content(l) + '</body></html>';
   }

@@ -1,5 +1,5 @@
 /* ===========================================================================
- * src/app/33-diagnostics.js
+ * src/app/36-diagnostics.js
  *
  * Three things a reviewer (and a support call) will look for:
  *

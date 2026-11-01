@@ -15,14 +15,18 @@
       var shareTpay=Number(l.tpay0!=null?l.tpay0:tpay)||0, shareTint=Number(l.tint0!=null?l.tint0:tint)||0;
       var share=shareTpay>0?(shareTint/shareTpay):0;
       var got=0;
+      var gotInt=0;
       (l.payments||[]).forEach(function(p){
         if(p.status!=='Cleared') return;
         var d=p.date||'';
         if(f && d<f) return;
         if(t && d>t) return;
+        if(p.intOnly===true || p.type==='Interest'){ gotInt += (Number(p.amount)||0); return; }
         got += (Number(p.amount)||0);
       });
-      var intGot=Math.round(got*share);
+      /* Interest-only receipts are interest in full; only ordinary instalments
+         are split by the interest share. */
+      var intGot=Math.round(got*share)+Math.round(gotInt);
       var paidAll=Number(l.paid)||0;
       var intEarnedToDate=Math.round(paidAll*share);
       var intPending=Math.max(0, tint-intEarnedToDate);
@@ -223,9 +227,15 @@
       }
       var tpay=Number(l.tpay)||0, tint=Number(l.tint)||0; if(tpay<=0) return;
       var share=tint/tpay;
+      /* An interest-only receipt is 100% interest income and repays no
+         principal — recomputeLoan keeps it out of l.paid entirely. Applying the
+         pro-rata share to it booked (1-share) of the money as principal
+         recovered and understated interest earned. */
+      var _isIntP=function(p){ return p && (p.intOnly===true || p.type==='Interest'); };
       (l.payments||[]).forEach(function(p){
         if(p.status!=='Cleared' || !inRange(p.date)) return;
         var amt=Number(p.amount)||0;
+        if(_isIntP(p)){ interest += amt; return; }
         interest += amt*share;
         principal += amt*(1-share);
       });

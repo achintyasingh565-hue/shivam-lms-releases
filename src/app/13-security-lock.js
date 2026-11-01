@@ -23,7 +23,22 @@
   }
   window.can=can;
   function lockCfg(){ try{ const r=localStorage.getItem(LOCK_STORE); return r?JSON.parse(r):null; }catch(e){ return null; } }
-  function saveLockCfg(c){ try{ localStorage.setItem(LOCK_STORE, JSON.stringify(c)); }catch(e){} }
+  /* The account roster is encrypted with the OS keychain (safeStorage) so that a
+     copied app profile cannot be attacked offline. The admin's password hash was
+     ALSO mirrored here in plain localStorage, which handed that attacker exactly
+     what the encryption was protecting.
+
+     The hash is now stripped on the way in — every caller that used to mirror it
+     goes through this one function — and only the non-secret flags remain: `on`
+     (the lock is enabled, so isLocked() still works before the roster decrypts)
+     and `touch` (Touch ID preference). Authentication reads the roster only. */
+  function saveLockCfg(c){
+    try{
+      var safe = Object.assign({}, c || {});
+      if (safe.hash) { safe.on = true; delete safe.hash; }
+      localStorage.setItem(LOCK_STORE, JSON.stringify(safe));
+    }catch(e){}
+  }
   /* ---- User accounts (with their password hashes) ----
      Kept encrypted with the Mac keychain (safeStorage) so that someone copying the
      app's data files off the machine cannot brute-force the hashes offline.
@@ -119,7 +134,32 @@
   function lockFails(){ try{ return JSON.parse(localStorage.getItem('shivam_lockfails_v1')||'{}'); }catch(e){ return {}; } }
   function saveLockFails(o){ try{ localStorage.setItem('shivam_lockfails_v1', JSON.stringify(o||{})); }catch(e){} }
   function ensureMigrated(){ let u=loadUsers(); if(!u||!u.length){ const c=lockCfg(); if(c&&c.hash){ u=[{user:'admin',name:'Administrator',role:'admin',hash:c.hash}]; saveUsers(u); } } return loadUsers(); }
-  function isLocked(){ const u=loadUsers(); if(u&&u.length) return true; const c=lockCfg(); return !!(c&&c.hash); }
+  /* Older installs kept the admin hash in plaintext localStorage. Once it is in
+     the encrypted roster, remove the plaintext copy — leaving the enabled flag
+     so the lock still engages on the next start. */
+  function scrubLegacyHash(){
+    try{
+      var c=lockCfg(); if(!c || !c.hash) return;
+      /* Require DURABLE evidence of the roster, not the in-memory cache.
+         saveUsers() sets _usersCache synchronously but writes the encrypted
+         copy asynchronously, so loadUsers() reports success while the write is
+         still in flight. Scrubbing then could remove the only stored hash; a
+         crash in that window left the lock enabled with no credential at all
+         and the next launch asked the owner to create a new account. */
+      var durable=false;
+      try{ durable = !!localStorage.getItem('shivam_users_enc'); }catch(e){}
+      if(!durable){
+        try{ var pl=JSON.parse(localStorage.getItem(USERS_STORE)||'null'); durable = Array.isArray(pl) && pl.length>0; }catch(e){}
+      }
+      if(!durable) return;                        // roster not on disk yet — keep the hash
+      var u=loadUsers();
+      if(!u || !u.length) return;                 // not migrated yet — keep it until it is
+      var keep=Object.assign({}, c); keep.on=true; delete keep.hash;
+      localStorage.setItem(LOCK_STORE, JSON.stringify(keep));
+      try{ logAudit('Security','Legacy password hash removed from plaintext storage'); }catch(_){}
+    }catch(e){}
+  }
+  function isLocked(){ const u=loadUsers(); if(u&&u.length) return true; const c=lockCfg(); return !!(c&&(c.on||c.hash)); }
   function showLock(){ const e=$('lockScreen'); if(!e) return; document.body.classList.remove('unlocked'); document.documentElement.classList.remove('unlocked'); e.classList.add('show');
     if($('lockUser'))$('lockUser').value=''; if($('lockPass')){ $('lockPass').value=''; $('lockPass').type='password'; } if($('pwToggle'))$('pwToggle').textContent='Show';
     $('lockErr').textContent=''; const sb=$('signinBtn'); if(sb){ sb.classList.remove('loading'); sb.disabled=false; }
@@ -209,7 +249,13 @@
   async function doDisable(){
     const users=loadUsers(); const admin=users.find(x=>x.role==='admin')||users[0];
     if(!admin || !(await checkPass($('offPass').value, admin.hash))){ toast('Password is wrong'); return; }
-    logAudit('App Lock Disabled',''); localStorage.removeItem(LOCK_STORE); localStorage.removeItem(USERS_STORE); currentUser=null; $('offPass').value=''; renderSecPanel(); applyRole(); toast('App lock turned off');
+    logAudit('App Lock Disabled',''); localStorage.removeItem(LOCK_STORE); localStorage.removeItem(USERS_STORE);
+    /* The roster also lives keychain-encrypted in shivam_users_enc and in the
+       _usersCache held in memory. Leaving either behind meant the lock came
+       straight back: isLocked() still saw cached users this session, and the
+       next boot decrypted the roster again. */
+    localStorage.removeItem('shivam_users_enc'); _usersCache=[];
+    currentUser=null; $('offPass').value=''; renderSecPanel(); applyRole(); toast('App lock turned off');
   }
   async function addUser(){
     if(!currentUser || currentUser.role!=='admin'){ toast('Only an admin can add users'); return; }
@@ -407,6 +453,8 @@
     try{
       localStorage.removeItem(LOCK_STORE);
       localStorage.removeItem(USERS_STORE);
+      localStorage.removeItem('shivam_users_enc');   /* encrypted roster, else the lock returns on reboot */
+      _usersCache=[];                                /* in-memory copy, else it returns this session */
       localStorage.removeItem('shivam_recovery_v1');
       localStorage.removeItem('shivam_lockfails_v1');
     }catch(_){}
@@ -540,7 +588,7 @@
     return;
   }
   function initLock(){
-    ensureMigrated(); renderSecPanel();
+    ensureMigrated(); try{ scrubLegacyHash(); }catch(_){ } renderSecPanel();
     const users=loadUsers();
     showLock(); initSecureToken();
     if(users && users.length){ setAuthMode('login'); return; }

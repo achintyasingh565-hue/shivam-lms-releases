@@ -2,7 +2,22 @@
 (function(){
   var L=null; /* the loan being restructured */
   function monthsLeft(l){ var e=Number(l.emi)||0, o=outstandingOf(l); if(e<=0) return Number(l.tenure)||0; return Math.max(1, Math.round(o/e)); }
-  function outstandingOf(l){ return Math.max(0, (Number(l.tpay)||0) - (Number(l.paid)||0)); }
+  /* Product-aware. tpay - paid treats a byaj loan's interest receipts as if
+     they had repaid principal: a 1,00,000 loan with one 2,000 interest
+     payment reported 98,000 while the ledger (correctly) still said
+     1,00,000, so the restructure was computed from a balance that did not
+     exist. Charges are included, as recomputeLoan includes them. */
+  function outstandingOf(l){
+    if(!l) return 0;
+    if(typeof l.outstanding==='number' && isFinite(l.outstanding)) return Math.max(0, Math.round(l.outstanding));
+    var fees=(Array.isArray(l.charges)?l.charges:[]).reduce(function(a,c){return a+(c?(Number(c.amount)||0):0);},0);
+    if(l.interestOnly){
+      var pp=(Array.isArray(l.payments)?l.payments:[]).filter(function(p){return p&&p.status==='Cleared'&&p.kind==='principal';})
+        .reduce(function(a,p){return a+(Number(p.amount)||0);},0);
+      return Math.max(0, Math.round((Number(l.principal)||0)-pp+fees));
+    }
+    return Math.max(0, Math.round((Number(l.tpay)||0)+fees-(Number(l.paid)||0)));
+  }
   /* Remaining PRINCIPAL only (interest already paid is NOT carried forward).
      Flat loan: each EMI = (principal ÷ tenure) + (interest ÷ tenure). A payment covers that
      EMI's INTEREST first, then its principal — so a part-payment that only covers interest
@@ -14,7 +29,14 @@
     if(l.interestOnly){ var b=Number(l.outstanding); return Math.max(0, Math.min(P, (b>0?b:P))); }
     var n=Math.round(Number(l.tenure)||0);
     var tp=Number(l.tpay)||0, out=outstandingOf(l);
-    var cleared=Math.max(0, tp-out);                 // total cleared against the schedule
+    /* `tpay - outstanding` is NOT what the borrower has paid, because
+       outstanding also carries unpaid charges (outstanding = tpay + fees -
+       paid). A 500 late fee therefore made 500 of repaid principal vanish and
+       the combined loan carried that much too much principal forward.
+       l.paid is maintained by recomputeLoan as cleared non-interest money. */
+    var cleared=(typeof l.paid==='number' && isFinite(l.paid))
+      ? Math.max(0, Math.round(l.paid))
+      : Math.max(0, tp-out);
     if(n<=0 || tp<=0){ return Math.max(0, Math.min(P, out)); }
     var I=Number(l.tint); if(!(I>0)) I=Math.max(0, tp-P);
     var intPerEmi=I/n, prinPerEmi=P/n;
@@ -205,11 +227,34 @@
     rec.tpay=Math.max(0, Math.round(c.newTotal));
     rec.emi=c.newEmi;
     rec.paid=0; rec.outstanding=rec.tpay; rec.status='Active';
-    rec.payments=[]; rec.charges=[]; rec.interestOnly=false;
+    rec.payments=[]; rec.charges=[];
+    /* Combining byaj loans used to hand back an EMI loan: interestOnly was
+       hard-cleared, so the principal started amortising and the borrower's
+       product changed without anyone saying so. Keep the product when every
+       loan going in is interest-only; a mixed set becomes an EMI loan, which
+       is the only thing a single schedule can represent. recomputeLoan below
+       then derives the right emi/tpay/tint for whichever product it is. */
+    rec.interestOnly = (c.combLoans || []).length > 0 &&
+                       (c.combLoans || []).every(function(x){ return x && x.interestOnly; });
     rec.deductions=0; rec.downpay=0;
     rec.product=(L.product||'Combined loan');
     rec.combinedFrom=acnos.slice();
     rec.tint=Math.max(0, rec.tpay-rec.principal);   // interest = fresh interest + any pending dues folded in
+    /* A byaj loan carries no tpay/tint of its own — _recomputeInterestOnly
+       resets tpay to the principal and tint to 0. Anything folded into the plan
+       (the pending dues the owner typed in, plus any fresh interest) was
+       therefore silently deleted the moment the combined loan was recomputed.
+       Carry it as a charge instead, which the byaj engine does add to the
+       balance, so the money survives and is named on the statement. */
+    if(rec.interestOnly){
+      var _carryIn=Math.max(0, Math.round(rec.tpay-rec.principal));
+      rec.tpay=rec.principal; rec.tint=0;
+      if(_carryIn>0){
+        rec.charges=[{ id:'C'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+          date:rsDate, type:'Other', amount:_carryIn,
+          note:'Dues carried in on merge from '+acnos.join(', ') }];
+      }
+    }
     rec.remarks=('Combined from: '+acnos.join(', ')+(c.lump>0?(' | Prepaid at merge: '+inr(c.lump)):'')+(c.pendingTotal>0?(' | Pending dues added: '+inr(c.pendingTotal)):'')+((L.remarks)?(' | '+L.remarks):''));
     rec.createdAt=todayISO();
     try{ recomputeLoan(rec); }catch(e){}
@@ -220,7 +265,13 @@
       try{ recomputeLoan(x); }catch(e){}
       var settle=Math.max(0, Number(x.outstanding)||outstandingOf(x));
       x.payments=Array.isArray(x.payments)?x.payments:[];
-      if(settle>0) x.payments.push({ pid:newPayId(), date:rsDate, mode:'Adjustment', amount:settle, status:'Cleared', note:'Merged into '+newAcno });
+      /* Tag the settlement as a PRINCIPAL repayment. The byaj engine only
+         reduces principal for kind:'principal', so an untagged Adjustment
+         left the source loan's principal untouched: applyCombine forced it
+         Closed, then the next recomputeAll() brought the old balance back
+         and the merged loan reopened. Harmless on flat loans, which ignore
+         the tag. */
+      if(settle>0) x.payments.push({ pid:newPayId(), date:rsDate, mode:'Adjustment', amount:settle, status:'Cleared', kind:'principal', note:'Merged into '+newAcno });
       x.mergedInto=newAcno;
       x.remarks=((x.remarks?x.remarks+' | ':'')+'Merged into '+newAcno+' on '+rsDate);
       try{ recomputeLoan(x); }catch(e){}
@@ -269,7 +320,14 @@
     L.baseDate=rsDate;
     L.baseOut=Math.max(0,c.newTotal);
     L.paidBase=Number(L.paid)||0;
-    L.tpay=(Number(L.paid)||0)+Math.max(0,c.newTotal);   // total payable = paid so far + re-planned balance (+ any fresh interest)
+    /* c.newTotal is derived from outstandingOf(L), which ALREADY contains the
+       unpaid charges. recomputeLoan then computes outstanding as
+       `tpay + fees - paid`, so leaving the fees inside tpay charged them twice:
+       a 500 late fee reappeared as 500 of extra balance after every
+       restructure. The charge rows stay for the audit trail; tpay carries the
+       re-planned balance net of them. */
+    var _feesOwed=(Array.isArray(L.charges)?L.charges:[]).reduce(function(a,c2){return a+(c2?(Number(c2.amount)||0):0);},0);
+    L.tpay=Math.max(0, (Number(L.paid)||0)+Math.max(0,c.newTotal)-_feesOwed);   // total payable = paid so far + re-planned balance, charges added back by recomputeLoan
     L.dueManual=false;
     L.deductions=Number(L.deductions)||0;
     L.outstanding=Math.max(0, c.newTotal);
@@ -285,9 +343,18 @@
     if(confirm('Restructured successfully. Print a revised schedule for the customer?')) printSchedule(snap, c);
   };
   function printSchedule(l, c){
-    var rows='', bal=c.newOut, d=new Date(($('rs_date')&&$('rs_date').value)||todayISO());
+    /* Stepping a Date month by month rolls 31 Jan into 3 Mar and then drags every
+       later row with it, so the printed revised schedule disagreed with the
+       app's own dates. repAddMonths anchors each row to the start date and
+       clamps to the month end, matching emiDueDate and repScheduleData. */
+    /* newTotal = newOut + fresh interest + pending dues, and newEmi is derived
+       from newTotal. Starting the running balance at newOut while subtracting
+       newEmi each row drove it to zero early and disagreed with the ledger. */
+    var rows='', bal=(c.newTotal!=null?c.newTotal:c.newOut);
+    var startISO=($('rs_date')&&$('rs_date').value)||todayISO();
     for(var i=1;i<=c.newMonths;i++){
-      d=new Date(d.getFullYear(), d.getMonth()+1, d.getDate());
+      var dueISO=repAddMonths(startISO, i);
+      var d=new Date(dueISO+'T00:00:00');
       var pay=(i===c.newMonths)?c.lastEmi:c.newEmi; bal=Math.max(0,bal-pay);
       rows+='<tr><td>'+i+'</td><td>'+d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})+'</td><td style="text-align:right;">₹'+(pay).toLocaleString('en-IN')+'</td><td style="text-align:right;">₹'+bal.toLocaleString('en-IN')+'</td></tr>';
     }
@@ -310,7 +377,7 @@
       '<div class="meta"><b>Loan A/c:</b> '+(l.acno||'')+'</div>'+
       '<div class="meta"><b>Date of revision:</b> '+new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'})+'</div>'+
       (c.lump>0?'<div class="meta"><b>Payment received:</b> ₹'+c.lump.toLocaleString('en-IN')+' ('+($('rs_mode').value)+')</div>':'')+
-      '<div class="meta"><b>Revised outstanding:</b> ₹'+c.newOut.toLocaleString('en-IN')+' &nbsp;|&nbsp; <b>EMI:</b> ₹'+c.newEmi.toLocaleString('en-IN')+' &nbsp;|&nbsp; <b>Tenure:</b> '+c.newMonths+' months'+(c.newRate!=null?' &nbsp;|&nbsp; <b>Rate:</b> '+c.newRate+'% p.m.':'')+'</div>'+
+      '<div class="meta"><b>Revised amount payable:</b> ₹'+(c.newTotal!=null?c.newTotal:c.newOut).toLocaleString('en-IN')+' &nbsp;|&nbsp; <b>EMI:</b> ₹'+c.newEmi.toLocaleString('en-IN')+' &nbsp;|&nbsp; <b>Tenure:</b> '+c.newMonths+' months'+(c.newRate!=null?' &nbsp;|&nbsp; <b>Rate:</b> '+c.newRate+'% p.m.':'')+'</div>'+
       '<table><thead><tr><th>#</th><th>Due date</th><th>EMI</th><th>Balance</th></tr></thead><tbody>'+rows+'</tbody></table>'+
       '<div class="foot">This is a computer-generated revised schedule. For Shivam Enterprises.</div>'+
       '</body></html>';

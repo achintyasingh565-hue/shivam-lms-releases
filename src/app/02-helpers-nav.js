@@ -211,7 +211,7 @@
     else { t+=rows.map(p=>'<tr><td>'+esc(p.name)+'</td><td>'+esc(p.acno)+'</td><td>'+esc(p.mode)+'</td><td>'+repChqRef(p)+'</td><td class="r">'+inr(p.amount)+'</td><td>'+esc(p.status||'')+'</td></tr>').join('');
       t+='<tr class="tot"><td colspan="4" class="r">Total</td><td class="r">'+inr(tot)+'</td><td></td></tr>'; }
     t+='</tbody></table>';
-    printReport('Daily Collection Report','For '+fmtDate(date),[['Cash',inr(cash)],['Cheque',inr(chq)],['Online',inr(onl)],['Grand Total',inr(tot)],['Entries',String(rows.length)]],t);
+    printReport('Daily Collection Report','For '+fmtDate(date),[['Cash',inr(cash)],['Cheque',inr(chq)],['Online',inr(onl)],['Grand Total',inr(tot)],['Entries',String(rows.length)]],t,'Daily_Collection_'+date)
   }
 
   /* =============== 2. CASH BOOK (receipts) =============== */
@@ -257,7 +257,7 @@
     else { t+=rows.map(function(p){ run+=p.amount; return '<tr><td>'+fmtDate(p.date)+'</td><td>'+esc(p.name)+'</td><td>'+esc(p.acno)+'</td><td class="r">'+inr(p.amount)+'</td><td class="r">'+inr(run)+'</td></tr>'; }).join('');
       t+='<tr class="tot"><td colspan="3" class="r">Total</td><td class="r">'+inr(tot)+'</td><td></td></tr>'; }
     t+='</tbody></table>';
-    printReport('Cash Book (Receipts)','From '+fmtDate(from)+' to '+fmtDate(to),[['Cash received',inr(tot)],['Entries',String(rows.length)]],t);
+    printReport('Cash Book (Receipts)','From '+fmtDate(from)+' to '+fmtDate(to),[['Cash received',inr(tot)],['Entries',String(rows.length)]],t,'Cash_Book_'+from+'_to_'+to);
   }
 
   /* =============== ONLINE PAYMENTS =============== */
@@ -303,7 +303,7 @@
     else { t+=rows.map(function(p){ run+=p.amount; return '<tr><td>'+fmtDate(p.date)+'</td><td>'+esc(p.name)+'</td><td>'+esc(p.acno)+'</td><td>'+esc(p.ref||'\u2014')+'</td><td class="r">'+inr(p.amount)+'</td><td class="r">'+inr(run)+'</td></tr>'; }).join('');
       t+='<tr class="tot"><td colspan="4" class="r">Total</td><td class="r">'+inr(tot)+'</td><td></td></tr>'; }
     t+='</tbody></table>';
-    printReport('Online Payments','From '+fmtDate(from)+' to '+fmtDate(to),[['Online received',inr(tot)],['Entries',String(rows.length)]],t);
+    printReport('Online Payments','From '+fmtDate(from)+' to '+fmtDate(to),[['Online received',inr(tot)],['Entries',String(rows.length)]],t,'Online_Payments_'+from+'_to_'+to);
   }
 
   /* =============== 3. CHEQUE REGISTER =============== */
@@ -356,7 +356,7 @@
     else { t+=rows.map(p=>'<tr><td>'+fmtDate(p.date)+'</td><td>'+esc(p.name)+'</td><td>'+esc(p.acno)+'</td><td>'+esc(p.cheque||'')+'</td><td>'+esc(p.bank||'')+'</td><td class="r">'+inr(p.amount)+'</td><td>'+esc(p.status||'')+'</td></tr>').join('');
       t+='<tr class="tot"><td colspan="5" class="r">Total</td><td class="r">'+inr(cleared+pending)+'</td><td></td></tr>'; }
     t+='</tbody></table>';
-    printReport('Cheque Register','From '+fmtDate(from)+' to '+fmtDate(to),[['Cleared',inr(cleared)],['Pending',inr(pending)],['Cheques',String(rows.length)]],t);
+    printReport('Cheque Register','From '+fmtDate(from)+' to '+fmtDate(to),[['Cleared',inr(cleared)],['Pending',inr(pending)],['Cheques',String(rows.length)]],t,'Cheque_Register_'+from+'_to_'+to);
   }
 
   /* =============== 4. LOAN STATUS =============== */
@@ -431,7 +431,8 @@
     if(!l){ host.innerHTML='<p style="color:var(--grey);">Select a borrower to view their statement.</p>'; return; }
     var pays=(l.payments||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     var payable=repLoanPayable(l); var ded=Number(l.deductions)||0; var run=0;
-    var rowsHtml = pays.length? pays.map(function(p){ var amt=Number(p.amount)||0; if(p.status!=='Pending'){ run+=amt; } var pf=_isPrepay(p)?' <span style="color:var(--muted);font-size:10.5px;">· prepayment</span>':''; var itag=(p.intOnly||p.type==='Interest')?' <span style="color:#4338ca;font-size:10.5px;">· interest only</span>':''; return '<tr><td>'+fmtDate(p.date)+'</td><td>'+esc(p.mode)+pf+itag+'</td><td>'+repChqRef(p)+'</td><td class="right">'+inr(amt)+'</td><td>'+esc(p.status||'')+'</td><td class="right">'+inr(run)+'</td></tr>'; }).join('')
+    var _sp=_stmtSplit(l, pays);
+    var rowsHtml = pays.length? pays.map(function(p){ var amt=Number(p.amount)||0; if(p.status==='Cleared'){ run+=amt; }   /* a BOUNCED cheque is not Pending, so it used to count as paid */ var pf=_isPrepay(p)?' <span style="color:var(--muted);font-size:10.5px;">· prepayment</span>':''; var itag=_sp.isInt(p)?' <span style="color:#4338ca;font-size:10.5px;">· interest only</span>':''; return '<tr><td>'+fmtDate(p.date)+'</td><td>'+esc(p.mode)+pf+itag+'</td><td>'+repChqRef(p)+'</td><td class="right">'+inr(amt)+'</td><td>'+esc(p.status||'')+'</td><td class="right">'+inr(run)+'</td></tr>'; }).join('')
       : '<tr><td colspan="6" style="text-align:center;color:var(--grey);padding:18px;">No payments recorded yet.</td></tr>';
     var rs=repRsHistory(l);
     var rsHtml = rs.length ? ('<div style="font-weight:650;font-size:13px;margin:4px 0 6px;">Restructuring &amp; Prepayment History</div>'
@@ -465,21 +466,39 @@
       +'<div class="table-wrap"><table class="data"><thead><tr><th>Date</th><th>Mode</th><th>Cheque / Ref</th>'
       +'<th class="right">Amount</th><th>Status</th><th class="right">Paid to date</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>'
       + chgHtml
-      + '<div class="varbox" style="margin-top:14px;">Total payable '+inr(payable)+(chgTot>0?(' + charges '+inr(chgTot)):'')+' &minus; paid '+inr(run)+' = <b>outstanding '+inr(Number(l.outstanding)||0)+'</b>'+(ded?('<br><span style="color:var(--muted);font-size:11.5px;">Processing/deductions '+inr(ded)+' were withheld at disbursement &mdash; the customer owes the full amount, so this does not reduce the outstanding.</span>'):'')+'</div>';
+      + '<div class="varbox" style="margin-top:14px;">Total payable '+inr(payable)+(chgTot>0?(' + charges '+inr(chgTot)):'')+' &minus; '+(_sp.interest>0?'principal repaid ':'paid ')+inr(_sp.principal)+' = <b>outstanding '+inr(Number(l.outstanding)||0)+'</b>'+(_sp.interest>0?('<br><span style="color:var(--muted);font-size:11.5px;">Interest serviced '+inr(_sp.interest)+' is income on the loan and does not reduce the balance, so it is not subtracted above.</span>'):'')+(ded?('<br><span style="color:var(--muted);font-size:11.5px;">Processing/deductions '+inr(ded)+' were withheld at disbursement &mdash; the customer owes the full amount, so this does not reduce the outstanding.</span>'):'')+'</div>';
+  }
+  /* A statement must add up on its face. `run` is every rupee received, but a
+     byaj / interest-only receipt services interest and does NOT reduce the
+     balance, so "payable + charges - paid = outstanding" was wrong by the whole
+     interest taken. Split the two: principal repaid closes the arithmetic and
+     interest serviced is reported beside it. */
+  function _stmtSplit(l, pays){
+    var isInt=function(p){ if(!p) return false;
+      if(l && l.interestOnly) return p.kind!=='principal';
+      return (p.intOnly===true || p.type==='Interest'); };
+    var all=0, intr=0;
+    (pays||[]).forEach(function(p){
+      if(!p || p.status!=='Cleared') return;
+      var a=Number(p.amount)||0; all+=a; if(isInt(p)) intr+=a;
+    });
+    return {all:Math.round(all), interest:Math.round(intr), principal:Math.round(all-intr), isInt:isInt};
   }
   function repStatementCSV(){
     var l=repStatementLoan(); if(!l){ toast('Select a borrower first'); return; }
     var pays=(l.payments||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')); var run=0;
-    var data=pays.map(function(p){ var amt=Number(p.amount)||0; if(p.status!=='Pending'){ run+=amt; } return [fmtDate(p.date),p.mode,(p.mode==='Cheque'?p.cheque:p.ref),amt,p.status,run]; });
-    repCSV('Statement_'+(l.acno||l.name||'loan')+'.csv', ['Date','Mode','Cheque/Ref','Amount','Status','Paid to date'], data);
+    var _sp=_stmtSplit(l, pays);
+    var data=pays.map(function(p){ var amt=Number(p.amount)||0; if(p.status==='Cleared'){ run+=amt; }   /* a BOUNCED cheque is not Pending, so it used to count as paid */ return [fmtDate(p.date),p.mode,(p.mode==='Cheque'?p.cheque:p.ref),amt,p.status,(_sp.isInt(p)?'Interest only':'Principal / EMI'),run]; });
+    repCSV('Statement_'+(l.acno||l.name||'loan')+'.csv', ['Date','Mode','Cheque/Ref','Amount','Status','Applied to','Paid to date'], data);
   }
   function repStatementPrint(){
     var l=repStatementLoan(); if(!l){ toast('Select a borrower first'); return; }
     var pays=(l.payments||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     var payable=repLoanPayable(l); var ded=Number(l.deductions)||0; var run=0;
+    var _sp=_stmtSplit(l, pays);
     var t='<table><thead><tr><th>Date</th><th>Mode</th><th>Cheque / Ref</th><th class="r">Amount</th><th>Status</th><th class="r">Paid to date</th></tr></thead><tbody>';
     if(!pays.length){ t+='<tr><td colspan="6" style="text-align:center;">No payments recorded yet.</td></tr>'; }
-    else { t+=pays.map(function(p){ var amt=Number(p.amount)||0; if(p.status!=='Pending'){ run+=amt; } return '<tr><td>'+fmtDate(p.date)+'</td><td>'+esc(p.mode)+(_isPrepay(p)?' (prepayment)':'')+'</td><td>'+repChqRef(p)+'</td><td class="r">'+inr(amt)+'</td><td>'+esc(p.status||'')+'</td><td class="r">'+inr(run)+'</td></tr>'; }).join(''); }
+    else { t+=pays.map(function(p){ var amt=Number(p.amount)||0; if(p.status==='Cleared'){ run+=amt; }   /* a BOUNCED cheque is not Pending, so it used to count as paid */ return '<tr><td>'+fmtDate(p.date)+'</td><td>'+esc(p.mode)+(_isPrepay(p)?' (prepayment)':'')+(_sp.isInt(p)?' (interest only)':'')+'</td><td>'+repChqRef(p)+'</td><td class="r">'+inr(amt)+'</td><td>'+esc(p.status||'')+'</td><td class="r">'+inr(run)+'</td></tr>'; }).join(''); }
     t+='</tbody></table>';
     /* Restructuring & prepayment history \u2014 shows the customer when terms changed and what changed. */
     var rs=repRsHistory(l); var rsT='';
@@ -502,9 +521,10 @@
     }
     /* Reconciliation line so the arithmetic is explicit on the printed page. */
     var recon='<div style="margin-top:14px;font-size:12px;color:#333;border:1px solid #ddd;background:#faf7ef;border-radius:6px;padding:8px 11px;">'
-      +'Total payable '+inr(payable)+(chgTot>0?(' + charges '+inr(chgTot)):'')+' &minus; paid '+inr(run)+' = <b>Outstanding '+inr(Number(l.outstanding)||0)+'</b>'+(ded?('<br><span style="font-size:11px;color:#666;">Processing/deductions '+inr(ded)+' were withheld at disbursement; the customer owes the full amount, so this does not reduce the outstanding.</span>'):'')+'</div>';
+      +'Total payable '+inr(payable)+(chgTot>0?(' + charges '+inr(chgTot)):'')+' &minus; '+(_sp.interest>0?'principal repaid ':'paid ')+inr(_sp.principal)+' = <b>Outstanding '+inr(Number(l.outstanding)||0)+'</b>'+(_sp.interest>0?('<br><span style="font-size:11px;color:#666;">Interest serviced '+inr(_sp.interest)+' is income on the loan and does not reduce the balance, so it is not subtracted above.</span>'):'')+(ded?('<br><span style="font-size:11px;color:#666;">Processing/deductions '+inr(ded)+' were withheld at disbursement; the customer owes the full amount, so this does not reduce the outstanding.</span>'):'')+'</div>';
     var inner = rsT + '<div style="font-weight:700;margin:14px 0 4px;color:#0b1f4b;">Payment Ledger</div>' + t + chgT + recon;
     var meta=[['Principal',inr(l.principal)],['Rate',(Number(l.rate)>0?String(l.rate)+'%':'\u2014')],['Tenure',String(l.tenure||'')+' mo'],['EMI',inr(l.emi)],['Total payable',inr(payable)],['Paid (cleared)',inr(run)]];
+    if(_sp.interest>0){ meta.push(['of which interest serviced',inr(_sp.interest)]); meta.push(['Principal repaid',inr(_sp.principal)]); }
     if(chgTot>0) meta.push(['Charges & late fees',inr(chgTot)]);
     if(ded) meta.push(['Processing/Deductions',inr(ded)]);
     meta.push(['Outstanding',inr(Number(l.outstanding)||0)]);

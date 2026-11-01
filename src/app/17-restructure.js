@@ -33,8 +33,16 @@
     /* pool of actual payments (date-sorted) to allocate against installments; after restructure only
        payments made AFTER the baseline date count toward the forward schedule */
     var baseD=l.baseDate||'';
-    var _isInt=function(p){ return p && (p.intOnly===true || p.type==='Interest'); };
-    var allPays=(l.payments||[]).slice().filter(function(p){return Number(p.amount)>0 && (!baseD || (p.date||'')>baseD);}).sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+    var _isInt=function(p){ if(!p) return false;
+    /* byaj: only kind:'principal' repays principal; everything else is
+       interest. Without this an untagged byaj interest payment was shown
+       as an EMI paid and the modal schedule disagreed with the ledger. */
+    if(l && l.interestOnly) return p.kind!=='principal';
+    return (p.intOnly===true || p.type==='Interest'); };
+    /* Only CLEARED money counts. Without the status check a pending or bounced
+       cheque was pooled like cash and ticked instalments as paid on the modal
+       schedule and the Welcome Letter — money that never arrived. */
+    var allPays=(l.payments||[]).slice().filter(function(p){return p && p.status==='Cleared' && Number(p.amount)>0 && (!baseD || (p.date||'')>baseD);}).sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
     // Interest-only months service the interest and push the schedule forward — they are shown
     // as their own rows and are NOT used to cover EMIs (they don't reduce principal).
     var intPays=allPays.filter(_isInt);
@@ -63,8 +71,14 @@
     // Interest-only months shown as their own rows, interleaved by date (no principal, no balance change).
     intPays.forEach(function(p){ var dd=new Date(p.date); rows.push({i:'', _d:dd.getTime(), due:fmt(dd), emi:Number(p.amount)||0, bal:null, status:'Interest paid', cls:'int', payDate:'', isInt:true}); });
     rows.sort(function(a,b){ return (a._d||0)-(b._d||0); });
-    var remaining=Math.max(0, totalPayable - paidSum);
-    return {l:l, rows:rows, months:months, emi:emi, totalPayable:totalPayable, paidSum:paidSum, remaining:remaining, paidCount:paidCount, capped:capped, intCount:shift, intIncome:intIncome};
+    /* The ledger's outstanding is `total + charges - paid`, so a schedule that
+       left the charges out told the borrower he owed less than the app did.
+       A restructure folds the charges into baseOut, so they are only added for
+       a loan still on its original plan. */
+    var _chgOwed=(l.baseOut!=null) ? 0
+      : (Array.isArray(l.charges)?l.charges:[]).reduce(function(a,c){return a+(c?(Number(c.amount)||0):0);},0);
+    var remaining=Math.max(0, totalPayable + _chgOwed - paidSum);
+    return {l:l, rows:rows, months:months, emi:emi, totalPayable:totalPayable, paidSum:paidSum, remaining:remaining, charges:_chgOwed, paidCount:paidCount, capped:capped, intCount:shift, intIncome:intIncome};
   }
   function tableHTML(d, forPrint){
     var r=d.rows.map(function(x){
@@ -109,7 +123,7 @@
       '<div class="name">'+esc(FIRM().name)+'</div><div class="addr">'+esc(firmAddrLine())+'<br>'+esc(firmRegLine())+'</div><div class="rule"></div>'+
       '<h2>Loan Repayment Schedule</h2>'+
       '<div class="meta"><b>Borrower:</b> '+(l.name||'')+'</div><div class="meta"><b>Loan A/c:</b> '+(l.acno||'')+'</div><div class="meta"><b>As on:</b> '+new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'})+'</div>'+
-      '<div class="sumbox"><b>Total payable:</b> ₹'+Math.round(d.totalPayable).toLocaleString('en-IN')+' &nbsp;|&nbsp; <b>Paid:</b> ₹'+Math.round(d.paidSum).toLocaleString('en-IN')+' ('+d.paidCount+' EMIs) &nbsp;|&nbsp; <b>Remaining:</b> ₹'+Math.round(d.remaining).toLocaleString('en-IN')+' &nbsp;|&nbsp; <b>EMI:</b> ₹'+Math.round(d.emi).toLocaleString('en-IN')+'</div>'+
+      '<div class="sumbox"><b>Total payable:</b> ₹'+Math.round(d.totalPayable).toLocaleString('en-IN')+(d.charges>0?(' &nbsp;|&nbsp; <b>Charges:</b> ₹'+Math.round(d.charges).toLocaleString('en-IN')):'')+' &nbsp;|&nbsp; <b>Paid:</b> ₹'+Math.round(d.paidSum).toLocaleString('en-IN')+' ('+d.paidCount+' EMIs) &nbsp;|&nbsp; <b>Remaining:</b> ₹'+Math.round(d.remaining).toLocaleString('en-IN')+' &nbsp;|&nbsp; <b>EMI:</b> ₹'+Math.round(d.emi).toLocaleString('en-IN')+'</div>'+
       '<table><thead><tr><th>#</th><th>Due date</th><th>EMI</th><th>Balance</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table>'+
       '<div class="foot">This is a computer-generated repayment schedule. For Shivam Enterprises.</div></body></html>';
   }

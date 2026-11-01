@@ -19,12 +19,25 @@
     var emi=Math.round(Number(l.emi)||0);
     var paidBase=Number(l.paidBase)||0;
     var total=(l.baseOut!=null)?Math.max(0,Number(l.baseOut)):(Number(l.tpay)>0?Number(l.tpay):emi*n); // true amount payable (forward of any restructure)
-    var _isInt=function(p){ return p && (p.intOnly===true || p.type==='Interest'); };
+    var _isInt=function(p){
+      if(!p) return false;
+      /* On a byaj loan the principal only moves for a payment tagged kind:'principal'
+         — that is what _recomputeInterestOnly counts. The schedule used to look only
+         at intOnly/type, so an ordinary monthly interest payment entered without the
+         tick was treated as principal here and the schedule showed the principal
+         coming down while the ledger (correctly) did not. */
+      if(l && l.interestOnly) return p.kind!=='principal';
+      return (p.intOnly===true || p.type==='Interest');
+    };
     /* Only CLEARED money counts — same rule as recomputeLoan. Interest-only payments are
        excluded (they service the month's interest, not the EMI/principal). */
     var cleared=Math.max(0,(l.payments||[]).filter(p=>p.status==='Cleared' && !_isInt(p)).reduce((a,p)=>a+(Number(p.amount)||0),0)-paidBase);
     // Interest-only months push the whole schedule forward and show as their own rows.
-    var intPays=(l.payments||[]).filter(function(p){return p.status==='Cleared' && _isInt(p) && (Number(p.amount)||0)>0;}).slice().sort(function(a,b){return String(a.date||'').localeCompare(String(b.date||''));});
+    /* Same rule as recomputeLoan and 17-restructure: interest serviced before
+       the restructure belongs to the old plan and must not shift the new
+       schedule or appear as a row in it. */
+    var _afterBaseS=function(p){ return !l.baseDate || String(p.date||'') > String(l.baseDate); };
+    var intPays=(l.payments||[]).filter(function(p){return p.status==='Cleared' && _isInt(p) && _afterBaseS(p) && (Number(p.amount)||0)>0;}).slice().sort(function(a,b){return String(a.date||'').localeCompare(String(b.date||''));});
     var shift=intPays.length;
     var t=todayISO();
     var _mkE=function(iso){ return (typeof _ymKey==='function')?_ymKey(iso):(String(iso||'').slice(0,7)||null); };
@@ -101,6 +114,19 @@
         rows.push({i:ri,due:dR,emi:teR,paid:alR,lateFee:lateAt(ri,rkR),intFee:intAt(ri,rkR),bncFee:bncAt(ri,rkR),charge:chgAt(ri,rkR),bal:_bal(),st:stR,dueAmt:Math.max(0,teR-alR)});
       }
       intPays.forEach(function(p){ var a=Number(p.amount)||0; intIncome+=a; rows.push(_intRow({i:'',due:(p.date||''),emi:a,paid:a,lateFee:0,intFee:0,charge:0,bal:null,st:'Interest',isInt:true})); });
+      /* Charges are attached to the instalment they belong to, so a charge dated
+         outside rows 1..n — typically a fee raised after the final due date —
+         was never added to cumChg and this schedule closed BELOW l.outstanding.
+         Reconcile whatever is left onto its own row so the printed schedule and
+         the ledger agree. */
+      var _allChgR=(Array.isArray(l.charges)?l.charges:[]).reduce(function(a,c){return a+(c?(Number(c.amount)||0):0);},0);
+      var _leftChgR=Math.round(_allChgR-cumChg);
+      if(_leftChgR>0.5){
+        var _lastDt='';
+        (Array.isArray(l.charges)?l.charges:[]).forEach(function(c){ if(c&&c.date&&String(c.date)>_lastDt) _lastDt=String(c.date); });
+        cumChg+=_leftChgR;
+        rows.push({i:'',due:_lastDt,emi:0,paid:0,lateFee:0,intFee:0,bncFee:0,charge:_leftChgR,bal:_bal(),st:'Charge',chargeOnly:true,dueAmt:_leftChgR});
+      }
       if(shift) rows.sort(function(a,b){return String(a.due||'').localeCompare(String(b.due||''));});
       var advR=Math.max(0,Math.round(cleared-cumPaid));
       return {rows:rows,emi:emi,n:n,total:total,cleared:cleared,paidCount:paidCount,totalLate:totalLate,totalInt:totalInt,totalBnc:totalBnc,totalChg:totalChg,intCount:intPays.length,intIncome:intIncome,advance:advR,extCount:0};
@@ -116,7 +142,7 @@
        tenure visibly extends by the number of deferred months. Once all EMIs are placed, any further
        months accrue interest only until the balance is cleared. */
     var emiPayByMonth={}, intOnlyByMonth={};
-    (l.payments||[]).forEach(function(p){ if(!p||p.status!=='Cleared')return; var a=Number(p.amount)||0; if(a<=0)return; var k=_mk(p.date); if(!k)return; if(_isInt(p)) intOnlyByMonth[k]=(intOnlyByMonth[k]||0)+a; else emiPayByMonth[k]=(emiPayByMonth[k]||0)+a; });
+    (l.payments||[]).forEach(function(p){ if(!p||p.status!=='Cleared')return; if(_isInt(p)&&!_afterBaseS(p))return;   /* pre-restructure interest belongs to the old plan */ var a=Number(p.amount)||0; if(a<=0)return; var k=_mk(p.date); if(!k)return; if(_isInt(p)) intOnlyByMonth[k]=(intOnlyByMonth[k]||0)+a; else emiPayByMonth[k]=(emiPayByMonth[k]||0)+a; });
     /* Money received BEFORE the first installment falls due — paid on the disbursement day, or an
        advance — belongs to no month the walk below visits, so it used to disappear from the
        schedule entirely and the last balance came out too high. Credit it against the first
@@ -137,7 +163,18 @@
       var dueD=emiDueDate(l,kk); var key=_mk(dueD);
       var io=intOnlyByMonth[key]||0, ep=emiPayByMonth[key]||0;
       var chgM=chgAt(kk,key), lfM=lateAt(kk,key), intM=intAt(kk,key);
-      if(io>0){ intIncome+=io; cumChg+=chgM; rows.push(_intRow({i:'',due:dueD,emi:io,paid:io,lateFee:lfM,intFee:intM,bncFee:bncAt(kk,key),charge:chgM,bal:_bal(),st:'Interest',isInt:true,defer:true})); continue; }
+      if(io>0){
+        /* Servicing the interest defers this month's instalment. A REGULAR payment
+           received in the same calendar month used to be dropped entirely by the
+           `continue` below -- it never reached the balance, so the schedule's
+           closing figure disagreed with l.outstanding. Carry it forward instead:
+           it becomes an advance against the instalment this deferral pushes out,
+           and `carry` is consumed by both the payment and upcoming branches. */
+        if(ep>0.5) carry+=ep;
+        intIncome+=io; cumChg+=chgM;
+        rows.push(_intRow({i:'',due:dueD,emi:io,paid:io,lateFee:lfM,intFee:intM,bncFee:bncAt(kk,key),charge:chgM,bal:_bal(),st:'Interest',isInt:true,defer:true}));
+        continue;
+      }
       var future=( _dl(dueD) >= t );
       if(ep>0.5){
         // A payment received this month — it reduces the balance NOW and pays down as many
@@ -185,7 +222,16 @@
       var chg2=chgAt(kk,mKey), lf2=lateAt(kk,mKey), int2=intAt(kk,mKey);
       var owedNow=_bal();
       if(owedNow<=0.5 && !(io2>0) && !(ep2>0) && !(chg2>0)){ if(mKey&&horizonKey&&mKey>=horizonKey&&kk>=latestChargeIdx) break; else continue; }
-      if(io2>0){ intIncome+=io2; cumChg+=chg2; rows.push(_intRow({i:'',due:dD,emi:io2,paid:io2,lateFee:lf2,intFee:int2,bncFee:bncAt(kk,mKey),charge:chg2,bal:_bal(),st:'Interest',isInt:true,defer:true})); extCount++; continue; }
+      if(io2>0){
+        /* Same trap as the main loop: a regular payment landing in the same month
+           as an interest-only one was skipped by this `continue`, so it never
+           reached the balance and the schedule closed above the ledger. Credit it
+           here — past tenure there is no later instalment to carry it to. */
+        if(ep2>0.5){ cumPaid+=ep2; }
+        intIncome+=io2; cumChg+=chg2;
+        rows.push(_intRow({i:'',due:dD,emi:io2,paid:io2+(ep2>0.5?ep2:0),lateFee:lf2,intFee:int2,bncFee:bncAt(kk,mKey),charge:chg2,bal:_bal(),st:'Interest',isInt:true,defer:true}));
+        extCount++; continue;
+      }
       // This month's charge is owed before the money is applied, so a payment can settle fees too.
       cumChg+=chg2;
       var owed2=_bal();
@@ -292,8 +338,45 @@
     var out={elapsed:0,expected:0,emiExpected:0,charges:0,received:0,outstanding:0};
     try{
       if(!l) return out;
+      var t=todayISO();
+      /* Nothing is owed at all — say so. Math.round(tpay/n) can make n*emi exceed
+         tpay by a rupee or two, so a borrower who has paid the loan off in full
+         looked ₹2 short and the No Dues guard refused to print. */
+      if((Number(l.outstanding)||0)<=0) return out;
+      /* A byaj loan has no instalments (tenure 0), so the loop below produced
+         "nothing due" however much principal and accrued interest were owed —
+         warnUnpaidEmis then waved it through. Report the real position. */
+      if(l.interestOnly){
+        /* Report the real months and the real receipts. Hardcoding elapsed:0
+           and received:0 made the dialog's own arithmetic contradict itself —
+           it printed "Installments to date (0) ... Received to date ₹0" next to
+           a "STILL TO PAY" figure, so the owner could not check the number he
+           was being asked to override. */
+        var _anchor=l.baseDate||l.disb||'';
+        var _mo=0;
+        if(_anchor){
+          var _a=new Date(_anchor+'T00:00:00'), _b=new Date(t+'T00:00:00');
+          _mo=(_b.getFullYear()-_a.getFullYear())*12+(_b.getMonth()-_a.getMonth());
+          if(_b.getDate()<_a.getDate()) _mo--;
+          _mo=Math.max(0,_mo);
+        }
+        var _mInt=Math.round(Math.max(0,Number(l.principal)||0)*Math.max(0,Number(l.rate)||0)/100);
+        out.elapsed=_mo;
+        out.charges=Math.round((l.charges||[])
+          .filter(function(c){ return c && (!c.date || String(c.date)<=t); })
+          .reduce(function(a,c){ return a+(Number(c.amount)||0); },0));
+        out.emiExpected=Math.round(_mInt*_mo);
+        out.expected=out.emiExpected+out.charges;
+        /* Only kind:'principal' repays principal on a byaj loan; everything
+           else services interest, which is what is being measured here. */
+        out.received=Math.round((l.payments||[])
+          .filter(function(p){ return p && p.status==='Cleared' && p.kind!=='principal' && (!p.date || String(p.date)<=t); })
+          .reduce(function(a,p){ return a+(Number(p.amount)||0); },0));
+        out.outstanding=Math.max(0, out.expected-out.received);
+        return out;
+      }
       var n=Math.max(0,Math.round(Number(l.tenure)||0));
-      var emi=Number(l.emi)||0, t=todayISO(), k=0;
+      var emi=Number(l.emi)||0, k=0;
       for(var i=1;i<=n;i++){
         var d=(typeof emiDueDate==='function')?emiDueDate(l,i):'';
         if(d && String(d)<=t) k++; else break;        // due dates run in order
@@ -311,10 +394,19 @@
       out.charges=Math.round((l.charges||[])
         .filter(function(c){ return c && (!c.date || String(c.date)<=t); })
         .reduce(function(a,c){ return a+(Number(c.amount)||0); },0));
+      /* Never expect more than the loan is actually worth: rounding the EMI can
+         push n*emi a rupee or two past tpay. */
+      var totalFwd=(l.baseOut!=null)?Math.max(0,Number(l.baseOut)||0):(Number(l.tpay)||0);
+      if(n>0 && totalFwd>0) out.emiExpected=Math.min(out.emiExpected, Math.round(totalFwd));
       out.expected=out.emiExpected+out.charges;
+      /* Interest-only payments service the month's interest; they do not pay
+         down an instalment, so counting them here masked real arrears. On a
+         restructured loan the pre-restructure receipts belong to the old plan
+         (paidBase), and counting them again hid arrears on the new one. */
       out.received=Math.round((l.payments||[])
-        .filter(function(p){ return p && p.status==='Cleared'; })
+        .filter(function(p){ return p && p.status==='Cleared' && !(p.intOnly===true || p.type==='Interest'); })
         .reduce(function(a,p){ return a+(Number(p.amount)||0); },0));
+      if((Number(l.paidBase)||0)>0) out.received=Math.max(0, out.received-Math.round(Number(l.paidBase)||0));
       out.outstanding=Math.max(0, out.expected-out.received);
     }catch(e){}
     return out;
@@ -380,6 +472,12 @@
       + 'Total of '+D.n+' instalments '+inr(D.total)
       + (D.totalLate>0?(' &nbsp;+&nbsp; late fees '+inr(D.totalLate)):'')
       + (D.totalInt>0?(' &nbsp;+&nbsp; overdue interest '+inr(D.totalInt)):'')
+      /* Cheque-bounce fees and any other charge were left out of this line, so
+         the arithmetic shown to the borrower did not add up to the outstanding
+         printed beside it. */
+      + (D.totalBnc>0?(' &nbsp;+&nbsp; cheque bounce '+inr(D.totalBnc)):'')
+      + (function(){ var o=Math.round((Number(D.totalChg)||0)-(Number(D.totalLate)||0)-(Number(D.totalInt)||0)-(Number(D.totalBnc)||0));
+                     return o>0?(' &nbsp;+&nbsp; other charges '+inr(o)):''; })()
       + ' &nbsp;&minus;&nbsp; amount paid '+inr(cleared)
       + ' &nbsp;=&nbsp; <b>Outstanding '+inr(out)+'</b>.'
       + (D.deferCount>0?('<br><span style="opacity:.85;">'+D.deferCount+' month'+(D.deferCount>1?'s were':' was')+' deferred, so the schedule runs beyond the original '+D.n+' months.</span>'):'')

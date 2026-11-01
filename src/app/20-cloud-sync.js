@@ -16,27 +16,56 @@
   // Given the current local loans and a batch of remote rows, compute the new
   // local loans array plus which ids to drop into / lift out of the recycle bin.
   // No side effects, no globals — just data in, data out.
-  function cloudMergeCompute(localLoans, remoteRows, decryptFn) {
+  /* `pending` maps loanId -> { base, data } for edits made offline that have not
+     reached the server yet. Without it this function replaced the local loan with
+     the remote one unconditionally, so an edit made offline on device A was wiped
+     the moment device B's version arrived -- the outbox then re-sent B's own row
+     back, and A's work was gone with no warning.
+
+     When the server row changed, by another device, AFTER the baseline the pending
+     edit was made against, that is a genuine conflict: keep the local (pending)
+     version, leave the edit queued, and report the conflict for resolution.
+     Neither side is discarded. */
+  function cloudMergeCompute(localLoans, remoteRows, decryptFn, pending, deviceId) {
     var byId = {};
     var out = (localLoans || []).slice();
     out.forEach(function (l, i) { if (l && l.id != null) byId[l.id] = i; });
-    var recycleAdd = [], recycleRemove = [], maxTs = '';
+    var recycleAdd = [], recycleRemove = [], maxTs = '', conflicts = [];
+    pending = pending || {};
     (remoteRows || []).forEach(function (row) {
       if (!row || row.id == null) return;
       if (row.updated_at && row.updated_at > maxTs) maxTs = row.updated_at;
+      var pend = pending[row.id];
+      var mine = pend && deviceId && row.updated_by === deviceId;
+      var clash = pend && !mine &&
+                  row.updated_at && (!pend.base || row.updated_at > pend.base);
       if (row.deleted) {
+        if (clash) {                       // they deleted it, we edited it offline
+          conflicts.push({ id: row.id, kind: 'deleted-remotely',
+                           at: row.updated_at, by: row.updated_by, local: pend.data });
+          recycleRemove.push(row.id);
+          return;                          // keep our copy; do not bin it silently
+        }
         if (byId[row.id] != null) { out[byId[row.id]] = null; delete byId[row.id]; }
         recycleAdd.push(row);
       } else {
         var obj;
         try { obj = decryptFn ? decryptFn(row.data) : row.data; } catch (e) { obj = row.data; }
         if (obj && obj.id == null) obj.id = row.id;
+        if (clash) {
+          conflicts.push({ id: row.id, kind: 'both-edited',
+                           at: row.updated_at, by: row.updated_by,
+                           local: pend.data, remote: obj });
+          recycleRemove.push(row.id);
+          return;                          // our pending edit stays in `out`
+        }
         if (byId[row.id] != null) out[byId[row.id]] = obj;
         else { out.push(obj); byId[row.id] = out.length - 1; }
         recycleRemove.push(row.id);
       }
     });
-    return { loans: out.filter(Boolean), recycleAdd: recycleAdd, recycleRemove: recycleRemove, maxTs: maxTs };
+    return { loans: out.filter(Boolean), recycleAdd: recycleAdd, recycleRemove: recycleRemove,
+             maxTs: maxTs, conflicts: conflicts };
   }
   window.cloudMergeCompute = cloudMergeCompute; // exported for tests
 
@@ -261,8 +290,15 @@
       (rows || []).forEach(function (r) { if (r && r.id != null && r.updated_at) serverVer[r.id] = r.updated_at; });
       // decrypt fields first (async), then run the pure merge
       for (var i = 0; i < rows.length; i++) if (rows[i] && rows[i].data && !rows[i].deleted) rows[i].data = await decryptLoanFields(rows[i].data);
-      var res = cloudMergeCompute(loans, rows, decryptLoanSync);
+      /* Drop the cached hash for anything the server says is deleted. Without
+         this, restoring the identical loan from the Recycle Bin produced the
+         same JSON as before the delete, so pushChanged skipped it as a no-op:
+         the record came back locally while the cloud kept the tombstone, and
+         the next initial sync removed it again. */
+      (rows || []).forEach(function (r) { if (r && r.deleted && r.id != null) delete lastHash[r.id]; });
+      var res = cloudMergeCompute(loans, rows, decryptLoanSync, pendingEditMap(), deviceId);
       loans = res.loans;
+      if (res.conflicts && res.conflicts.length) conflictsRecord(res.conflicts);
       res.recycleAdd.forEach(addToRecycle);
       res.recycleRemove.forEach(removeFromRecycle);
       if (res.maxTs && res.maxTs > since) { since = res.maxTs; localStorage.setItem('shivam_cloud_since', since); }
@@ -273,29 +309,106 @@
     // ---- push local changes up
     async function pushChanged(list) {
       if (!session) return;
-      var rows = [], l, s;
+      var rows = [], l, s, hashOf = {};
       for (var i = 0; i < (list || []).length; i++) {
         l = list[i]; if (!l || l.id == null) continue;
         s = JSON.stringify(l);
-        if (lastHash[l.id] === s) continue;      // unchanged since last upload
+  if (lastHash[l.id] === s) continue;      // unchanged since last upload
         rows.push({ id: l.id, data: await encryptLoan(l), deleted: false, updated_by: deviceId });
-        lastHash[l.id] = s;
+  
+        /* Record WHICH version this row carries, in a SIDE MAP. public.loans has
+           only (id, data, deleted, updated_at, updated_by): putting _hash on the
+           row object serialised it into the POST body and PostgREST rejected the
+           upsert as an unknown column — no loan edit could sync at all.
+           The map exists because lastHash must not be committed before the await:
+           a second save can start another push, and if v2 lands first and v1 last,
+           both successes would clear the queue while lastHash claimed v2 was up. */
+        hashOf[l.id] = s;      // side map — NEVER a column on the row
       }
+      if (!rows.length) return;
+      /* Before overwriting a row, check the server copy against the baseline we
+         last incorporated. Two devices editing the same loan while both online
+         could each upsert successfully, the later write replacing the earlier
+         one wholesale, and neither device ever saw a conflict.
+         NOTE: this is a read-then-write, so a genuine simultaneous write can
+         still slip through. Closing that completely needs a server-side
+         precondition (an updated_at check inside the UPDATE, via an RPC), which
+         is a Supabase schema change and is deliberately not done from here. */
+      try {
+        var _keep = [];
+        for (var ci = 0; ci < rows.length; ci++) {
+          var _rid = rows[ci].id;
+          var _cur = null, _readOK = false;
+          try {
+            var _cr = await api('/loans?id=eq.' + encodeURIComponent(_rid) + '&select=id,updated_at,updated_by,deleted');
+            if (_cr && _cr.ok) { var _cj = await _cr.json(); _cur = (_cj && _cj[0]) || null; _readOK = true; }
+          } catch (_) { _readOK = false; }
+          /* A failed read is NOT "there is no server row". Treating it that way
+             let the write proceed and overwrite a row that had changed — the
+             precheck failed open, which is worse than not having one. Hold the
+             edit and retry later instead. */
+          if (!_readOK) {
+            delete lastHash[_rid];
+            pendingEditAdd(_rid);
+            setStatus('offline');
+            continue;
+          }
+          var _d = cloudConflictDecision(_cur, serverVer[_rid] || '', deviceId);
+          if (_d.ok) { _keep.push(rows[ci]); }
+          else {
+            delete lastHash[_rid];
+            pendingEditAdd(_rid);
+            conflictsRecord([{ id: _rid, kind: 'both-edited', at: _d.at, by: _d.by,
+                               local: (loans || []).find(function (x) { return x && x.id === _rid; }) || null,
+                               remote: null }]);
+          }
+        }
+        rows = _keep;
+        if (!rows.length) { setStatus('conflict'); return; }
+      } catch (_) {}
+      /* Everything above this point has awaited the network. The loan may have
+         been DELETED locally in the meantime — cloudDelete pushes a tombstone,
+         and this upsert, landing after it with deleted:false, brought the
+         record back from the dead on every device. A loan that is no longer in
+         the book is no longer ours to write. */
+      rows = rows.filter(function (x) {
+        var live = (loans || []).some(function (y) { return y && y.id === x.id; });
+        if (!live) { delete lastHash[x.id]; delete hashOf[x.id]; pendingEditRemove(x.id); }
+        return live;
+      });
       if (!rows.length) return;
       var _ids = rows.map(function (x) { return x.id; });
       try {
         var r = await api('/loans', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(rows) });
         if (!r.ok) { rows.forEach(function (x) { delete lastHash[x.id]; }); _ids.forEach(pendingEditAdd); setStatus('sync error'); }
-        else { _ids.forEach(pendingEditRemove); setStatus('synced'); }
+        else {
+          /* Commit per row, and only for the version that just succeeded. A
+             later save that produced a newer version must stay queued rather
+             than being cleared by an older request finishing after it. */
+          rows.forEach(function (x) {
+            var cur = null;
+            try { var lx = (loans || []).find(function (y) { return y && y.id === x.id; }); cur = lx ? JSON.stringify(lx) : null; } catch (_) {}
+            if (cur === null) { delete lastHash[x.id]; pendingEditRemove(x.id); return; }   // deleted locally while in flight
+            if (hashOf[x.id] !== cur) { lastHash[x.id] = null; return; }                    // superseded — keep it queued
+            lastHash[x.id] = hashOf[x.id];
+            pendingEditRemove(x.id);
+          });
+          setStatus('synced');
+        }
       } catch (e) { rows.forEach(function (x) { delete lastHash[x.id]; }); _ids.forEach(pendingEditAdd); setStatus('offline'); }
     }
+    /* Returns true only when the tombstone actually reached the server. It used
+       to return undefined whatever happened, so the snapshot restore counted a
+       failed tombstone as done and told the owner every device had been
+       replaced while the other device still held the loan. */
     async function pushDelete(id, obj) {
-      if (!session || id == null) return;
+      if (!session || id == null) return false;
       try {
         var r = await api('/loans', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify([{ id: id, data: await encryptLoan(obj || { id: id }), deleted: true, updated_by: deviceId }]) });
-        if (r && r.ok === false) { pendingDelAdd(id); }
-        else { pendingDelRemove(id); delete lastHash[id]; }
-      } catch (_) { pendingDelAdd(id); }
+        if (r && r.ok === false) { pendingDelAdd(id, obj); return false; }
+        pendingDelRemove(id); delete lastHash[id]; delete serverVer[id];
+        return true;
+      } catch (_) { pendingDelAdd(id, obj); return false; }
     }
     // ---- offline-safe outbox --------------------------------------------------
     // Deletes and edits that fail to reach Supabase (offline / server error) are
@@ -306,23 +419,184 @@
     function _pendLoad(k) { try { var a = JSON.parse(localStorage.getItem(k) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
     function _pendSave(k, a) { try { localStorage.setItem(k, JSON.stringify(a)); } catch (e) {} }
     function pendingDelLoad() { return _pendLoad(PENDING_DEL_STORE); }
-    function pendingDelAdd(id) { if (id == null) return; var a = pendingDelLoad(); if (a.indexOf(id) < 0) { a.push(id); _pendSave(PENDING_DEL_STORE, a); } }
-    function pendingDelRemove(id) { var a = pendingDelLoad(); var b = a.filter(function (x) { return x !== id; }); if (b.length !== a.length) _pendSave(PENDING_DEL_STORE, b); }
-    function pendingEditLoad() { return _pendLoad(PENDING_EDIT_STORE); }
-    function pendingEditAdd(id) { if (id == null) return; var a = pendingEditLoad(); if (a.indexOf(id) < 0) { a.push(id); _pendSave(PENDING_EDIT_STORE, a); } }
-    function pendingEditRemove(id) { var a = pendingEditLoad(); var b = a.filter(function (x) { return x !== id; }); if (b.length !== a.length) _pendSave(PENDING_EDIT_STORE, b); }
+    /* Entries are {id, data}: the whole deleted loan, not just its id. A retry
+       used to upsert {id:id} as the tombstone's payload, which REPLACED the
+       cloud row's data — the other device's Recycle Bin then held a record with
+       no borrower, no account number and no payment history, so there was
+       nothing to restore. Legacy bare-id entries still load. */
+    function pendingDelAdd(id, obj) {
+      if (id == null) return;
+      var a = pendingDelLoad();
+      var at = -1;
+      a.forEach(function (e, i) { if ((e && typeof e === 'object' ? e.id : e) === id) at = i; });
+      var entry = { id: id, data: (obj && typeof obj === 'object') ? obj : null };
+      if (at >= 0) { if (!a[at] || typeof a[at] !== 'object' || !a[at].data) a[at] = entry; }
+      else a.push(entry);
+      _pendSave(PENDING_DEL_STORE, a);
+    }
+    function pendingDelRemove(id) {
+      var a = pendingDelLoad();
+      var b = a.filter(function (e) { return (e && typeof e === 'object' ? e.id : e) !== id; });
+      if (b.length !== a.length) _pendSave(PENDING_DEL_STORE, b);
+    }
+    /* Entries are {id, base, data}: the loan as WE have it, plus the server
+       timestamp we last incorporated for it. Older installs stored bare ids —
+       those still load, they simply have no baseline, which makes any remote
+       change look like a conflict (safe: nothing is discarded).
+       The snapshot is what lets a retry re-send OUR edit rather than whatever
+       happens to be in `loans` by the time the retry runs. */
+    function pendingEditRaw() { return _pendLoad(PENDING_EDIT_STORE); }
+    function pendingEditLoad() { return pendingEditRaw().map(function (e) { return (e && typeof e === 'object') ? e.id : e; }); }
+    function pendingEditMap() {
+      var m = {};
+      pendingEditRaw().forEach(function (e) {
+        if (e && typeof e === 'object' && e.id != null) m[e.id] = { base: e.base || '', data: e.data || null };
+        else if (e != null) m[e] = { base: '', data: null };     // legacy bare id
+      });
+      return m;
+    }
+    function pendingEditAdd(id) {
+      if (id == null) return;
+      var a = pendingEditRaw();
+      var loan = (typeof loans !== 'undefined' && Array.isArray(loans))
+        ? loans.find(function (x) { return x && x.id === id; }) : null;
+      var entry = { id: id, base: serverVer[id] || '', data: loan ? JSON.parse(JSON.stringify(loan)) : null };
+      var at = -1;
+      a.forEach(function (e, i) { if ((e && typeof e === 'object' ? e.id : e) === id) at = i; });
+      if (at >= 0) a[at] = entry; else a.push(entry);
+      _pendSave(PENDING_EDIT_STORE, a);
+    }
+    function pendingEditRemove(id) {
+      var a = pendingEditRaw();
+      var b = a.filter(function (e) { return (e && typeof e === 'object' ? e.id : e) !== id; });
+      if (b.length !== a.length) _pendSave(PENDING_EDIT_STORE, b);
+    }
+    /* Conflicts are kept, not resolved automatically — picking a winner is
+       exactly the silent data loss this fix exists to stop. Both versions are
+       stored so the owner can choose; the local copy stays live meanwhile. */
+    var CONFLICT_STORE = 'shivam_cloud_conflicts_v1';
+    function conflictsLoad() { return _pendLoad(CONFLICT_STORE); }
+    function conflictsRecord(list) {
+      var a = conflictsLoad();
+      (list || []).forEach(function (c) {
+        if (!c || c.id == null) return;
+        var at = -1;
+        a.forEach(function (x, i) { if (x && x.id === c.id) at = i; });
+        var entry = { id: c.id, kind: c.kind, at: c.at, by: c.by,
+                      local: c.local, remote: c.remote, seen: Date.now() };
+        if (at >= 0) a[at] = entry; else a.push(entry);
+      });
+      _pendSave(CONFLICT_STORE, a);
+      try { setStatus('conflict'); } catch (_) {}
+      try {
+        if (typeof toast === 'function') {
+          toast('\u26a0 ' + a.length + ' record(s) were edited on another device too \u2014 your copy is kept; review in Administration');
+        }
+      } catch (_) {}
+      try { if (typeof logAudit === 'function') logAudit('Sync Conflict', (list || []).map(function (c) { return c.id; }).join(', ')); } catch (_) {}
+    }
+    /* Resolution is explicit: 'mine' re-queues our version, 'theirs' takes the
+       server copy. Either way the conflict is cleared only once a side is chosen. */
+    /* Taking "theirs" must use the CURRENT server row, not the copy cached when
+       the conflict was noticed — that copy can itself be stale by now, and
+       writing it back would overwrite a newer version. And a remote DELETION
+       has no `remote` object: the old code fell through to the else branch and
+       re-queued our loan, resurrecting a record the other device deleted. */
+    async function conflictResolve(id, side) {
+      var a = conflictsLoad();
+      var c = a.find(function (x) { return x && x.id === id; });
+      if (!c) return false;
+      var seenAt = c.seen;
+      var clear = function () {
+        /* Another conflict for the same loan can be recorded while we await the
+           server. Clearing by id alone would silently discard that newer one. */
+        _pendSave(CONFLICT_STORE, conflictsLoad().filter(function (x) {
+          return !(x && x.id === id && x.seen === seenAt);
+        }));
+        try { if (typeof rerenderAll === 'function') rerenderAll(); } catch (_) {}
+      };
+
+      if (side === 'theirs') {
+        var row = null, readOK = false;
+        try {
+          var r = await api('/loans?id=eq.' + encodeURIComponent(id) + '&select=*');
+          if (r && r.ok) { var j = await r.json(); row = (j && j[0]) || null; readOK = true; }
+        } catch (_) { readOK = false; }
+        /* A non-OK response used to fall through to the cached copy, which is
+           exactly the stale data this re-read exists to avoid. Abort instead. */
+        if (!readOK) { toast('Cannot reach the cloud — try resolving again when online'); return false; }
+        /* Decide from the row we just fetched, not from c.kind. A conflict
+           recorded as "deleted remotely" could since have been re-created; the
+           old code still deleted the local copy. */
+        if (row && row.data) { try { row.data = await decryptLoanFields(row.data); } catch (_) {} }
+
+        var i = (loans || []).findIndex(function (x) { return x && x.id === id; });
+        if (row ? !!row.deleted : (c.kind === 'deleted-remotely')) {
+          if (i >= 0) { var gone = loans[i]; loans.splice(i, 1); try { addToRecycle({ id: id, data: gone }); } catch (_) {} }
+          pendingEditRemove(id);
+          delete serverVer[id]; delete lastHash[id];
+        } else {
+          var obj = row ? row.data : c.remote;     // already decrypted above
+          if (!obj) { toast('No cloud copy found for this record'); return false; }
+          if (obj.id == null) obj.id = id;
+          if (i >= 0) loans[i] = obj; else loans.push(obj);
+          pendingEditRemove(id);
+          /* Accepting the server's copy makes it our new baseline. Without
+             this, serverVer still held the version from BEFORE the conflict, so
+             the very next push compared against a stale baseline and recorded
+             the identical conflict again — the owner could resolve it as often
+             as he liked and it kept coming back. lastHash likewise, so the
+             accepted copy is not immediately re-uploaded as if we had edited it. */
+          if (row && row.updated_at) serverVer[id] = row.updated_at;
+          try { lastHash[id] = JSON.stringify(obj); } catch (_) { delete lastHash[id]; }
+        }
+        try { if (typeof save === 'function') save(); } catch (_) {}
+      } else {
+        pendingEditAdd(id);                     // re-queue our copy for upload
+        try { await flushPendingEdits(); } catch (_) {}
+      }
+      clear();
+      return true;
+    }
+    function conflictDrop(id) {
+      try { _pendSave(CONFLICT_STORE, conflictsLoad().filter(function (x) { return !(x && x.id === id); })); } catch (_) {}
+    }
+    window.cloudConflicts = conflictsLoad;
+    window.cloudResolveConflict = conflictResolve;
+
     async function flushPendingDeletes() {
       if (!session) return;
       var a = pendingDelLoad(); if (!a.length) return;
-      for (var i = 0; i < a.length; i++) { try { await pushDelete(a[i], { id: a[i] }); } catch (_) {} }
+      for (var i = 0; i < a.length; i++) {
+        var e = a[i];
+        var id = (e && typeof e === 'object') ? e.id : e;
+        /* retry with the snapshot we kept; fall back to the live/bin copy,
+           and only as a last resort to an id-only tombstone */
+        var data = (e && typeof e === 'object' && e.data) ? e.data : null;
+        if (!data) { try { data = (loans || []).find(function (x) { return x && x.id === id; }) || null; } catch (_) {} }
+        try { await pushDelete(id, data || { id: id }); } catch (_) {}
+      }
     }
     async function flushPendingEdits() {
       if (!session) return;
-      var ids = pendingEditLoad(); if (!ids.length) return;
+      var pend = pendingEditMap();
+      /* A conflicted loan must NOT be re-sent. poll() records the conflict and
+         then called this, so the same poll pushed our side over the server copy
+         — resolving the clash in our favour without asking. Hold those back
+         until the owner chooses. */
+      var _held = {};
+      try { conflictsLoad().forEach(function (c) { if (c && c.id != null) _held[c.id] = true; }); } catch (_) {}
+      var ids = Object.keys(pend).filter(function (id) { return !_held[id]; });
+      if (!ids.length) return;
       var list = [];
       ids.forEach(function (id) {
         var l = (loans || []).find(function (x) { return x && x.id === id; });
-        if (l) list.push(l); else pendingEditRemove(id);   // record was deleted -> delete outbox owns it
+        // Prefer the snapshot captured when the edit was queued. `loans` may since
+        // have been replaced by a remote version, and re-sending that would push
+        // the other device's copy back up as if it were ours.
+        if (pend[id] && pend[id].data) list.push(pend[id].data);
+        else if (l) list.push(l);
+        else pendingEditRemove(id);   // record was deleted -> delete outbox owns it
       });
       if (!list.length) return;
       list.forEach(function (l) { delete lastHash[l.id]; }); // force re-send of current value
@@ -442,21 +716,93 @@
           if (_d.firm && typeof _d.firm === 'object') { try { localStorage.setItem('shivam_firm_v1', JSON.stringify(_d.firm)); } catch (_) {} }
         } else { loans = []; }
         try { recomputeAll(); } catch (_) {}
+        /* The confirmation says this replaces the book on ALL devices, but the
+           restore only wrote the snapshot's own rows. A loan created AFTER the
+           backup was never tombstoned, so it stayed live in the cloud and on
+           the other device — the restore silently kept a record the owner had
+           just been told would be replaced. Tombstone anything the cloud holds
+           that the snapshot does not. */
+        var _reconciled = true;
+        /* The outbox can still hold edits for loans the snapshot does not
+           contain. Flushing them later re-created records the restore had just
+           removed, and re-queued edits for loans whose contents the restore
+           replaced. Rebuild both queues around the restored book. */
+        try {
+          var _live = {};
+          (loans || []).forEach(function (l) { if (l && l.id != null) _live[l.id] = true; });
+          pendingEditLoad().forEach(function (e) {
+            var eid = (e && typeof e === 'object') ? e.id : e;
+            if (eid != null && !_live[eid]) pendingEditRemove(eid);
+          });
+          Object.keys(lastHash).forEach(function (k) { if (!_live[k]) delete lastHash[k]; });
+          Object.keys(serverVer).forEach(function (k) { if (!_live[k]) delete serverVer[k]; });
+        } catch (_) {}
+        try {
+          var _keepIds = {};
+          (loans || []).forEach(function (l) { if (l && l.id != null) _keepIds[l.id] = true; });
+          var _cr = await api('/loans?select=id,data,deleted');
+          /* A thrown request reached the catch, but an HTTP error did not: the
+             tombstone loop was skipped and the restore still announced success,
+             leaving post-snapshot loans alive on the other device. */
+          if (!_cr || !_cr.ok) throw new Error('cloud list failed');
+          {
+            var _cloud = await _cr.json();
+            for (var _i = 0; _i < (_cloud || []).length; _i++) {
+              var _row = _cloud[_i];
+              if (!_row || _row.id == null || _row.deleted) continue;
+              if (_keepIds[_row.id]) continue;
+              var _okDel = await pushDelete(_row.id, _row.data || { id: _row.id });   // keeps the record in the bin
+              if (!_okDel) _reconciled = false;   // a tombstone that did not land is not a finished restore
+            }
+          }
+        } catch (_) { _reconciled = false; }
         save(); // pushes the restored book up -> other device receives it
         rerenderAll();
-        try { logAudit('Cloud Backup Restored', rows[0].day); } catch (_) {}
-        toast('Restored the book from ' + rows[0].day);
+        try { logAudit('Cloud Backup Restored', rows[0].day + (_reconciled ? '' : ' (cloud not reconciled)')); } catch (_) {}
+        /* Do not claim a finished restore when the cloud half did not happen —
+           the confirmation promised every device would be replaced. */
+        toast(_reconciled
+          ? ('Restored the book from ' + rows[0].day)
+          : ('\u26a0 Restored on THIS device only from ' + rows[0].day + ' \u2014 the cloud could not be reached, so other devices still hold loans added after that backup. Open Backup and restore again when online.'));
       } catch (e) { toast('Restore failed'); }
     };
 
     // ---- public hooks used by save() and delLoan() (see 01-core-store / 07-loans-crud)
     window.cloudPush = function (list) {
       if (window._cloudApplying) return;             // don't re-push what we just pulled
+      /* Record each changed loan AND the baseline it was edited from, right now.
+         pendingEditAdd used to run only when the POST failed — by which time a
+         poll could already have replaced `loans` with another device's version
+         and moved serverVer on, so the outbox captured THEIR row as "our edit"
+         and the stale baseline hid the conflict. Capturing here closes that
+         window; a successful push removes the entry again. */
+      try {
+        (list || loans || []).forEach(function (l) {
+          if (!l || l.id == null) return;
+          if (lastHash[l.id] === JSON.stringify(l)) return;   // unchanged
+          pendingEditAdd(l.id);
+        });
+      } catch (_) {}
       pushQueue = true;
       if (pushTimer) return;
       pushTimer = setTimeout(function () { pushTimer = null; if (pushQueue) { pushQueue = false; pushChanged(list || loans); } }, 600);
     };
-    window.cloudDelete = function (id, obj) { pushDelete(id, obj); };
+    window.cloudDelete = function (id, obj) {
+      /* Drop any queued edit for this loan first. flushPendingEdits prefers the
+         saved snapshot even when the loan has gone from `loans`, so it could
+         upload that snapshot AFTER the tombstone — and because the tombstone
+         came from this same device the precheck accepted it, bringing the
+         deleted loan back. */
+      try { pendingEditRemove(id); } catch (_) {}
+      try { conflictDrop(id); } catch (_) {}
+      pushDelete(id, obj);
+    };
+    /* The mirror case: restoring from the Recycle Bin must cancel a queued
+       delete, or the next flush tombstones the record we just brought back. */
+    window.cloudUndelete = function (id) {
+      try { pendingDelRemove(id); } catch (_) {}
+      try { delete lastHash[id]; } catch (_) {}   // force the restore to upload
+    };
     window.cloudSignOut = function () { clearSession(); if (pollTimer) clearInterval(pollTimer); setStatus('signed out'); showSignIn(); };
     window.cloudPullNow = function () { try { poll(); } catch (e) {} };
     // ---- generic shared settings (app_settings table) — used by the user-list sync

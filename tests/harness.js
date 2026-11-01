@@ -34,6 +34,7 @@ function makeSandbox(fixedToday) {
     extractFn(helpers, 'repDaysBetween'),
     extractFn(cert, 'emiDueDate'),
     extractFn(cert, 'calcLoanTotals'),
+    extractFn(cert, '_recomputeInterestOnly'),   // byaj engine — without it no test could reach a byaj loan
     extractFn(cert, 'recomputeLoan'),
     extractFn(cert, 'monthlyInterestOf'),   // expected interest for a deferral month
     extractFn(sched, 'repScheduleData'),

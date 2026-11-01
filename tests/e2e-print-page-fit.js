@@ -72,8 +72,8 @@ chk('space is reserved so the text cannot run under the pinned block',
 
 // --- 2. No page-height guess may come back, in ANY printable document.
 const guessy = [];
-for (const f of ['src/styles/01-base.css', 'src/app/25-welcome-letter.js',
-                 'src/app/26-letterhead.js', 'src/app/28-loan-file.js']) {
+for (const f of ['src/styles/01-base.css', 'src/app/26-welcome-letter.js',
+                 'src/app/28-letterhead.js', 'src/app/31-loan-file.js']) {
   let src = fs.readFileSync(path.join(root, f), 'utf8');
   if (f.endsWith('.css')) src = printRules(src);
   // comments explain the failed attempts by name -- don't flag the explanation
@@ -87,7 +87,7 @@ for (const f of ['src/styles/01-base.css', 'src/app/25-welcome-letter.js',
 chk('no printable document sizes itself with a page-height vh guess', guessy, []);
 
 // --- 3. The letterhead keeps its footer pinned too, and stays content-height.
-const lh = fs.readFileSync(path.join(root, 'src/app/26-letterhead.js'), 'utf8');
+const lh = fs.readFileSync(path.join(root, 'src/app/28-letterhead.js'), 'utf8');
 chk('letterhead footer is pinned in print', /@media print\{\.lhfoot\{position:fixed/.test(lh), true);
 chk('letterhead body is not forced to a page height', /body\{[^}]*min-height:0/.test(lh), true);
 chk('letterhead reserves room for the pinned footer', /padding-bottom:26mm/.test(lh), true);
@@ -95,9 +95,9 @@ chk('letterhead still measures rather than hard-coding a target',
   [/TARGET\s*=\s*\d+/.test(lh), /clientHeight/.test(lh)], [false, true]);
 
 // --- 4. Documents I did not need to touch must stay exactly as they shipped.
-const lf = fs.readFileSync(path.join(root, 'src/app/28-loan-file.js'), 'utf8');
+const lf = fs.readFileSync(path.join(root, 'src/app/31-loan-file.js'), 'utf8');
 chk('loan-file booklet cover is unchanged', /\.cover-sheet\{padding:0;min-height:296mm;height:296mm/.test(lf), true);
-const wl = fs.readFileSync(path.join(root, 'src/app/25-welcome-letter.js'), 'utf8');
+const wl = fs.readFileSync(path.join(root, 'src/app/26-welcome-letter.js'), 'utf8');
 chk('welcome-letter cover is unchanged', /min-height:248mm;"/.test(wl), true);
 chk('loan-documents cover is unchanged', /\.cover-page\{width:auto; border:5px solid #111;\}/.test(printBlock), true);
 
