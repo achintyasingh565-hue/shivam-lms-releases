@@ -401,3 +401,42 @@ html.dark .btn:not(.btn-primary):not(.btn-danger):hover{ border-color:var(--bgol
   table.data tbody tr:nth-child(even){ background:none !important; }
   .empty::after, .topbar::before, .modal-head::after{ display:none !important; }
 }
+
+/* --- sidebar: the brightest gold (#fff3a6) on the live item -------
+   Reserved for the one row the eye should find first. The resting rows
+   stay quieter so the active one actually stands out. */
+.nav a.active{ color:var(--bgold-hi) !important; font-weight:650; }
+.nav a.active .ic{ color:var(--bgold-hi) !important; }
+.nav a.active::before{ background:linear-gradient(180deg,#fff3a6,#e1970a) !important; box-shadow:0 0 10px rgba(255,243,166,.38); }
+.nav a:hover{ color:var(--bgold-hi) !important; }
+.sidebar .side-brand .bt p{ color:var(--bgold-hi) !important; opacity:.62; }
+
+/* the footer: firm above, build below */
+.side-foot{ line-height:1.5; }
+.side-foot .side-ver{
+  display:block; margin-top:2px; font-size:10.5px; letter-spacing:.5px;
+  color:var(--bgold-hi); opacity:.52; font-variant-numeric:tabular-nums;
+}
+
+/* --- borrower serial numbers -------------------------------------
+   The list is in name order; the number is just a handle, so it reads
+   as a quiet index rather than competing with the name. */
+.cl-card .nm .cl-no{
+  display:inline-block; min-width:21px; margin-right:8px;
+  font-size:10.5px; font-weight:700; line-height:17px; text-align:center;
+  color:var(--bnavy); background:rgba(254,220,85,.22);
+  border:1px solid rgba(184,113,3,.28); border-radius:6px;
+  font-variant-numeric:tabular-nums; vertical-align:1px;
+}
+html.dark .cl-card .nm .cl-no{ color:var(--bgold-hi); background:rgba(254,220,85,.10); border-color:rgba(254,220,85,.22); }
+
+/* --- New / Earlier group headings inside a loan table ------------- */
+table.data tr.lgrp td{
+  background:linear-gradient(90deg,rgba(254,220,85,.20),rgba(254,220,85,.04));
+  color:var(--bnavy); font-weight:700; font-size:10.5px;
+  letter-spacing:1.1px; text-transform:uppercase;
+  padding:7px 12px; border-top:1px solid rgba(184,113,3,.30); border-bottom:1px solid rgba(184,113,3,.18);
+}
+html.dark table.data tr.lgrp td{ color:var(--bgold-hi); background:linear-gradient(90deg,rgba(254,220,85,.10),rgba(254,220,85,.02)); }
+table.data tr.lgrp:hover td{ background:linear-gradient(90deg,rgba(254,220,85,.20),rgba(254,220,85,.04)); }
+@media print{ table.data tr.lgrp td{ background:none !important; } }

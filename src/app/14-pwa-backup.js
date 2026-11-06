@@ -67,9 +67,9 @@
     if($('custCount')) $('custCount').textContent = q ? (cs.length+' of '+total+' borrower'+(total!==1?'s':'')+' match') : (total+' borrower'+(total!==1?'s':''));
     if(!cs.length){ body.innerHTML='<div class="cl-empty" style="padding:30px 14px;"><b>No customers'+(q?' match your search':' yet')+'.</b>'+(q?'':'<br>Add a loan to create a customer profile.')+'</div>'; return; }
     const show=Math.min(cs.length, window._custPage*CUST_PAGE);
-    const cards=cs.slice(0,show).map(c=>{ const out=c.loans.reduce((a,l)=>a+(Number(l.outstanding)||0),0); const allClosed=c.loans.every(l=>autoStatus(l)==='Closed'); const anyOver=c.loans.some(l=>autoStatus(l)==='Overdue'); const st=allClosed?'Closed':(anyOver?'Overdue':'Active');
+    const cards=cs.slice(0,show).map((c,_i)=>{ const out=c.loans.reduce((a,l)=>a+(Number(l.outstanding)||0),0); const allClosed=c.loans.every(l=>autoStatus(l)==='Closed'); const anyOver=c.loans.some(l=>autoStatus(l)==='Overdue'); const st=allClosed?'Closed':(anyOver?'Overdue':'Active');
       return `<div class="cl-card${currentCust===c.key?' sel':''}" onclick="openCustomer('${encodeURIComponent(c.key)}')">
-        <div class="r1"><div><div class="nm">${esc(c.name)}</div><div class="ph">${esc(c.phone||'\u2014')}</div></div><span class="badge ${st.toLowerCase()}">${st}</span></div>
+        <div class="r1"><div><div class="nm"><span class="cl-no">${_i+1}</span>${esc(c.name)}</div><div class="ph">${esc(c.phone||'\u2014')}</div></div><span class="badge ${st.toLowerCase()}">${st}</span></div>
         <div class="r2"><span>${c.loans.length} loan${c.loans.length>1?'s':''}</span><span class="out">${inr(out)}</span></div>
       </div>`; }).join('');
     const more = show<cs.length
@@ -87,6 +87,18 @@
     const pays=[]; c.loans.forEach(l=>(l.payments||[]).forEach(p=>pays.push(Object.assign({acno:l.acno},p)))); pays.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
     const chgs=[]; c.loans.forEach(l=>(l.charges||[]).forEach(x=>chgs.push(Object.assign({acno:l.acno},x)))); chgs.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
     const guars=[...new Set(c.loans.filter(l=>l.gname).map(l=>l.gname+(l.gphone?(' \u00b7 '+l.gphone):'')))];
+    /* Loans a borrower has taken recently were getting lost among older ones,
+       so each table is split under two headings using the app's existing
+       definition of NEW (isNewLoan). A heading only appears when both groups
+       have rows, so a borrower with one loan still sees a plain list. */
+    const lgroup=(ls,label)=>ls.length?('<tr class="lgrp"><td colspan="7">'+label+' \u00b7 '+ls.length+'</td></tr>'+lrows(ls)):'';
+    const lsplit=ls=>{
+      if(!ls.length) return lrows(ls);
+      const isNew=(typeof isNewLoan==='function')?isNewLoan:function(){return false;};
+      const n=ls.filter(isNew), o=ls.filter(l=>!isNew(l));
+      if(!n.length || !o.length) return lrows(ls);          // nothing to separate
+      return lgroup(n,'New Loans')+lgroup(o,'Earlier Loans');
+    };
     const lrows=ls=>ls.length?ls.map(l=>`<tr><td>${esc(l.acno)}${(typeof newBadge==='function')?newBadge(l):''}</td><td>${esc(l.type)}</td><td class="right num">${inr(l.principal)}</td><td class="right num">${inr(l.outstanding)}</td><td>${fmtDate(l.due)||'\u2014'}</td><td><span class="badge ${autoStatus(l).toLowerCase()}">${autoStatus(l)}</span></td><td><div class="rowact"><button class="iconbtn" title="Welcome Letter" onclick="openWelcomeLetter('${l.id}')">${SVG.mail}</button><button class="iconbtn" title="Loan File (booklet)" onclick="openLoanFile('${l.id}')">${SVG.book}</button><button class="iconbtn cert" title="Generate Certificate" onclick="certFromLoan('${l.id}')">${SVG.fileDoc}</button><button class="iconbtn" title="Repayment Schedule" onclick="openSchedule('${l.id}')">${SVG.cal}</button><button class="iconbtn" title="Restructure / Record payment" onclick="openRestructure('${l.id}')" style="font-weight:800;font-size:15px;">₹</button><button class="iconbtn" title="Edit" onclick="openLoan('${l.id}')">${SVG.edit}</button><button class="iconbtn del" title="Delete" onclick="delLoan('${l.id}')">${SVG.trash}</button></div></td></tr>`).join(''):'<tr><td colspan="7" class="muted" style="padding:10px;">None</td></tr>';
     const html=`
       <div class="panel">
@@ -110,8 +122,8 @@
           <div class="ptile"><span>Disbursed</span><b>${inr(totDisb)}</b></div>
         </div>
       </div>
-      <div class="panel"><h3>Active Loans</h3><div style="overflow-x:auto;"><table class="data"><thead><tr><th>A/C</th><th>Type</th><th class="right">Principal</th><th class="right">Outstanding</th><th>Next Due</th><th>Status</th><th></th></tr></thead><tbody>${lrows(active)}</tbody></table></div></div>
-      <div class="panel"><h3>Closed Loans</h3><div style="overflow-x:auto;"><table class="data"><thead><tr><th>A/C</th><th>Type</th><th class="right">Principal</th><th class="right">Outstanding</th><th>Next Due</th><th>Status</th><th></th></tr></thead><tbody>${lrows(closed)}</tbody></table></div></div>
+      <div class="panel"><h3>Active Loans</h3><div style="overflow-x:auto;"><table class="data"><thead><tr><th>A/C</th><th>Type</th><th class="right">Principal</th><th class="right">Outstanding</th><th>Next Due</th><th>Status</th><th></th></tr></thead><tbody>${lsplit(active)}</tbody></table></div></div>
+      <div class="panel"><h3>Closed Loans</h3><div style="overflow-x:auto;"><table class="data"><thead><tr><th>A/C</th><th>Type</th><th class="right">Principal</th><th class="right">Outstanding</th><th>Next Due</th><th>Status</th><th></th></tr></thead><tbody>${lsplit(closed)}</tbody></table></div></div>
       <div class="panel"><h3>Payment History</h3><div style="overflow-x:auto;"><table class="data"><thead><tr><th>Date</th><th>A/C</th><th>Mode</th><th>Cheque / Bank</th><th class="right">Amount</th><th>Status</th></tr></thead><tbody>${pays.length?pays.map(p=>`<tr><td>${fmtDate(p.date)||'\u2014'}</td><td>${esc(p.acno)}</td><td>${esc(p.mode)}</td><td>${p.mode==='Cheque'?(esc(p.cheque||'\u2014')+(p.bank?(' / '+esc(p.bank)):'')):(p.mode==='Online'?('Ref '+esc(p.ref||'\u2014')):'\u2014')}</td><td class="right num">${inr(p.amount)}</td><td>${p.status==='Cleared'?'<span class="pp ok">Cleared</span>':'<span class="pp pend">Pending</span>'}</td></tr>`).join(''):'<tr><td colspan="6" class="muted" style="padding:10px;">No payments recorded</td></tr>'}</tbody></table></div></div>
       ${chgs.length?`<div class="panel"><h3>Charges <span style="font-weight:400;font-size:12px;color:var(--muted);">— late fees, overdue interest &amp; cheque bounces (added to the outstanding balance)</span></h3><div style="overflow-x:auto;"><table class="data"><thead><tr><th>Date</th><th>A/C</th><th>Type</th><th>Note</th><th class="right">Amount</th></tr></thead><tbody>${chgs.map(x=>`<tr><td>${fmtDate(x.date)||'\u2014'}</td><td>${esc(x.acno)}</td><td>${esc(x.type||'\u2014')}${x.cheque?(' <span class="muted">(chq '+esc(x.cheque)+')</span>'):''}</td><td class="muted">${esc(x.note||'\u2014')}</td><td class="right num">${inr(x.amount)}</td></tr>`).join('')}<tr class="tot"><td colspan="4" style="font-weight:700;">Total charges recorded</td><td class="right num" style="font-weight:700;">${inr(chgs.reduce((a,x)=>a+(Number(x.amount)||0),0))}</td></tr></tbody></table></div></div>`:''}
       <div class="panel"><h3>Guarantor(s)</h3><div style="font-size:13.5px;">${guars.length?guars.map(g=>esc(g)).join('<br>'):'<span class="muted">None recorded</span>'}</div></div>

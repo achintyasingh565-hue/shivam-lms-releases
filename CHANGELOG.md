@@ -9,6 +9,37 @@ charged, and the instalment itself moves forward, extending the schedule.
 
 ---
 
+## 2.27.0
+
+### Sidebar
+
+- **The brightest gold (#fff3a6) now marks the live item** — the active section's label, icon and
+  edge marker, plus hover. Resting rows stay quieter so the active one actually stands out rather
+  than competing with eight others.
+- **The build number sits under the firm name** in the footer. It is substituted from
+  `package.json` at build time, so it can never drift from the real version.
+
+### Customers & Loans
+
+- **Borrowers are numbered.** The list was already in A–Z order; each card now carries its position
+  as a small gold chip, so a borrower can be referred to by number.
+- **A borrower's loans are grouped New / Earlier.** Recent lending was getting lost among older
+  records. Each table now splits under two headings — and the headings only appear when both groups
+  have rows, so a borrower with a single loan still sees a plain list.
+
+### Dashboard
+
+- **"New Business (from Oct)" is now just "New Business."** The badge tooltip no longer names a
+  date either; it explains the distinction instead — new business as opposed to a historical record
+  entered at setup.
+
+The 1 Oct 2026 boundary itself is unchanged and still drives the figure. I briefly replaced it with
+a rolling 90-day window and reverted that: the date is not arbitrary, it separates real lending from
+the historical records keyed in during setup, and a rolling window would have erased that
+distinction after three months.
+
+---
+
 ## 2.26.0
 
 ### Brand

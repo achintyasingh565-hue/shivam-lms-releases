@@ -19,7 +19,7 @@
      — everything before that date is a historical record entered during setup. */
   const NEW_LOAN_FROM = '2026-10-01';
   function isNewLoan(l){ try{ var d=(l&&(l.disb||l.createdAt))||''; d=String(d).slice(0,10); return d && d>=NEW_LOAN_FROM; }catch(e){ return false; } }
-  function newBadge(l){ return isNewLoan(l) ? '<span title="Issued on/after 1 Oct 2026" style="display:inline-block;margin-left:6px;padding:1px 6px;border-radius:6px;background:#0b7a4b;color:#fff;font-size:9px;font-weight:800;letter-spacing:.6px;vertical-align:middle;">NEW</span>' : ''; }
+  function newBadge(l){ return isNewLoan(l) ? '<span title="New business — not a historical record entered at setup" style="display:inline-block;margin-left:6px;padding:1px 6px;border-radius:6px;background:#0b7a4b;color:#fff;font-size:9px;font-weight:800;letter-spacing:.6px;vertical-align:middle;">NEW</span>' : ''; }
   try{ window.isNewLoan=isNewLoan; window.newBadge=newBadge; }catch(e){}
 
   const STORE = "shivam_loans_v1";
