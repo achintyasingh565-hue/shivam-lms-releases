@@ -9,6 +9,37 @@ charged, and the instalment itself moves forward, extending the schedule.
 
 ---
 
+## 2.24.0
+
+### Removed — Hindi borrower names
+
+The "Name in Hindi" field, the automatic transliteration, the learned-corrections map, the bulk
+"Suggest Hindi names" tool and the Hindi substitution of occasions are **all removed**.
+
+They produced bad output on real names: **Chaudhary** came out as चुधरय, **Kajal** as कजल, and
+**M/S M.A. Enterprises** as मस मा एंतेरपरिसेस. Roman spelling does not say whether a vowel is long
+or short, so rules cannot resolve it, and a mangled name in a customer's message is worse than an
+English one.
+
+**From now on: the message TEMPLATE is Hindi; the name, the occasion and every other value go out
+exactly as recorded, in English.** Nothing else about messages changed.
+
+Any `nameHi` already stored on a loan is simply ignored — no record is altered.
+
+### Fixed
+
+- **The firm name was spelled two ways in the shipped wording.** शिवम एंटरप्राइजेज in the
+  loan-closed Hindi template against शिवम एंटरप्राइज़ेस in the other 22. Now consistent.
+
+### Added
+
+- **Restore Default Wording** button in Administration › Message Wording Templates. Saved wording
+  overrides what ships with the app, so a correction in a new version could never reach a book that
+  had been edited. This puts the shipped text back, after a confirmation that names what is lost.
+  Borrowers, loans and payments are untouched.
+
+---
+
 ## 2.23.0
 
 ### Fixed

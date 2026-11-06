@@ -20,7 +20,7 @@
     bounce:"Namaste {name}, we wish to inform you that your cheque no. {cheque} towards loan account {acno} has been returned unpaid by the bank. A charge of Rs {amount} is now applicable. Kindly arrange the payment at the earliest to avoid further action. - Shivam Enterprises",
     bounce_hi:"नमस्ते {name}, हम आपको सूचित करना चाहते हैं कि ऋण खाता {acno} के लिए आपका चेक नं. {cheque} बैंक द्वारा अस्वीकृत (बाउंस) कर दिया गया है। अब Rs {amount} का शुल्क लागू है। कृपया आगे की कार्रवाई से बचने के लिए शीघ्र भुगतान की व्यवस्था करें। - शिवम एंटरप्राइज़ेस",
     closed:"Namaste {name}, congratulations! Your loan account {acno} (disbursed amount {disbursed}) with Shivam Enterprises has been fully repaid and is now closed. No further dues remain. Thank you for your trust and timely payments. - Shivam Enterprises",
-    closed_hi:"नमस्ते {name}, बधाई हो! शिवम एंटरप्राइजेज के साथ आपका ऋण खाता {acno} (वितरित राशि {disbursed}) पूर्ण रूप से चुकता हो गया है और अब बंद कर दिया गया है। कोई बकाया शेष नहीं है। आपके विश्वास और समय पर भुगतान के लिए धन्यवाद। - शिवम एंटरप्राइज़ेस",
+    closed_hi:"नमस्ते {name}, बधाई हो! शिवम एंटरप्राइज़ेस के साथ आपका ऋण खाता {acno} (वितरित राशि {disbursed}) पूर्ण रूप से चुकता हो गया है और अब बंद कर दिया गया है। कोई बकाया शेष नहीं है। आपके विश्वास और समय पर भुगतान के लिए धन्यवाद। - शिवम एंटरप्राइज़ेस",
     chequepresent:"Namaste {name}, this is to inform you that your cheque no. {cheque} (drawn on {bank}) of Rs {amount} towards loan account {acno} will be presented in the bank on {date}. Kindly ensure sufficient balance in your account by that date to avoid cheque return / bounce charges. Thank you. - Shivam Enterprises",
     chequepresent_hi:"नमस्ते {name}, आपको सूचित किया जाता है कि आपका चेक नं. {cheque} ({bank} पर देय), राशि Rs {amount}, ऋण खाता {acno} के लिए बैंक में दिनांक {date} को प्रस्तुत किया जाएगा। कृपया उस तिथि तक अपने खाते में पर्याप्त शेष राशि सुनिश्चित करें ताकि चेक वापसी / बाउंस शुल्क से बचा जा सके। धन्यवाद। - शिवम एंटरप्राइज़ेस",
     cleared:"Namaste {name}, we confirm that your cheque no. {cheque} of Rs {amount} towards loan account {acno} has been successfully cleared by the bank. Thank you for your payment. - Shivam Enterprises",
@@ -90,45 +90,31 @@
     return levied>0 ? levied : getLateFee();
   }
 
-  /* Fill a Devanagari suggestion for every borrower who has none. Suggestions
-     only — nothing already recorded is touched, and the owner corrects them on
-     each borrower's own record, where the correction is then remembered. */
-  window.hiFillAllNames = function(){
-    if(typeof hiTranslit!=='function'){ toast('Transliteration is not available'); return; }
-    var blank=(loans||[]).filter(function(l){ return l && l.name && !String(l.nameHi||'').trim(); });
-    if(!blank.length){ toast('Every borrower already has a Hindi name'); return; }
-    var sample=blank.slice(0,5).map(function(l){ return '   ' + l.name + '  \u2192  ' + hiTranslit(l.name); }).join('\n');
-    if(!confirm('Suggest a Hindi name for ' + blank.length + ' borrower' + (blank.length>1?'s':'') + ' who have none?\n\n'
-      + sample + (blank.length>5 ? ('\n   …and ' + (blank.length-5) + ' more') : '')
-      + '\n\nThese are SUGGESTIONS. Open each borrower to check the spelling — what you\u2019ve\n'
-      + 'already typed is never overwritten, and documents keep the English name.')) return;
-    var n=0;
-    blank.forEach(function(l){ var g=hiTranslit(l.name); if(g){ l.nameHi=g; n++; } });
-    if(n){ try{ save(); }catch(e){} try{ logAudit('Hindi Names Suggested', n + ' borrower(s)'); }catch(e){} }
-    var note=$('hiFillNote'); if(note) note.textContent = n + ' filled — please review each borrower.';
-    toast(n + ' Hindi name' + (n===1?'':'s') + ' suggested — please review');
+
+  /* Saved wording overrides the wording shipped with the app, so a correction
+     made here never reaches a book that has already been edited. This puts the
+     shipped text back — useful after an edit introduces a stray character, and
+     the only way to pick up wording fixes in a new version. */
+  window.restoreDefaultTemplates = function(){
+    if(!confirm('Replace ALL message wording with the text shipped with the app?\n\n'
+      + 'Every edit you have made to the wording — English and Hindi — will be lost.\n'
+      + 'Your borrowers, loans and payments are not touched.\n\nContinue?')) return;
+    TPL={...DEFAULT_TPL};
+    try{ localStorage.setItem(MSG_STORE, JSON.stringify(TPL)); }catch(e){}   /* same store saveTemplates writes */
+    try{ fillTplForm(); }catch(e){}
+    try{ logAudit('Message Wording Restored', 'defaults'); }catch(e){}
+    toast('Default wording restored');
   };
 
-  /* The name to SHOW and to send as a template variable: the Hindi one for a
-     Hindi message, the English one otherwise. Module scope on purpose — it was
-     first written inside renderGreetings and then called from renderReminders
-     too, where it was not in scope and threw a ReferenceError that stopped the
-     reminder list being built at all. */
-  function dispName(l, lang){
-    return (lang==='hi' && l && l.nameHi && String(l.nameHi).trim())
-      ? String(l.nameHi).trim()
-      : (l ? l.name : '');
-  }
-  function applyVars(text, l, extra, lang){
+  function applyVars(text, l, extra){
     extra=extra||{};
-    /* A borrower's name is stored once, in English, and prints on every legal
-       document from that one field. For a Hindi message we therefore use the
-       OPTIONAL `nameHi` recorded against the loan, falling back to the English
-       name when it is blank — so switching the message language no longer
-       leaves an English name inside a Hindi sentence, and no document changes. */
-    const _nm = (lang==='hi' && l && l.nameHi && String(l.nameHi).trim()) ? String(l.nameHi).trim() : (l?l.name:'');
+    /* The borrower's name goes out exactly as it is recorded — in English.
+       Transliterating it into Devanagari was tried and removed: it mangled real
+       names (Chaudhary came out as चुधरय, a firm name as मस मा एंतेरपरिसेस),
+       and a mangled name in a customer's message is worse than an English one.
+       The TEMPLATE is Hindi; the name and the occasion stay as typed. */
     const map={
-      '{name}':_nm, '{acno}':l?l.acno:'', '{emi}':l?inr(l.emi):'', '{due_date}':l?(fmtDate(l.due)||'—'):'',
+      '{name}':(l?l.name:''), '{acno}':l?l.acno:'', '{emi}':l?inr(l.emi):'', '{due_date}':l?(fmtDate(l.due)||'—'):'',
       '{outstanding}':l?inr(l.outstanding):'', '{arrears}':l?inr(l.arrears||0):'', '{amount}':l?inr(l.emi):'', '{principal}':l?inr(l.principal||0):'', '{disbursed}':l?inr(l.principal||0):'', '{fine}':inr(_lateFeeFor(l)), '{rate}':l?(l.rate+'%'):'',
       /* Supplied for every message type, not only the ones whose own variable
          list happens to include them: a template edited to use {tenure} or
@@ -189,23 +175,19 @@
     else if(f==='due') list=list.filter(l=>l.due && l.due>=today && l.due<=in7s);
     list.sort((a,b)=>(a.due||'').localeCompare(b.due||''));
     if(!list.length){ window._remList=[]; $('remWrap').innerHTML=`<div class="empty"><div class="big">&#128100;</div><div class="empty-t">No borrowers in this group</div><div class="empty-s">Change the language or filter above to see who matches.</div></div>`; return; }
-    window._remList = list.map(l=>{ const over=(l._st==='Overdue'); const tpl=lang==='hi'?(over?TPL.overdue_hi:TPL.reminder_hi):(over?TPL.overdue:TPL.reminder); const av=(t)=>applyVars('{'+t+'}',l,{},lang); return {lang:lang, name:l.name, phone:l.phone, acno:l.acno, cat:(over?'Overdue Reminder':'EMI Reminder'), msg:applyVars(tpl,l,{},lang), tpl:tpl, loanId:l.id, amt:(over?Math.round(Number(l.outstanding)||0):Math.round(Number(l.emi)||0)), vars:{name:dispName(l, lang), acno:l.acno||'', emi:inrPlain(l.emi), due_date:av('due_date'), outstanding:inrPlain(l.outstanding), fine:inrPlain(getLateFee()), rate:av('rate'), amount:inrPlain(l.outstanding), loanid:l.acno||''}}; });
+    window._remList = list.map(l=>{ const over=(l._st==='Overdue'); const tpl=lang==='hi'?(over?TPL.overdue_hi:TPL.reminder_hi):(over?TPL.overdue:TPL.reminder); const av=(t)=>applyVars('{'+t+'}',l,{}); return {lang:lang, name:l.name, phone:l.phone, acno:l.acno, cat:(over?'Overdue Reminder':'EMI Reminder'), msg:applyVars(tpl,l,{}), tpl:tpl, loanId:l.id, amt:(over?Math.round(Number(l.outstanding)||0):Math.round(Number(l.emi)||0)), vars:{name:(l?l.name:''), acno:l.acno||'', emi:inrPlain(l.emi), due_date:av('due_date'), outstanding:inrPlain(l.outstanding), fine:inrPlain(getLateFee()), rate:av('rate'), amount:inrPlain(l.outstanding), loanid:l.acno||''}}; });
     $('remWrap').innerHTML=`<div class="table-wrap"><table class="data"><thead><tr><th>Borrower</th><th>Phone</th><th class="right">EMI</th><th>Due</th><th>Status</th><th>Message</th></tr></thead><tbody>`+
       list.map(l=>{ const over=(l._st==='Overdue');
         const tpl = lang==='hi' ? (over?TPL.overdue_hi:TPL.reminder_hi) : (over?TPL.overdue:TPL.reminder);
-        const msg=applyVars(tpl,l,{},lang);
+        const msg=applyVars(tpl,l,{});
         return `<tr><td class="name">${esc(l.name)}${(typeof waSentBadge==='function')?waSentBadge(l.phone, over?'Overdue Reminder':'EMI Reminder'):''}</td><td class="muted">${esc(l.phone||'—')}</td><td class="right num">${inr(l.emi)}</td><td>${fmtDate(l.due)||'—'}</td><td><span class="badge ${l._st.toLowerCase()}">${l._st}</span></td><td class="muted" style="max-width:340px;font-size:11.5px;">${esc(msg)}</td></tr>`;
       }).join('')+`</tbody></table></div>`;
   }
   function renderGreetings(){
     try{ if(typeof recomputeAll==='function') recomputeAll(); }catch(e){}   // fresh arrears/outstanding for demand-notice etc.
     const type=$('grType').value, lang=$('grLang')?$('grLang').value:'en', dt=$('grDate').value.trim(), who=$('grWho').value;
-    /* The Occasion box is shared by both languages. For a Hindi message the
-       accepted Hindi name is used — Diwali becomes दीपावली — so an English word
-       no longer sits inside an otherwise Hindi sentence. Typing Devanagari
-       straight into the box still works and is passed through untouched. */
-    var _occRaw=$('grOccasion').value.trim();
-    var occ=(lang==='hi' && typeof hiOccasion==='function') ? hiOccasion(_occRaw) : _occRaw;
+    /* The occasion is sent exactly as typed, in either language. */
+    var occ=$('grOccasion').value.trim();
     let list=loans.map(l=>({...l,_st:autoStatus(l)}));
     // Message types that target a specific status pick their OWN audience — the
     // Active/All selector must not filter them out (e.g. "Loan Closed" needs the
@@ -219,15 +201,15 @@
     const tpl = lang==='hi' ? (TPL[type+'_hi']||TPL.greeting_hi) : (TPL[type]||TPL.greeting);
     if(!list.length){ window._grList=[]; $('grWrap').innerHTML=`<div class="empty">No customers to message.</div>`; return; }
     const GR_CAT={greeting:'Greeting / Notice',birthday:'Birthday Greeting',holiday:'Office Closure',thanks:'Payment Confirmation',welcome:'Loan Approval',finalnotice:'Final Notice',demandnotice:'Default Notice',chequepresent:'Cheque Presentation',bounce:'Cheque Bounce',closed:'Loan Closed',cleared:'Cheque Cleared',restructure:'Loan Restructured',accwelcome:'Welcome / Account Opened',launch:'Business Launched'}; const gcat=GR_CAT[type]||'Greeting / Notice';
-    const grVars=(l)=>{ var _lp=(l.payments||[]).filter(function(p){return Number(p.amount)>0;}).slice(-1)[0]||null; var _cc=(l.payments||[]).filter(function(p){return p.mode==='Cheque'&&p.status==='Cleared';}).slice(-1)[0]||{}; var _pc=(l.payments||[]).filter(function(p){return p.mode==='Cheque'&&p.status!=='Cleared';}).slice(-1)[0]||{}; var _bc=(l.charges||[]).filter(function(c){return c.type==='Cheque bounce';})[0]||{}; var _due=(fmtDate(l.due)||fmtDate(l.disb)||''); if(type==='holiday') return {name:dispName(l, lang), occasion:occ||'', date:dt||''}; if(type==='thanks') return {name:dispName(l, lang), amount:inrPlain(_lp?_lp.amount:l.emi), acno:l.acno||'', txn:((_lp&&(_lp.ref||_lp.cheque||fmtDate(_lp.date)))||_due||('A/C '+(l.acno||''))), outstanding:inrPlain(l.outstanding)}; if(type==='welcome') return {name:dispName(l, lang), acno:l.acno||'', emi:inrPlain(l.emi), due_date:_due, amount:inrPlain(l.principal)}; if(type==='finalnotice') return {name:dispName(l, lang), acno:l.acno||'', outstanding:inrPlain(l.outstanding), due_date:_due}; if(type==='demandnotice') return {name:dispName(l, lang), acno:l.acno||'', arrears:inrPlain(l.arrears||0), due_date:_due, outstanding:inrPlain(l.outstanding)}; if(type==='bounce') return {name:dispName(l, lang), acno:l.acno||'', amount:inrPlain(_bc.amount||0), txn:(_bc.cheque||''), cheque:(_bc.cheque||'')}; if(type==='closed') return {name:dispName(l, lang), acno:l.acno||'', principal:inrPlain(l.principal||0), disbursed:inrPlain(l.principal||0)}; if(type==='cleared') return {name:dispName(l, lang), acno:l.acno||'', amount:inrPlain(_cc.amount||0), txn:(_cc.cheque||''), cheque:(_cc.cheque||'')}; if(type==='chequepresent') return {name:dispName(l, lang), acno:l.acno||'', amount:inrPlain(_pc.amount||l.emi||0), cheque:(_pc.cheque||''), bank:(_pc.bank||'your bank'), date:(dt||fmtDate(_pc.date)||_due||'')}; if(type==='restructure') return {name:dispName(l, lang), acno:l.acno||'', emi:inrPlain(l.emi), tenure:((typeof tenureText==='function')?tenureText(l):String(l.tenure||''))}; if(type==='accwelcome') return {name:dispName(l, lang), acno:l.acno||''}; if(type==='launch') return {name:dispName(l, lang)}; if(type==='birthday') return {name:dispName(l, lang)}; return {name:dispName(l, lang), occasion:occ||''}; };
+    const grVars=(l)=>{ var _lp=(l.payments||[]).filter(function(p){return Number(p.amount)>0;}).slice(-1)[0]||null; var _cc=(l.payments||[]).filter(function(p){return p.mode==='Cheque'&&p.status==='Cleared';}).slice(-1)[0]||{}; var _pc=(l.payments||[]).filter(function(p){return p.mode==='Cheque'&&p.status!=='Cleared';}).slice(-1)[0]||{}; var _bc=(l.charges||[]).filter(function(c){return c.type==='Cheque bounce';})[0]||{}; var _due=(fmtDate(l.due)||fmtDate(l.disb)||''); if(type==='holiday') return {name:(l?l.name:''), occasion:occ||'', date:dt||''}; if(type==='thanks') return {name:(l?l.name:''), amount:inrPlain(_lp?_lp.amount:l.emi), acno:l.acno||'', txn:((_lp&&(_lp.ref||_lp.cheque||fmtDate(_lp.date)))||_due||('A/C '+(l.acno||''))), outstanding:inrPlain(l.outstanding)}; if(type==='welcome') return {name:(l?l.name:''), acno:l.acno||'', emi:inrPlain(l.emi), due_date:_due, amount:inrPlain(l.principal)}; if(type==='finalnotice') return {name:(l?l.name:''), acno:l.acno||'', outstanding:inrPlain(l.outstanding), due_date:_due}; if(type==='demandnotice') return {name:(l?l.name:''), acno:l.acno||'', arrears:inrPlain(l.arrears||0), due_date:_due, outstanding:inrPlain(l.outstanding)}; if(type==='bounce') return {name:(l?l.name:''), acno:l.acno||'', amount:inrPlain(_bc.amount||0), txn:(_bc.cheque||''), cheque:(_bc.cheque||'')}; if(type==='closed') return {name:(l?l.name:''), acno:l.acno||'', principal:inrPlain(l.principal||0), disbursed:inrPlain(l.principal||0)}; if(type==='cleared') return {name:(l?l.name:''), acno:l.acno||'', amount:inrPlain(_cc.amount||0), txn:(_cc.cheque||''), cheque:(_cc.cheque||'')}; if(type==='chequepresent') return {name:(l?l.name:''), acno:l.acno||'', amount:inrPlain(_pc.amount||l.emi||0), cheque:(_pc.cheque||''), bank:(_pc.bank||'your bank'), date:(dt||fmtDate(_pc.date)||_due||'')}; if(type==='restructure') return {name:(l?l.name:''), acno:l.acno||'', emi:inrPlain(l.emi), tenure:((typeof tenureText==='function')?tenureText(l):String(l.tenure||''))}; if(type==='accwelcome') return {name:(l?l.name:''), acno:l.acno||''}; if(type==='launch') return {name:(l?l.name:'')}; if(type==='birthday') return {name:(l?l.name:'')}; return {name:(l?l.name:''), occasion:occ||''}; };
     // Rupee-formatted copy of the vars for the readable message TEXT (adds ₹ to money
     // fields). The Meta template variables keep the plain numbers from grVars, because
     // the approved template body supplies its own ₹/Rs. Bounce & Cheque-Cleared keep
     // plain numbers too — their wording already reads "Rs {amount}".
     var grMoneyRs=function(l){ var v=grVars(l); if(type==='bounce'||type==='cleared'||type==='chequepresent') return v; var o={},M={amount:1,outstanding:1,arrears:1,emi:1,principal:1,disbursed:1,fine:1}; for(var k in v){ o[k]=(M[k]&&v[k]!=='' && v[k]!=null)?('₹'+v[k]):v[k]; } return o; };
-    window._grList = list.map(l=>({lang:lang, name:l.name, phone:l.phone, acno:l.acno, cat:gcat, msg:applyVars(tpl,l,Object.assign({occasion:occ||'',date:dt||''}, grMoneyRs(l)),lang), tpl:tpl, loanId:l.id, amt:((type!=='welcome') && /\{(emi|amount|outstanding)\}/.test(tpl)?Math.round(Number(String((grVars(l).amount)||'').replace(/[^0-9.]/g,''))||(Number(l.emi)||0)):null), vars:grVars(l)}));
+    window._grList = list.map(l=>({lang:lang, name:l.name, phone:l.phone, acno:l.acno, cat:gcat, msg:applyVars(tpl,l,Object.assign({occasion:occ||'',date:dt||''}, grMoneyRs(l))), tpl:tpl, loanId:l.id, amt:((type!=='welcome') && /\{(emi|amount|outstanding)\}/.test(tpl)?Math.round(Number(String((grVars(l).amount)||'').replace(/[^0-9.]/g,''))||(Number(l.emi)||0)):null), vars:grVars(l)}));
     $('grWrap').innerHTML=`<div class="table-wrap"><table class="data"><thead><tr><th>Borrower</th><th>Phone</th><th>Message</th></tr></thead><tbody>`+
-      list.map(l=>{ const msg=applyVars(tpl,l,Object.assign({occasion:occ||'(occasion)',date:dt||'(date)'}, grMoneyRs(l)),lang);
+      list.map(l=>{ const msg=applyVars(tpl,l,Object.assign({occasion:occ||'(occasion)',date:dt||'(date)'}, grMoneyRs(l)));
         return `<tr><td class="name">${esc(l.name)}${(typeof waSentBadge==='function')?waSentBadge(l.phone, gcat):''}</td><td class="muted">${esc(l.phone||'—')}</td><td class="muted" style="max-width:380px;font-size:11.5px;">${esc(msg)}</td></tr>`;
       }).join('')+`</tbody></table></div>`;
   }

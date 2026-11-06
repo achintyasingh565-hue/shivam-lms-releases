@@ -101,7 +101,7 @@
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.4 2.4 4.6-5"/></svg> Audit Logging Enabled</span>
       </div>
       <div class="auth-meta"><span id="lastLogin"></span></div>
-      <div class="auth-meta auth-verline">Version 2.23.0 &nbsp;·&nbsp; © Shivam Enterprises</div>
+      <div class="auth-meta auth-verline">Version 2.24.0 &nbsp;·&nbsp; © Shivam Enterprises</div>
     </div>
   </div>
 </div>
@@ -1068,14 +1068,6 @@
             <button class="btn btn-primary" style="margin-top:12px;" onclick="saveWaTemplates()">Save Templates</button>
           </div>
           <div class="panel">
-            <h3>Hindi Names for Messages</h3>
-            <p class="ph-sub">Hindi messages need the borrower's name in Devanagari. This fills a
-              suggestion for everyone who has none yet — you review and correct them on the
-              borrower's own record, and every correction is remembered for the next name.</p>
-            <button class="btn" onclick="hiFillAllNames()">Suggest Hindi names for all borrowers</button>
-            <span id="hiFillNote" class="ph-sub" style="margin-left:10px;"></span>
-          </div>
-          <div class="panel">
             <h3>Message Wording Templates</h3>
             <div class="varbox">Available tags: <code>{name}</code> <code>{acno}</code> <code>{emi}</code> <code>{due_date}</code> <code>{outstanding}</code> <code>{arrears}</code> <code>{fine}</code> <code>{rate}</code> <code>{occasion}</code> <code>{date}</code> <code>{tenure}</code> <code>{bank}</code> <code>{cheque}</code> <code>{loanid}</code></div>
             <div class="tpl-grid">
@@ -1100,6 +1092,7 @@
             </div>
             <div class="fg" style="max-width:240px;margin-top:14px;"><label>Late fee amount ₹ (for {fine})</label><input id="tpl_fine" type="number"></div>
             <button class="btn btn-primary" style="margin-top:14px;" onclick="saveTemplates()">Save Templates</button>
+            <button class="btn" style="margin-top:14px;margin-left:8px;" onclick="restoreDefaultTemplates()">Restore Default Wording</button>
           </div>
         </div>
         </div>
@@ -1167,8 +1160,7 @@
 
       <div class="loan-panel active" id="ltab-borrower">
         <div class="form-grid">
-        <div class="fg"><label>Borrower Name *</label><input id="m_name" placeholder="Full name" onchange="loanNameLookup();loanHiSuggest()" onblur="loanNameLookup();loanHiSuggest()"></div>
-        <div class="fg"><label>Name in Hindi</label><input id="m_nameHi" oninput="loanHiTouched()" placeholder="अपने आप भरा — जाँच लें" title="Suggested automatically from the English name. Correct it if needed — the app remembers your correction for next time."></div>
+        <div class="fg"><label>Borrower Name *</label><input id="m_name" placeholder="Full name" onchange="loanNameLookup()" onblur="loanNameLookup()"></div>
         <div class="fg"><label>Loan A/C No. *</label><input id="m_acno" placeholder=""></div>
         <div class="fg" style="display:flex; gap:10px;">
           <div style="flex:0 0 105px;"><label>Relation</label><select id="m_reltype"><option value="son of">S/o</option><option value="daughter of">D/o</option><option value="wife of">W/o</option></select></div>

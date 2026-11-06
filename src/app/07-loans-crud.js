@@ -107,46 +107,12 @@
      rate, dates, account number, status, payments, charges — is ever copied;
      carrying those over would silently create a wrong loan. */
   var LOAN_COPY_FIELDS = [
-    /* nameHi belongs to the person, not the loan — a repeat borrower's second
-       loan should not need it typed in Devanagari a second time. */
-    'nameHi',
     'reltype','relname','phone','addr','dob','residence','occupation','grelname','gaddr',
     'designation','officeaddr','gname','gphone',
     'coname','cophone','corel','coid','coaddr'
   ];
   function _normName(v){ return String(v||'').trim().toLowerCase().replace(/\s+/g,' '); }
 
-  /* Fill a Devanagari suggestion when the Hindi box is still empty. Never
-     overwrites anything typed, and the owner edits it before saving. */
-  window.loanHiSuggest = function(){
-    try{
-      var en=$('m_name'), hi=$('m_nameHi');
-      if(!en || !hi || typeof hiTranslit!=='function') return;
-      var cur=String(hi.value||'').trim();
-      /* Refresh when the box is empty, or when it still holds a SUGGESTION we
-         made for an earlier spelling of the name. Only a value the owner typed
-         or corrected himself is left alone — the old rule skipped any non-empty
-         box, so adding a surname never updated the Hindi name. */
-      var mine = (hi.dataset && hi.dataset.auto==='1');
-      if(cur!=='' && !mine) return;
-      var g=hiTranslit(en.value);
-      if(!g || g===cur) return;
-      hi.value=g;
-      if(hi.dataset) hi.dataset.auto='1';
-    }catch(e){}
-  };
-  /* The moment the owner edits it himself, it stops being ours to overwrite. */
-  window.loanHiTouched = function(){
-    try{ var hi=$('m_nameHi'); if(hi && hi.dataset) hi.dataset.auto=''; }catch(e){}
-  };
-  /* Remember a correction so the same name is right everywhere next time. */
-  window.loanHiLearn = function(){
-    try{
-      var en=$('m_name'), hi=$('m_nameHi');
-      if(!en || !hi || typeof hiLearn!=='function') return;
-      hiLearn(en.value, hi.value);
-    }catch(e){}
-  };
   window.loanNameLookup = function(){
     try{
       if(editId) return;                               // editing, not a new loan
@@ -217,7 +183,7 @@
     // migrate a legacy record (idtype/idproof + pan) into the list on the fly.
     modalIds = _idsFromRecord(f);
     renderIdRows();
-    $('m_name').value=f.name||''; if($('m_nameHi')){ $('m_nameHi').value=f.nameHi||''; if($('m_nameHi').dataset) $('m_nameHi').dataset.auto=''; } $('m_acno').value=f.acno||(id?'':nextLoanAcno());
+    $('m_name').value=f.name||''; $('m_acno').value=f.acno||(id?'':nextLoanAcno());
     $('m_reltype').value=f.reltype||'son of'; $('m_relname').value=f.relname||'';
     $('m_phone').value=f.phone||''; $('m_addr').value=f.addr||'';
     $('m_type').value=f.type||'Personal'; if($('m_secured'))$('m_secured').value=f.secured?'yes':'no'; if($('m_intonly'))$('m_intonly').checked=!!f.interestOnly; $('m_principal').value=f.principal||''; $('m_rate').value=f.rate||'';
@@ -293,7 +259,7 @@
       var body=document.querySelector('#loanOverlay .modal-body'); if(body) body.scrollTop=0;
     }catch(e){}
   };
-  var LOAN_TAB_OF={ m_name:'borrower',m_nameHi:'borrower',m_acno:'borrower',m_reltype:'borrower',m_relname:'borrower',m_phone:'borrower',m_addr:'borrower',m_idlist:'borrower',m_type:'borrower',m_dob:'borrower',m_residence:'borrower',m_occupation:'borrower',m_designation:'borrower',m_officeaddr:'borrower',
+  var LOAN_TAB_OF={ m_name:'borrower',m_acno:'borrower',m_reltype:'borrower',m_relname:'borrower',m_phone:'borrower',m_addr:'borrower',m_idlist:'borrower',m_type:'borrower',m_dob:'borrower',m_residence:'borrower',m_occupation:'borrower',m_designation:'borrower',m_officeaddr:'borrower',
     m_caseno:'terms',m_refno:'terms',m_product:'terms',m_dealer:'terms',m_downpay:'terms',m_officer:'terms',m_principal:'terms',m_deductions:'terms',m_remaining:'terms',m_rate:'terms',m_disb:'terms',m_tenure:'terms',m_tint:'terms',m_tpay:'terms',m_emi:'terms',m_due:'terms',
     m_propdesc:'property',m_propaddr:'property',m_proparea:'property',m_propvalue:'property',m_bN:'property',m_bS:'property',m_bE:'property',m_bW:'property',m_title:'property',
     m_coname:'coapp',m_cophone:'coapp',m_corel:'coapp',m_coid:'coapp',m_coaddr:'coapp',m_gname:'coapp',m_gphone:'coapp',m_remarks:'coapp',
@@ -510,10 +476,9 @@
     // (bounce/late fees), restructure baseline, date of birth, etc. — are NOT lost
     // on edit. The explicit fields below still overwrite whatever the form changed.
     const _prevLoan = editId ? (loans.find(l=>l.id===editId)||{}) : {};
-    try{ if(typeof loanHiLearn==='function') loanHiLearn(); }catch(_){ }   /* remember any correction to the Hindi name */
     const rec = Object.assign({}, _prevLoan, {
       id: editId||('L'+Date.now()),
-      name, nameHi:((($('m_nameHi')||{}).value)||'').trim(), acno, reltype:$('m_reltype').value, relname:$('m_relname').value.trim(),
+      name, acno, reltype:$('m_reltype').value, relname:$('m_relname').value.trim(),
       phone:normPhone($('m_phone').value), addr:$('m_addr').value.trim(), ids:_idList, idproof:_idMir.idproof, pan:_idMir.pan,
       type:$('m_type').value, secured:(($('m_secured')||{}).value==='yes'), interestOnly:!!(($('m_intonly')||{}).checked), principal:Number($('m_principal').value)||0, rate:Number($('m_rate').value)||0,
       disb:$('m_disb').value, tenure:Number($('m_tenure').value)||0, tint:Number($('m_tint').value)||0,

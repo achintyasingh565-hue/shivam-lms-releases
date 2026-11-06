@@ -184,14 +184,6 @@
             <button class="btn btn-primary" style="margin-top:12px;" onclick="saveWaTemplates()">Save Templates</button>
           </div>
           <div class="panel">
-            <h3>Hindi Names for Messages</h3>
-            <p class="ph-sub">Hindi messages need the borrower's name in Devanagari. This fills a
-              suggestion for everyone who has none yet — you review and correct them on the
-              borrower's own record, and every correction is remembered for the next name.</p>
-            <button class="btn" onclick="hiFillAllNames()">Suggest Hindi names for all borrowers</button>
-            <span id="hiFillNote" class="ph-sub" style="margin-left:10px;"></span>
-          </div>
-          <div class="panel">
             <h3>Message Wording Templates</h3>
             <div class="varbox">Available tags: <code>{name}</code> <code>{acno}</code> <code>{emi}</code> <code>{due_date}</code> <code>{outstanding}</code> <code>{arrears}</code> <code>{fine}</code> <code>{rate}</code> <code>{occasion}</code> <code>{date}</code> <code>{tenure}</code> <code>{bank}</code> <code>{cheque}</code> <code>{loanid}</code></div>
             <div class="tpl-grid">
@@ -216,6 +208,7 @@
             </div>
             <div class="fg" style="max-width:240px;margin-top:14px;"><label>Late fee amount ₹ (for {fine})</label><input id="tpl_fine" type="number"></div>
             <button class="btn btn-primary" style="margin-top:14px;" onclick="saveTemplates()">Save Templates</button>
+            <button class="btn" style="margin-top:14px;margin-left:8px;" onclick="restoreDefaultTemplates()">Restore Default Wording</button>
           </div>
         </div>
         </div>

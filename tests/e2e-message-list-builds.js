@@ -20,7 +20,7 @@ function chk(label, got, want) {
 }
 
 const LOANS = [
-  { id: 'L1', name: 'Dinesh Chandra Mishra', nameHi: 'दिनेश', acno: 'SE-1', phone: '9415110269',
+  { id: 'L1', name: 'Dinesh Chandra Mishra', acno: 'SE-1', phone: '9415110269',
     principal: 120000, rate: 2, tenure: 12, emi: 12400, tpay: 148800, outstanding: 99200,
     arrears: 0, due: '2026-12-10', disb: '2026-01-01', status: 'Active', _st: 'Active',
     payments: [], charges: [] },
@@ -55,8 +55,6 @@ function run(view, lang, type, occasion) {
     waSentBadge: () => '',
     toast: () => {},
     tenureText: (l) => ((l && l.interestOnly) ? 'Monthly' : ((l && l.tenure) ? l.tenure + ' months' : '—')),
-    hiOccasion: (s) => (s === 'Diwali' ? 'दीपावली' : s),
-    hiTranslit: (s) => s,
     /* lives in 02-helpers-nav.js, stubbed here */
     addDaysISO: (iso, n) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n);
       return d.toISOString().slice(0, 10); },
@@ -94,10 +92,10 @@ console.log('--- the reminder list builds ---');
   try { hi = run('reminders', 'hi'); } catch (e) { err = String(e && e.message || e); }
   chk('renderReminders() does not throw in Hindi', err, null);
   if (hi && hi.length) {
+    /* The template is Hindi; the NAME is always the one on the record, in
+       English. Transliteration was tried and removed — it mangled real names. */
     const hrow = hi.find((r) => r.acno === 'SE-1');
-    chk('  Hindi uses the Hindi name', hrow && hrow.vars.name, 'दिनेश');
-    const noHi = hi.find((r) => r.acno === 'SE-2');
-    chk('  a borrower with no Hindi name keeps the English one', noHi && noHi.vars.name, 'Shalu');
+    chk('  a Hindi message still carries the English name', hrow && hrow.vars.name, 'Dinesh Chandra Mishra');
   }
 }
 
@@ -119,8 +117,8 @@ console.log('\n--- the greeting list builds ---');
   try { list = run('greetings', 'hi', 'greeting'); } catch (e) { err = String(e && e.message || e); }
   chk('a Hindi greeting builds', err, null);
   if (list && list.length) {
-    chk('  the occasion is in Hindi', list[0].vars.occasion, 'दीपावली');
-    chk('  the name is in Hindi', list[0].vars.name, 'दिनेश');
+    chk('  the occasion goes out exactly as typed', list[0].vars.occasion, 'Diwali');
+    chk('  and the name as recorded', list[0].vars.name, 'Dinesh Chandra Mishra');
   }
 }
 
