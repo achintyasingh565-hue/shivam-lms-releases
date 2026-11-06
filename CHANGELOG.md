@@ -9,6 +9,32 @@ charged, and the instalment itself moves forward, extending the schedule.
 
 ---
 
+## 2.23.0
+
+### Fixed
+
+- **A blank field silently lost the message.** An Office Closure sent with the Date box empty went
+  to WhatsApp with an empty `{date}` value, and Meta rejected it — *(#131008) Required parameter is
+  missing*. The message was gone and the only trace was a Failed row in History. The app now checks
+  every selected message before the first API call, **stops the whole batch**, and names the empty
+  field and who it affects. A half-sent batch is worse than none.
+- **The Hindi name stopped keeping up with the English one.** The suggestion refused to touch a box
+  that already had anything in it, so typing "Achintya", then adding " Kumar", left the Hindi name
+  at अचिंत्य. It now refreshes while the value is still a suggestion of ours, and stops the
+  moment you edit it yourself or the record is loaded from the book — a name you typed is never
+  overwritten.
+
+### Not a defect: festival greetings arriving once, then not at all
+
+Confirmed as Meta's **per-user marketing frequency cap**. Festival greetings are a Marketing
+template; Meta limits how many marketing templates a person receives in a rolling window, counted
+across *every* business that messages them, and silently drops the rest — the API still returns
+success. This is why the first greeting arrives and later ones do not, regardless of language, while
+EMI reminders and payment confirmations (Utility templates) are unaffected. There is nothing to fix
+in the app.
+
+---
+
 ## 2.22.2
 
 ### Fixed

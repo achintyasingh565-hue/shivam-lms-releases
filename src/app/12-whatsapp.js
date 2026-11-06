@@ -138,6 +138,17 @@
     $('verifyFoot').innerHTML='<button class="btn btn-ghost" onclick="closeVerify()">Cancel</button><button class="btn btn-primary" id="verifyApprove" onclick="approveAndSend()">Approve &amp; Send</button>'; $('verifyOverlay').classList.add('show');
   }
   function closeVerify(){ $('verifyOverlay').classList.remove('show'); }
+  /* Meta rejects a template parameter sent as an empty string — "(#131008)
+     Required parameter is missing" — and the send is lost. The commonest cause
+     is an Office Closure with the Date box left blank. Name the gap before
+     sending rather than after. */
+  function tplMissingVars(it, tpl){
+    var keys=((tpl&&tpl.vars)||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
+    return keys.filter(function(k){
+      var v=(it.vars && it.vars[k]!=null) ? String(it.vars[k]).trim() : '';
+      return v==='';
+    });
+  }
   function buildTplComponents(it, tpl){
     const keys=(tpl.vars||'').split(',').map(x=>x.trim()).filter(Boolean);
     if(!keys.length) return [];
@@ -160,6 +171,29 @@
     if(!sel.length){ toast('No valid recipients'); return; }
     const by=(currentUser&&(currentUser.name||currentUser.user))||'\u2014'; const cfg=loadWaCfg(); const tpls=loadWaTpl();
     const apiReady=!!(window.electronAPI && window.electronAPI.sendWhatsApp && waHasToken(cfg) && cfg.pnid);
+    if(apiReady){
+      /* Stop the whole batch: one blank box means every message of that type
+         would be rejected, and a half-sent batch is worse than none. */
+      var _gaps={};
+      sel.forEach(function(it){
+        var t=tpls[it.cat];
+        if(!t || !t.name) return;
+        tplMissingVars(it, t).forEach(function(k){ (_gaps[k]=_gaps[k]||[]).push(it.name||it.phone); });
+      });
+      var _missing=Object.keys(_gaps);
+      if(_missing.length){
+        var _lines=_missing.map(function(k){
+          var who=_gaps[k]; var n=who.length;
+          return '   \u2022 {'+k+'} \u2014 empty for '+n+' message'+(n===1?'':'s')+' ('+who.slice(0,3).join(', ')+(n>3?('\u2026 +'+(n-3)):'')+')';
+        }).join('\n');
+        alert('\u26a0  CANNOT SEND \u2014 a required field is blank\n\n'
+          + _lines + '\n\n'
+          + 'WhatsApp rejects a template with an empty value and the message is lost\n'
+          + '("Required parameter is missing"). Fill the box above the list \u2014 for an\n'
+          + 'Office Closure that is usually the Date \u2014 then generate the messages again.');
+        return;
+      }
+    }
     const hist=loadWaHist(); const now=Date.now();
     if(!apiReady){
       sel.forEach(it=>{ hist.push({id:'wm'+now+Math.random().toString(36).slice(2,7), name:it.name, phone:it.phone, acno:it.acno||'', category:it.cat, content:it.msg, at:now, by, status:'Opened in app'}); });

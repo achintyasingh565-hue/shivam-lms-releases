@@ -133,7 +133,7 @@ console.log('\n--- 5. the loan modal stores it without disturbing anything ---')
   chk('  exactly once', (HTML.match(/id="m_nameHi"/g) || []).length, 1);
   chk('  it sits on the borrower tab', /m_nameHi:'borrower'/.test(CRUD), true);
   chk('the record is loaded into it', /\$\('m_nameHi'\)\.value=f\.nameHi\|\|''/.test(CRUD), true);
-  chk('  guarded, so an older markup cannot throw', /if\(\$\('m_nameHi'\)\) \$\('m_nameHi'\)\.value/.test(CRUD), true);
+  chk('  guarded, so an older markup cannot throw', /if\(\$\('m_nameHi'\)\)\{/.test(CRUD), true);
   chk('the record is saved from it', /nameHi:\(\(\(\$\('m_nameHi'\)\|\|\{\}\)\.value\)\|\|''\)\.trim\(\)/.test(CRUD), true);
   chk('the English name is untouched in the save', /\n\s*name, nameHi:/.test(CRUD), true);
 
@@ -194,8 +194,7 @@ console.log('\n--- 7. the Devanagari suggestion ---');
 console.log('\n--- 8. suggestions never overwrite ---');
 {
   const CRUD2 = R('src/app/07-loans-crud.js');
-  chk('the suggestion stops if anything is typed',
-    /if\(String\(hi\.value\|\|''\)\.trim\(\)!==''\) return;/.test(CRUD2), true);
+  chk('the suggestion stops at a value the owner typed', /if\(cur!=='' && !mine\) return;/.test(CRUD2), true);
   chk('  it is wired to the English name box', /loanNameLookup\(\);loanHiSuggest\(\)/.test(R('src/index.template.html')), true);
   chk('corrections are learnt on save', /loanHiLearn\(\)/.test(CRUD2), true);
   const REM2 = R('src/app/11-reminders.js');
@@ -204,6 +203,43 @@ console.log('\n--- 8. suggestions never overwrite ---');
   chk('  and asks before writing', /if\(!confirm\(/.test(REM2.slice(REM2.indexOf('hiFillAllNames'))), true);
   chk('the occasion is translated only for Hindi',
     /lang==='hi' && typeof hiOccasion==='function'/.test(REM2), true);
+}
+
+
+// ---------------------------------------------------------------------------
+console.log('\n--- 9. the suggestion keeps up with the name ---');
+{
+  const CRUD3 = R('src/app/07-loans-crud.js');
+  chk('it refreshes while it is still a suggestion', /mine = \(hi\.dataset && hi\.dataset\.auto==='1'\)/.test(CRUD3), true);
+  chk('  a value the owner typed is left alone', /if\(cur!=='' && !mine\) return;/.test(CRUD3), true);
+  chk('  editing it clears our claim', /window\.loanHiTouched/.test(CRUD3), true);
+  chk('  the input reports edits', /oninput="loanHiTouched\(\)"/.test(R('src/index.template.html')), true);
+  chk('  a loaded record is never treated as ours', /dataset\.auto=''; \}/.test(CRUD3), true);
+}
+
+// ---------------------------------------------------------------------------
+console.log('\n--- 10. an empty template variable never reaches Meta ---');
+{
+  const WA2 = R('src/app/12-whatsapp.js');
+  const i = WA2.indexOf('function tplMissingVars(');
+  let b = WA2.indexOf('{', i), d = 0, j = b;
+  for (; j < WA2.length; j++) { if (WA2[j] === '{') d++; else if (WA2[j] === '}' && --d === 0) { j++; break; } }
+  const c3 = { String, Object, Array, console };
+  vm.createContext(c3);
+  vm.runInContext(WA2.slice(i, j) + '\nthis.m = tplMissingVars;', c3);
+
+  const tpl = { name: 'office_closure', vars: 'name,occasion,date' };
+  chk('a blank date is caught', c3.m({ vars: { name: 'A', occasion: 'B', date: '' } }, tpl), ['date']);
+  chk('  whitespace counts as blank', c3.m({ vars: { name: 'A', occasion: 'B', date: '  ' } }, tpl), ['date']);
+  chk('  a missing key is caught', c3.m({ vars: { name: 'A', occasion: 'B' } }, tpl), ['date']);
+  chk('  a complete set passes', c3.m({ vars: { name: 'A', occasion: 'B', date: 'C' } }, tpl), []);
+  chk('  several gaps are all reported',
+    c3.m({ vars: { name: '', occasion: '', date: '' } }, tpl), ['name', 'occasion', 'date']);
+  chk('  a template with no variables is fine', c3.m({ vars: {} }, { name: 'x', vars: '' }), []);
+
+  chk('the batch is stopped, not half-sent', WA2.indexOf('CANNOT SEND') > -1 && /a required field is blank/.test(WA2), true);
+  chk('  and the check runs before the first API call',
+    WA2.indexOf('CANNOT SEND') < WA2.indexOf('_waSendRetry({apiVersion'), true);
 }
 
 console.log(fails ? '\n' + fails + ' CHECK(S) FAILED' : '\nALL CHECKS PASS');

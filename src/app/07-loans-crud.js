@@ -121,12 +121,23 @@
   window.loanHiSuggest = function(){
     try{
       var en=$('m_name'), hi=$('m_nameHi');
-      if(!en || !hi) return;
-      if(String(hi.value||'').trim()!=='') return;      // leave a typed value alone
-      if(typeof hiTranslit!=='function') return;
+      if(!en || !hi || typeof hiTranslit!=='function') return;
+      var cur=String(hi.value||'').trim();
+      /* Refresh when the box is empty, or when it still holds a SUGGESTION we
+         made for an earlier spelling of the name. Only a value the owner typed
+         or corrected himself is left alone — the old rule skipped any non-empty
+         box, so adding a surname never updated the Hindi name. */
+      var mine = (hi.dataset && hi.dataset.auto==='1');
+      if(cur!=='' && !mine) return;
       var g=hiTranslit(en.value);
-      if(g) hi.value=g;
+      if(!g || g===cur) return;
+      hi.value=g;
+      if(hi.dataset) hi.dataset.auto='1';
     }catch(e){}
+  };
+  /* The moment the owner edits it himself, it stops being ours to overwrite. */
+  window.loanHiTouched = function(){
+    try{ var hi=$('m_nameHi'); if(hi && hi.dataset) hi.dataset.auto=''; }catch(e){}
   };
   /* Remember a correction so the same name is right everywhere next time. */
   window.loanHiLearn = function(){
@@ -206,7 +217,7 @@
     // migrate a legacy record (idtype/idproof + pan) into the list on the fly.
     modalIds = _idsFromRecord(f);
     renderIdRows();
-    $('m_name').value=f.name||''; if($('m_nameHi')) $('m_nameHi').value=f.nameHi||''; $('m_acno').value=f.acno||(id?'':nextLoanAcno());
+    $('m_name').value=f.name||''; if($('m_nameHi')){ $('m_nameHi').value=f.nameHi||''; if($('m_nameHi').dataset) $('m_nameHi').dataset.auto=''; } $('m_acno').value=f.acno||(id?'':nextLoanAcno());
     $('m_reltype').value=f.reltype||'son of'; $('m_relname').value=f.relname||'';
     $('m_phone').value=f.phone||''; $('m_addr').value=f.addr||'';
     $('m_type').value=f.type||'Personal'; if($('m_secured'))$('m_secured').value=f.secured?'yes':'no'; if($('m_intonly'))$('m_intonly').checked=!!f.interestOnly; $('m_principal').value=f.principal||''; $('m_rate').value=f.rate||'';
