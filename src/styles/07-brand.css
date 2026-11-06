@@ -440,3 +440,125 @@ table.data tr.lgrp td{
 html.dark table.data tr.lgrp td{ color:var(--bgold-hi); background:linear-gradient(90deg,rgba(254,220,85,.10),rgba(254,220,85,.02)); }
 table.data tr.lgrp:hover td{ background:linear-gradient(90deg,rgba(254,220,85,.20),rgba(254,220,85,.04)); }
 @media print{ table.data tr.lgrp td{ background:none !important; } }
+
+/* ===================================================================
+   SIDEBAR INVERSION — panel #fff3a6, content navy, selected tab navy.
+
+   SPECIFICITY NOTE, learned the hard way: 03-glass.css and 06-redesign.css
+   set `.sidebar .nav a:hover` with !important, and 01-base.css uses
+   `html.dark #nav a:hover` — an ID. A plain `.nav a:hover` here loses to all
+   of them and the text would have stayed white on a gold panel. Every rule
+   below is therefore written as `html body .sidebar #nav …`, which outranks
+   each of them, and is repeated for dark mode rather than relying on
+   inheritance.
+   =================================================================== */
+
+/* ---- the panel ---- */
+html body .app .sidebar,
+html.dark body .app .sidebar{
+  background:linear-gradient(180deg,#fff6bd 0%,#fff3a6 42%,#f7e6a0 100%) !important;
+  color:#243a5e !important;
+  border-right:1px solid rgba(122,71,0,.30) !important;
+  box-shadow:inset -8px 0 18px -16px rgba(122,71,0,.55) !important;
+}
+html.dark body .app .sidebar{
+  background:linear-gradient(180deg,#f3e49a 0%,#e7d587 100%) !important;
+  border-right-color:rgba(122,71,0,.46) !important;
+}
+
+/* ---- brand block ---- */
+html body .sidebar .side-brand{ border-bottom:1px solid rgba(122,71,0,.24) !important; }
+/* The monogram's ink is NAVY (sampled: rgb 0,28,56). A navy plate behind it
+   makes the S disappear — 1.03:1. It sits on the cream plate the printed logo
+   uses, which gives the navy 16:1, and takes a thin brown edge because cream
+   on the gold panel is only 1.07:1 and the tile would otherwise have no shape. */
+html body .sidebar .side-brand .logo{
+  background-color:var(--bcream) !important;
+  background-image:var(--emblem) !important;
+  background-size:76% !important; background-position:center !important; background-repeat:no-repeat !important;
+  border:1px solid rgba(122,71,0,.34) !important; border-radius:12px !important;
+  box-shadow:0 2px 9px rgba(122,71,0,.30), inset 0 1px 0 rgba(255,255,255,.55) !important;
+  filter:none !important; font-size:0 !important; color:transparent !important;
+}
+html body .sidebar .side-brand .bt h1{
+  background:none !important; -webkit-background-clip:border-box !important;
+  -webkit-text-fill-color:#061832 !important; color:#061832 !important;
+  text-shadow:0 1px 0 rgba(255,255,255,.55) !important;
+}
+html body .sidebar .side-brand .bt p{ color:#7a4700 !important; opacity:1 !important; }
+
+/* ---- section labels ---- */
+/* 10.5px uppercase, so it needs 4.5:1. #8a5204 gave only 4.34:1 against the
+   dark-mode panel's lower stop; #7d4a03 gives 5.00:1 there and 6.53:1 in light. */
+html body .sidebar #nav .lbl,
+html.dark body .sidebar #nav .lbl{ color:#7d4a03 !important; opacity:1 !important; }
+
+/* ---- resting item ---- */
+html body .sidebar #nav a,
+html.dark body .sidebar #nav a{ color:#243a5e !important; }
+html body .sidebar #nav a .ic,
+html.dark body .sidebar #nav a .ic{ color:#6b5212 !important; }
+
+/* ---- hover: a wash of NAVY, never of white ---- */
+html body .sidebar #nav a:hover,
+html.dark body .sidebar #nav a:hover{
+  background:rgba(6,24,50,.085) !important; color:#061832 !important;
+}
+html body .sidebar #nav a:hover .ic,
+html.dark body .sidebar #nav a:hover .ic{ color:#061832 !important; }
+
+/* ---- selected: a navy pill that glows ---- */
+html body .sidebar #nav a.active,
+html.dark body .sidebar #nav a.active{
+  background:linear-gradient(90deg,#061832 0%,#123059 100%) !important;
+  color:#fff6c9 !important; font-weight:650 !important;
+  border-radius:9px !important; margin-right:10px !important;
+  box-shadow:0 2px 10px rgba(6,24,50,.42), 0 0 0 1px rgba(6,24,50,.22) !important;
+}
+html body .sidebar #nav a.active .ic,
+html.dark body .sidebar #nav a.active .ic{ color:#fff3a6 !important; }
+html body .sidebar #nav a.active::before,
+html.dark body .sidebar #nav a.active::before{
+  background:#fff3a6 !important; width:3px !important;
+  border-radius:0 3px 3px 0 !important;
+  box-shadow:0 0 10px rgba(255,243,166,.95) !important;   /* the glow */
+}
+
+/* ---- footer ---- */
+html body .sidebar .side-foot,
+html.dark body .sidebar .side-foot{
+  border-top:1px solid rgba(122,71,0,.24) !important; color:#6b4a12 !important;
+}
+html body .sidebar .side-foot .side-ver{ color:#8a5204 !important; opacity:.9 !important; }
+
+/* ---- the drawer backdrop on small screens ---- */
+html body .nav-backdrop{ background:rgba(6,24,50,.42) !important; }
+
+/* ===== lock screen: the same gold panel ===== */
+html body .lockscreen .auth-brand{
+  background:linear-gradient(170deg,#fff6bd 0%,#fff3a6 48%,#f3dd93 100%) !important;
+  color:#061832 !important; border-right:1px solid rgba(122,71,0,.30) !important;
+}
+html body .lockscreen .auth-brand::before{ border-color:rgba(122,71,0,.38) !important; }
+html body .lockscreen .auth-brand::after{ background:radial-gradient(circle, rgba(122,71,0,.14), transparent 62%) !important; }
+html body .lockscreen .auth-name{ color:#061832 !important; text-shadow:0 1px 0 rgba(255,255,255,.5) !important; }
+html body .lockscreen .auth-tag{ color:#6b4a12 !important; }
+/* Same reason as the sidebar logo: the emblem's ink is navy, so the seal keeps
+   its cream plate. */
+html body .lockscreen .auth-seal{
+  background-color:var(--bcream) !important; background-image:var(--emblem) !important;
+  background-size:72% !important; background-position:center !important; background-repeat:no-repeat !important;
+  border:1px solid rgba(122,71,0,.34) !important;
+  box-shadow:0 8px 22px rgba(122,71,0,.32), inset 0 1px 0 rgba(255,255,255,.55) !important;
+}
+html body .lockscreen .auth-divider{
+  background:linear-gradient(90deg,rgba(122,71,0,0),#8a5204,rgba(122,71,0,0)) !important; height:1.5px !important;
+}
+
+/* The totals row sets navy text on a gold wash. In dark mode that lands at
+   1.17:1 against the dark panel — invisible. Light text, gold rule instead. */
+html.dark table.data tr.tot td{
+  background:rgba(254,220,85,.10) !important;
+  color:#fff3a6 !important;
+  border-top:1.5px solid rgba(254,220,85,.45) !important;
+}

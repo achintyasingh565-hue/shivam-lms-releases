@@ -96,7 +96,9 @@
       if(!ls.length) return lrows(ls);
       const isNew=(typeof isNewLoan==='function')?isNewLoan:function(){return false;};
       const n=ls.filter(isNew), o=ls.filter(l=>!isNew(l));
-      if(!n.length || !o.length) return lrows(ls);          // nothing to separate
+      /* Always label the group, even when a borrower has only one kind. The
+         heading is the confirmation that the loan IS new; hiding it meant a
+         borrower with a single new loan looked no different from an old one. */
       return lgroup(n,'New Loans')+lgroup(o,'Earlier Loans');
     };
     const lrows=ls=>ls.length?ls.map(l=>`<tr><td>${esc(l.acno)}${(typeof newBadge==='function')?newBadge(l):''}</td><td>${esc(l.type)}</td><td class="right num">${inr(l.principal)}</td><td class="right num">${inr(l.outstanding)}</td><td>${fmtDate(l.due)||'\u2014'}</td><td><span class="badge ${autoStatus(l).toLowerCase()}">${autoStatus(l)}</span></td><td><div class="rowact"><button class="iconbtn" title="Welcome Letter" onclick="openWelcomeLetter('${l.id}')">${SVG.mail}</button><button class="iconbtn" title="Loan File (booklet)" onclick="openLoanFile('${l.id}')">${SVG.book}</button><button class="iconbtn cert" title="Generate Certificate" onclick="certFromLoan('${l.id}')">${SVG.fileDoc}</button><button class="iconbtn" title="Repayment Schedule" onclick="openSchedule('${l.id}')">${SVG.cal}</button><button class="iconbtn" title="Restructure / Record payment" onclick="openRestructure('${l.id}')" style="font-weight:800;font-size:15px;">₹</button><button class="iconbtn" title="Edit" onclick="openLoan('${l.id}')">${SVG.edit}</button><button class="iconbtn del" title="Delete" onclick="delLoan('${l.id}')">${SVG.trash}</button></div></td></tr>`).join(''):'<tr><td colspan="7" class="muted" style="padding:10px;">None</td></tr>';

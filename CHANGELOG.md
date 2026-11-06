@@ -9,6 +9,91 @@ charged, and the instalment itself moves forward, extending the schedule.
 
 ---
 
+## 2.29.0
+
+A verification release. No new features and no change to the lending model — this is the
+result of going back through 2.28.0 looking for what I had got wrong, and I found four
+things. All four were in my own colour work; none of them had shipped yet.
+
+### The logo would have been an empty navy square
+
+The monogram's ink is **navy** — sampled from the file, the dominant colour is rgb(0,28,56).
+When I restyled the brand block I set the plate behind it to `#061832`, which is the same
+navy. Contrast of the S against its own plate: **1.03:1** — invisible. The same mistake was
+in the sign-in page's seal.
+
+Both now keep the cream plate the printed logo uses, which gives the navy **14.3:1**, with a
+thin brown edge because cream on the gold panel is only 1.07:1 and the tile would otherwise
+have had no shape.
+
+This is the one I am most annoyed about: the contrast audit I ran on 2.28.0 only measured
+*text*, so an image sitting on a background of its own colour went straight past it.
+
+### Fourteen of my seventeen sidebar rules were being overruled
+
+`.sidebar .nav a:hover` with `!important` exists in both `03-glass.css` and `06-redesign.css`,
+and `01-base.css` carries `html.dark #nav a:hover` — an **ID**. My replacements were written
+with classes only, so the old navy-sidebar colours would have won and the menu would have
+rendered white text on the new gold panel.
+
+Every rule has been rewritten as `html body .sidebar #nav …`, duplicated for `html.dark`. A
+cascade resolver run against all eight stylesheets in load order now reports **0 of my rules
+losing**, across 28 surfaces in both light and dark mode.
+
+### The totals row was unreadable in dark mode
+
+`table.data tr.tot td` put navy text on a gold wash. Against the dark panel that is
+**1.17:1**. Dark mode now gets its own rule — gold text on a faint gold wash, **13.9:1**.
+
+### A section label just missed the line
+
+Burnt gold `#8a5204` on the dark-mode panel's lower stop measured 4.34:1. The labels are
+10.5px uppercase, so they need 4.5:1. Darkened to `#7d4a03` — **5.00:1** dark, 6.53:1 light.
+
+### What was verified before release
+
+- 39 offline test suites pass, and pass again under `TZ=Asia/Kolkata`
+- the 15 core lending rules re-asserted — flat interest, the 4% deduction, byaj principal
+- lint clean, build clean, bundle parses, all 36 modules parse
+- 568 element ids with no duplicates, 735/735 divs balanced, every inline handler resolves
+- no scope leaks (`tools/scan-scope.js`), no duplicated globals (`tools/scan-collisions.js`)
+- every foreground on the two gold panels measured: **lowest 4.60:1**, nothing below threshold
+
+**Not verified:** the 49 Playwright suites still need a browser I do not have, and I could not
+render the interface to look at it — so the *balance* of the gold panel against the content
+area is still something only you can judge on screen.
+
+---
+
+## 2.28.0
+
+### The sidebar is now gold, not navy
+
+I had read "#fff3a6 in the sidebar" as an accent colour and used it on text. It meant the
+**panel background**. Both the application sidebar and the sign-in page's side panel are now
+`#fff3a6`, and everything on them has been re-coloured for a light surface:
+
+- menu items in deep navy, section labels and icons in burnt gold
+- hover is a wash of navy rather than of white
+- **a selected tab is a navy pill that glows** — a gold edge marker with a soft halo, gold icon and
+  cream label. On a gold panel, navy is the only thing that reads as "selected".
+- the brand mark keeps a navy plate behind it, because the monogram's gold E needs a dark ground
+
+Every rule in the base stylesheet assumed a dark panel — white text, white-alpha hovers, dark
+borders — so each one is answered individually rather than left to cascade.
+
+**Contrast was measured, not eyeballed.** Every element on the gold panel passes WCAG AA; the
+lowest ratio is 5.10:1 (the version line) against a 4.5 requirement, and the selected tab reaches
+16.28:1.
+
+### Customers & Loans
+
+- **The New / Earlier headings now always appear.** They were only shown when a borrower had both
+  kinds, so a borrower with a single new loan looked no different from one with an old loan — which
+  is exactly the case you were looking at. The heading is the confirmation.
+
+---
+
 ## 2.27.0
 
 ### Sidebar
