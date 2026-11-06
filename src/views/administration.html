@@ -184,8 +184,16 @@
             <button class="btn btn-primary" style="margin-top:12px;" onclick="saveWaTemplates()">Save Templates</button>
           </div>
           <div class="panel">
+            <h3>Hindi Names for Messages</h3>
+            <p class="ph-sub">Hindi messages need the borrower's name in Devanagari. This fills a
+              suggestion for everyone who has none yet — you review and correct them on the
+              borrower's own record, and every correction is remembered for the next name.</p>
+            <button class="btn" onclick="hiFillAllNames()">Suggest Hindi names for all borrowers</button>
+            <span id="hiFillNote" class="ph-sub" style="margin-left:10px;"></span>
+          </div>
+          <div class="panel">
             <h3>Message Wording Templates</h3>
-            <div class="varbox">Available tags: <code>{name}</code> <code>{acno}</code> <code>{emi}</code> <code>{due_date}</code> <code>{outstanding}</code> <code>{arrears}</code> <code>{fine}</code> <code>{rate}</code> <code>{occasion}</code> <code>{date}</code></div>
+            <div class="varbox">Available tags: <code>{name}</code> <code>{acno}</code> <code>{emi}</code> <code>{due_date}</code> <code>{outstanding}</code> <code>{arrears}</code> <code>{fine}</code> <code>{rate}</code> <code>{occasion}</code> <code>{date}</code> <code>{tenure}</code> <code>{bank}</code> <code>{cheque}</code> <code>{loanid}</code></div>
             <div class="tpl-grid">
               <div><div class="tpl-h">Due-date reminder · English</div><textarea id="tpl_reminder" rows="3"></textarea></div>
               <div><div class="tpl-h">किस्त याद-पत्र · हिन्दी</div><textarea id="tpl_reminder_hi" rows="3" dir="auto"></textarea></div>

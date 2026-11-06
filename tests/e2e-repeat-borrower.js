@@ -62,7 +62,12 @@ function form(typedName, editing, preset, accept) {
   ctx.window = ctx;
   vm.createContext(ctx);
   vm.runInContext(
-    slice('var LOAN_COPY_FIELDS = [').split('\n').slice(0, 5).join('\n') + '\n' +
+    /* Read the declaration to its closing bracket rather than a fixed number of
+       lines: a comment added inside the array used to truncate it mid-literal,
+       which failed as a syntax error two statements later. */
+    (() => { const L = slice('var LOAN_COPY_FIELDS = [').split('\n');
+             const end = L.findIndex(x => /^\s*\];/.test(x));
+             return L.slice(0, end < 0 ? 5 : end + 1).join('\n'); })() + '\n' +
     slice('function _normName(v)') + '\n' +
     slice('window.loanNameLookup = function()') + '\n', ctx);
   vm.runInContext('loanNameLookup();', ctx);

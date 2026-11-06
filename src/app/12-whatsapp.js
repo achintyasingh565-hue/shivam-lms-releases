@@ -103,7 +103,7 @@
     // the balance.
     if(it.amt!=null && /\{outstanding\}/.test(it.tpl||'') && !/\{(amount|emi|arrears)\}/.test(it.tpl||'')){ ex.outstanding=inr(it.amt); if(it.vars){ it.vars.outstanding=inrPlain(it.amt); } }
     if(it.dueStr){ ex.due_date=it.dueStr; if(it.vars){ it.vars.due_date=it.dueStr; } }
-    if(l && it.tpl){ it.msg=applyVars(it.tpl, l, ex); }
+    if(l && it.tpl){ it.msg=applyVars(it.tpl, l, ex, it.lang); }   /* it.lang — so an edited Hindi row keeps the Hindi name */
   }
   function waSetAmount(id, val){
     if(!_review||!_review.items) return;

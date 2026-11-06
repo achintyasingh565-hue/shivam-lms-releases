@@ -9,6 +9,73 @@ charged, and the instalment itself moves forward, extending the schedule.
 
 ---
 
+## 2.22.0
+
+### Added
+
+- **Hindi names are now suggested, not typed.** Typing a hundred borrower names in Devanagari on a
+  desktop keyboard is not realistic, so the app fills a suggestion from the English name and you
+  correct it. Three parts:
+  - **In the loan modal**, leaving the Borrower Name box fills the Hindi box — but only if it is
+    still empty. Anything you have typed is never overwritten.
+  - **In Administration**, *Suggest Hindi names for all borrowers* fills every record that has none,
+    after showing you five examples and asking. Existing Hindi names are left alone.
+  - **It learns.** Correct a name once and that spelling is used for every borrower sharing the
+    word. Fix "Nishad" on one record and every other Nishad is right from then on.
+- **Occasions are translated for Hindi messages.** The Occasion box is shared by both languages, so
+  typing *Diwali* now produces दीपावली in a Hindi message and *Diwali* in an English one. Around 30
+  common occasions are recognised; Devanagari typed straight into the box is passed through.
+
+### How good are the suggestions
+
+About 150 common Indian names and surnames are built in and come out right. Anything outside that
+list is transliterated by rule, which handles gemination (Munna → मुन्ना), homorganic nasals
+(Phoolchand → फूलचंद) and word-final vowels (Chaturvedi → चतुर्वेदी), but **cannot resolve the
+long/short vowel ambiguity in Roman spelling** — "Ram" could be रम or राम and nothing in the
+spelling says which. **Treat every suggestion as a draft and check it before sending.** The
+learning map is what makes this workable at a hundred names: you correct each surname once.
+
+Documents are untouched throughout — the loan file, agreement, promissory note, notices and
+certificates all continue to use the English name.
+
+---
+
+## 2.21.0
+
+### Fixed — messages
+
+- **A Hindi message carried an English borrower name.** `{name}` resolves from the one name field on
+  the loan record, which is also what prints on the loan file, the agreement, the promissory note
+  and every notice and certificate. Editing the Hindi template could never change it, and renaming
+  the borrower in Hindi would have put Hindi names on documents that may end up in court. There is
+  now an **optional "Name in Hindi" field** on the borrower tab, used *only* when the message
+  language is Hindi, falling back to the English name when it is blank. Nothing else reads it —
+  every document is unchanged.
+- **An unrecognised placeholder was sent to the borrower verbatim.** The substitution returned the
+  token unchanged when it wasn't in the map, so a template edited to use `{tenure}` or `{bank}`
+  WhatsApped a customer the literal text `{tenure}`. Unknown tokens are now dropped, and the double
+  space and the space-before-punctuation they leave behind are tidied — including before a Hindi
+  danda (।).
+- **`{tenure}`, `{bank}`, `{txn}` and `{loanid}` were missing from the base variable map** and only
+  resolved for the handful of message types whose own variable list happened to carry them. All
+  four now resolve for every type. `{tenure}` uses the product-aware wording, so a byaj loan reads
+  "Monthly, until the principal is repaid" rather than 0.
+- **The WhatsApp send path now carries the row's language**, so an edited Hindi message keeps the
+  Hindi name when it is actually sent rather than reverting on the way out.
+
+### Checked, no defect found
+
+All 16 English templates have a Hindi counterpart, and every en/hi pair uses an identical set of
+placeholders — verified by comparing the two sets template by template.
+
+### Tests
+
+`tests/e2e-hindi-name-templates.js` — 33 checks, including a sweep that renders **all 32 shipped
+templates** and asserts none leaves an unresolved token, and that every Hindi template carrying
+`{name}` shows the Hindi name and not the English one.
+
+---
+
 ## 2.20.1
 
 ### Fixed
