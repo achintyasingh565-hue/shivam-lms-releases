@@ -1,6 +1,6 @@
 {
   "name": "shivam-enterprises-lms",
-  "version": "2.24.0",
+  "version": "2.26.0",
   "description": "Shivam Enterprises Loan Management System — loan records, payments, customers, certificates & documents.",
   "author": "Shivam Enterprises (Finance)",
   "main": "main.js",
@@ -37,6 +37,7 @@
       "app.bundle.js",
       "src/theme-boot.js",
       "src/styles/**/*",
+      "src/assets/**/*",
       "src/vendor/**/*",
       "build/icon.png",
       "build/icon.ico"

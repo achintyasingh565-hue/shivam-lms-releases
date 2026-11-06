@@ -9,6 +9,76 @@ charged, and the instalment itself moves forward, extending the schedule.
 
 ---
 
+## 2.26.0
+
+### Brand
+
+- **The logo is now the SE monogram alone** — no ring, no wordmark — cut from the artwork and keyed
+  to a transparent background, so it sits on any surface. It is the app icon on macOS and Windows,
+  the PWA icon, and the mark on the lock screen, the sign-in card and the sidebar.
+- **The monogram's S is navy, so on the navy sidebar it would disappear.** In dark contexts it sits
+  on the same cream plate the printed logo uses. On light surfaces it stands alone.
+- Quantising the icons to PNG8 with alpha cut them from 56 KB to 8 KB of base64; the bundle came
+  *down* 26 KB despite the new artwork.
+
+### Interface
+
+A pass over the whole shell, **in CSS only** — no markup and no script was touched, so none of it
+can reach the loan arithmetic:
+
+- **Tables** — a soft navy-on-ivory header, alternating ivory rows, a clear hover, and a gold-tinted
+  totals row. Money columns now use tabular figures so digits line up down the column.
+- **Figures** — KPI numbers enlarged and set in brand navy with uppercase labels; the first tile in
+  each row carries a gold top edge so the eye has somewhere to land.
+- **Panels** — a longer, softer shadow that lifts slightly on hover.
+- **Sidebar** — gold section labels, more air between items, and an active item lit with a gold wash
+  instead of blue.
+- **Topbar** — a faint gold rule across the very top of the application.
+- **Forms** — focus rings in brand navy (gold in dark mode) rather than a generic blue.
+- **Modals** — a gold hairline under the header, deeper shadow, rounder corners.
+- **Empty states** — the monogram as a 4% watermark.
+
+Everything above is appended to `src/styles/07-brand.css` as one block. Deleting that block returns
+the app to its previous appearance exactly. Printed documents are explicitly excluded.
+
+---
+
+## 2.25.0
+
+### Brand
+
+- **The Shivam Enterprises emblem is now the app's identity.** It replaces the lettered "SE" marks
+  on the lock screen, the sign-in card and the sidebar, and it is the application icon on macOS and
+  Windows and in the PWA manifest.
+- **The palette is sampled from the emblem**, not chosen by eye: the navy field (#061832), the cream
+  plate (#f7e8d7) and the five stops of the gold bevel, from the #fff3a6 highlight down to the
+  #7a4700 shadow.
+- **Gold is used in four places only**, where it reads as finish rather than decoration: the
+  wordmark, a hairline under the page title, the active section marker, and a shorter hairline
+  under each panel heading. Primary buttons keep a navy body with one lit top edge. Printed
+  documents are untouched.
+
+Technical notes: the emblem is masked to a transparent disc so it sits cleanly on light and dark
+surfaces — the square source would otherwise box it in. The in-app copy is a 256px file under
+`src/assets` rather than an inline data URI; only the two manifest icons are embedded, at 192px and
+128px, which costs the bundle 8 KB.
+
+---
+
+## 2.24.1
+
+### Build pipeline
+
+- **Silenced the GitHub Actions Node 20 deprecation warning.** `actions/checkout` and
+  `actions/setup-node` bumped v4 → v5 in all three jobs (test, boot-smoke, build). v5 runs on
+  Node 24, which is what the runner was forcing them onto anyway. A warning only — builds were
+  never failing.
+- **`node-version: '20'` is deliberately unchanged.** That is the Node the app is *built* with, not
+  the Node the action runs on, and the warning did not concern it. Changing it could alter how
+  Electron packages the app, so it stays until there is a reason to move it.
+
+---
+
 ## 2.24.0
 
 ### Removed — Hindi borrower names

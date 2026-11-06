@@ -4,7 +4,22 @@
  * Purely visual (colours / type / accents) — no layout or JS changes.
  * Brand palette taken from the printed documents.
  * ===================================================================== */
-:root{ --bnavy:#0b1f4b; --bnavy2:#12305f; --bgold:#c8a02a; --bgoldl:#e6cd7a; --bcream:#faf7ef; }
+:root{
+  /* Sampled from the Shivam Enterprises emblem, not chosen by eye:
+     the navy field, the cream plate and the five stops of the gold bevel. */
+  --bnavy:#061832; --bnavy2:#0d2a52; --bcream:#f7e8d7;
+  --bgold-sh:#7a4700;   /* bevel shadow  */
+  --bgold-dk:#b87103;   /* bevel lower   */
+  --bgold:#c8870a;      /* body gold     */
+  --bgold-mid:#e1970a;  /* lettering     */
+  --bgoldl:#fedc55;     /* bevel upper   */
+  --bgold-hi:#fff3a6;   /* highlight     */
+  /* A struck-metal bevel: light above, shadow below. */
+  --gold-emboss:linear-gradient(180deg,#fff3a6 0%,#fedc55 17%,#e1970a 45%,#b87103 73%,#7a4700 100%);
+  /* A rule that catches the light in the middle and fades at both ends. */
+  --gold-rule:linear-gradient(90deg,rgba(122,71,0,0) 0%,#b87103 16%,#fedc55 50%,#b87103 84%,rgba(122,71,0,0) 100%);
+  --emblem:url("../assets/emblem.png");
+}
 
 /* ---------------- LOGIN / LOCK SCREEN ---------------- */
 .lockscreen .auth-brand{
@@ -17,17 +32,22 @@
 .lockscreen .auth-graph, .lockscreen .auth-sky, .lockscreen .auth-brand::after, .lockscreen .auth-badge{ display:none !important; }
 /* thin elegant gold keyline frame */
 .lockscreen .auth-brand::before{ content:""; position:absolute; inset:24px; border:1px solid rgba(200,160,42,.34); pointer-events:none; z-index:1; }
-.auth-seal{ position:relative; width:70px; height:70px; margin:0 auto 24px; border-radius:50%;
-  border:1.5px solid var(--bgold); display:flex; align-items:center; justify-content:center;
-  font-family:Georgia,"Times New Roman",serif; font-weight:bold; font-size:25px; color:var(--bgoldl); letter-spacing:1px; }
+/* The real emblem, not two letters in a circle. font-size:0 hides the "SE"
+   text that remains in the markup as a fallback if the image ever fails. */
+.auth-seal{ position:relative; width:104px; height:104px; margin:0 auto 24px; border-radius:50%;
+  background:var(--emblem) center/contain no-repeat; border:0; font-size:0; color:transparent;
+  filter:drop-shadow(0 6px 16px rgba(0,0,0,.45)); }
 .auth-name{ font-family:Georgia,"Times New Roman",serif !important; font-weight:bold !important;
   letter-spacing:3px !important; text-align:center !important; }
 .auth-divider{ margin:20px auto !important; background:var(--bgold) !important; }
 .auth-tag{ text-align:center !important; letter-spacing:.4px !important; color:#c2cee4 !important; }
 
 /* card side */
-.auth-mark{ background:var(--bnavy) !important; border-color:var(--bgold) !important; }
-.auth-mark>span{ color:var(--bgoldl) !important; font-family:Georgia,"Times New Roman",serif !important; }
+/* The emblem is a disc with transparent corners, so the element must be a disc
+   too — otherwise its shadow draws a square behind the circle. */
+.auth-mark{ background:var(--emblem) center/contain no-repeat !important; border:0 !important;
+  border-radius:50% !important; box-shadow:0 3px 10px rgba(6,24,50,.26) !important; }
+.auth-mark>span{ font-size:0 !important; color:transparent !important; }
 .auth-welcome{ font-family:Georgia,"Times New Roman",serif !important; color:var(--bnavy) !important; }
 .lockscreen.dark .auth-welcome{ color:#f1f5f9 !important; }
 .auth-field:focus-within{ border-color:var(--bnavy) !important; box-shadow:0 0 0 3px rgba(11,31,75,.12) !important; }
@@ -40,7 +60,10 @@
 
 /* ---------------- SIDEBAR ---------------- */
 html:not(.dark) .sidebar{ background:linear-gradient(180deg,#0d2148,#07152f) !important; }
-.sidebar .side-brand .logo{ color:var(--bgoldl) !important; font-family:Georgia,"Times New Roman",serif !important; border-color:var(--bgold) !important; }
+.sidebar .side-brand .logo{ background:var(--emblem) center/contain no-repeat !important;
+  border:0 !important; border-radius:50% !important; box-shadow:none !important;
+  font-size:0 !important; color:transparent !important;
+  filter:drop-shadow(0 2px 5px rgba(0,0,0,.40)); }
 .sidebar .side-brand .bt h1{ font-family:Georgia,"Times New Roman",serif !important; letter-spacing:.6px !important; }
 .sidebar .side-brand .bt p{ color:var(--bgoldl) !important; opacity:.8; }
 .sidebar .side-foot{ font-family:Georgia,"Times New Roman",serif !important; }
@@ -207,3 +230,174 @@ html.dark #sec-pay .reg-table td .name{ color:#e8edf5; }
 #sec-pay .reg-table .pp.ok{ background:#e6f6ec; color:#0b7a4b; }
 #sec-pay .reg-table .pp.pend{ background:#fdf0d8; color:#8a5a00; }
 #sec-pay .bulk-warn{ color:#b42318; font-weight:600; }
+
+/* ===================================================================
+   Gold emboss — used sparingly, where it reads as finish rather than
+   decoration. Four places only: the wordmark, the rule under a page
+   title, the active nav marker, and the heading of a panel.
+   =================================================================== */
+
+/* The firm's name, struck in the same gold as the emblem. */
+.sidebar .side-brand .bt h1{
+  background:var(--gold-emboss);
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent; color:transparent;
+  text-shadow:0 1px 0 rgba(0,0,0,.35);
+}
+.sidebar .side-brand .bt p{ color:var(--bgold-mid) !important; opacity:.85; letter-spacing:1.1px; }
+
+/* A hairline of gold under the page title — the single strongest accent. */
+.topbar #pageTitle{ position:relative; padding-bottom:7px; }
+.topbar #pageTitle::after{
+  content:""; position:absolute; left:0; bottom:0; width:54px; height:2px;
+  background:var(--gold-rule); border-radius:2px;
+}
+
+/* The active section, marked in gold rather than blue. */
+.nav a.active::before{ background:var(--gold-emboss) !important; width:3px !important; border-radius:0 2px 2px 0; }
+.nav a.active{ color:var(--bgoldl) !important; }
+
+/* Panel headings get the same hairline, at a smaller scale. */
+.panel > h3{ position:relative; padding-bottom:8px; }
+.panel > h3::after{
+  content:""; position:absolute; left:0; bottom:0; width:34px; height:1.5px;
+  background:var(--gold-rule); border-radius:2px; opacity:.9;
+}
+
+/* Primary buttons: navy body, with one lit edge so they look struck, not flat. */
+.btn-primary{
+  background:linear-gradient(180deg,var(--bnavy2),var(--bnavy)) !important;
+  border:1px solid rgba(254,220,85,.30) !important;
+  box-shadow:inset 0 1px 0 rgba(254,220,85,.34), 0 1px 2px rgba(6,24,50,.30) !important;
+}
+.btn-primary:hover{ box-shadow:inset 0 1px 0 rgba(255,243,166,.52), 0 2px 6px rgba(6,24,50,.36) !important; }
+
+/* The lock screen's divider, in the emblem's gold. */
+.auth-divider{ background:var(--gold-rule) !important; height:1.5px !important; border:0 !important; }
+
+/* Dark mode: the bevel needs a touch more light to stay legible. */
+html.dark .sidebar .side-brand .bt h1{ text-shadow:0 1px 0 rgba(0,0,0,.6); }
+html.dark .panel > h3::after, html.dark .topbar #pageTitle::after{ opacity:1; }
+
+/* Never on paper — printed documents keep their own black-on-white rules. */
+@media print{
+  .topbar #pageTitle::after, .panel > h3::after{ display:none !important; }
+  .sidebar .side-brand .bt h1{ -webkit-text-fill-color:initial !important; color:#000 !important; background:none !important; }
+}
+
+/* ===================================================================
+   INTERFACE LAYER — v2.26
+   Appended, never edited into the base sheet, so every rule here can be
+   removed by deleting this block. CSS only: no markup and no script was
+   touched, so nothing about the loan arithmetic can be affected.
+   =================================================================== */
+
+/* --- the monogram needs a plate on dark surfaces ------------------
+   The S is navy. On the navy sidebar it would simply vanish, so in dark
+   contexts it sits on the same cream plate the printed logo uses. */
+.sidebar .side-brand .logo{
+  background-color:var(--bcream) !important;
+  background-size:76% !important;
+  border-radius:12px !important;
+  box-shadow:0 1px 0 rgba(255,255,255,.35) inset, 0 2px 8px rgba(0,0,0,.35) !important;
+  filter:none !important;
+}
+.auth-seal{ background-color:var(--bcream); background-size:72%; border-radius:26px;
+  box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 8px 22px rgba(0,0,0,.42); }
+.auth-mark{ background-color:var(--bcream) !important; background-size:72% !important;
+  border-radius:16px !important; }
+
+/* --- money should line up --------------------------------------- */
+.data td.num, .data td.right, .data th.right, .num,
+.kpi-row .v, .pay-tiles .v{ font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1; }
+
+/* --- tables: a quiet navy header, ivory banding, a clear hover ---- */
+table.data thead th{
+  background:linear-gradient(180deg,#f3f6fb,#e9eef6);
+  color:var(--bnavy); font-weight:700; letter-spacing:.2px;
+  border-bottom:1.5px solid #d7e0ee;
+}
+table.data tbody tr:nth-child(even){ background:rgba(247,232,215,.26); }
+table.data tbody tr:hover{ background:rgba(6,24,50,.055); }
+table.data tbody td{ border-bottom:1px solid #eef2f8; }
+table.data tbody tr:last-child td{ border-bottom:0; }
+table.data tr.tot td{ background:rgba(254,220,85,.16); font-weight:700; color:var(--bnavy); border-top:1.5px solid var(--bgold-dk); }
+html.dark table.data thead th{ background:linear-gradient(180deg,#16233a,#111c30); color:#e8eefc; border-bottom-color:#263450; }
+html.dark table.data tbody tr:nth-child(even){ background:rgba(255,255,255,.028); }
+html.dark table.data tbody tr:hover{ background:rgba(254,220,85,.07); }
+html.dark table.data tbody td{ border-bottom-color:#1c2941; }
+
+/* --- panels: lift them off the page a little --------------------- */
+.panel{
+  border-radius:15px;
+  box-shadow:0 1px 2px rgba(6,24,50,.05), 0 8px 22px -14px rgba(6,24,50,.26);
+  transition:box-shadow .18s ease;
+}
+.panel:hover{ box-shadow:0 1px 2px rgba(6,24,50,.06), 0 14px 32px -16px rgba(6,24,50,.30); }
+html.dark .panel{ box-shadow:0 1px 2px rgba(0,0,0,.35), 0 10px 26px -16px rgba(0,0,0,.6); }
+
+/* --- the figures that matter, given room to breathe --------------- */
+.kpi-row .v, .pay-tiles .v{ font-size:25px; font-weight:750; letter-spacing:-.6px; color:var(--bnavy); }
+html.dark .kpi-row .v, html.dark .pay-tiles .v{ color:#eaf1ff; }
+.kpi-row .k, .pay-tiles .k{ text-transform:uppercase; letter-spacing:.8px; font-size:10.5px; font-weight:700; color:var(--grey); }
+/* one gold edge on a tile, so the row has a focal point */
+.kpi-row > *:first-child, .pay-tiles > *:first-child{ position:relative; overflow:hidden; }
+.kpi-row > *:first-child::before, .pay-tiles > *:first-child::before{
+  content:""; position:absolute; left:0; right:0; top:0; height:2.5px; background:var(--gold-emboss);
+}
+
+/* --- sidebar: more air, gold section labels ----------------------- */
+.nav .lbl{ color:var(--bgold-mid) !important; letter-spacing:1.4px; font-size:10px; font-weight:700; opacity:.9; }
+.nav a{ border-radius:0 9px 9px 0; margin-right:10px; transition:background .15s ease, color .15s ease; }
+.nav a.active{ background:linear-gradient(90deg,rgba(254,220,85,.14),rgba(254,220,85,.03)) !important; }
+.nav a:hover{ background:rgba(255,255,255,.07); }
+.nav a.active .ic, .nav a:hover .ic{ color:var(--bgoldl) !important; }
+
+/* --- topbar: a hairline of brand at the very top ------------------ */
+.topbar{ position:relative; }
+.topbar::before{ content:""; position:absolute; left:0; right:0; top:0; height:2px; background:var(--gold-rule); opacity:.55; }
+
+/* --- forms: focus in the brand navy, not a generic blue ----------- */
+.fg input:focus, .fg select:focus, .fg textarea:focus,
+input:focus, select:focus, textarea:focus{
+  border-color:var(--bnavy2) !important;
+  box-shadow:0 0 0 3px rgba(13,42,82,.13) !important; outline:none !important;
+}
+html.dark .fg input:focus, html.dark .fg select:focus, html.dark .fg textarea:focus,
+html.dark input:focus, html.dark select:focus, html.dark textarea:focus{
+  border-color:var(--bgold) !important; box-shadow:0 0 0 3px rgba(200,135,10,.20) !important;
+}
+
+/* --- modals: a brand header rule ---------------------------------- */
+.modal-head{ border-bottom:1px solid var(--line); position:relative; }
+.modal-head::after{ content:""; position:absolute; left:0; bottom:-1px; width:72px; height:2px; background:var(--gold-rule); }
+.modal{ border-radius:16px; box-shadow:0 24px 60px -18px rgba(6,24,50,.45); }
+
+/* --- secondary buttons: calmer, with a navy hover ----------------- */
+.btn{ transition:background .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.btn:not(.btn-primary):not(.btn-danger):hover{ border-color:var(--bnavy2); color:var(--bnavy); }
+html.dark .btn:not(.btn-primary):not(.btn-danger):hover{ border-color:var(--bgold); color:var(--bgoldl); }
+
+/* --- scrollbars in the app chrome --------------------------------- */
+.main::-webkit-scrollbar, .modal-body::-webkit-scrollbar, .table-wrap::-webkit-scrollbar{ width:10px; height:10px; }
+.main::-webkit-scrollbar-thumb, .modal-body::-webkit-scrollbar-thumb, .table-wrap::-webkit-scrollbar-thumb{
+  background:rgba(6,24,50,.22); border-radius:8px; border:2px solid transparent; background-clip:content-box;
+}
+.main::-webkit-scrollbar-thumb:hover, .modal-body::-webkit-scrollbar-thumb:hover{ background:rgba(6,24,50,.36); background-clip:content-box; }
+
+/* --- empty states: the monogram, very faint ----------------------- */
+.empty .big, .pay-empty::before{ opacity:.5; }
+.empty{ position:relative; }
+.empty::after{
+  content:""; position:absolute; inset:0; margin:auto; width:120px; height:120px;
+  background:var(--emblem) center/contain no-repeat; opacity:.045; pointer-events:none; z-index:0;
+}
+.empty > *{ position:relative; z-index:1; }
+
+/* none of this reaches paper */
+@media print{
+  .panel{ box-shadow:none !important; }
+  table.data thead th{ background:none !important; }
+  table.data tbody tr:nth-child(even){ background:none !important; }
+  .empty::after, .topbar::before, .modal-head::after{ display:none !important; }
+}
