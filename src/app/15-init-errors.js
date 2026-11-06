@@ -14,7 +14,7 @@
       logAudit('App Error', (where?where+': ':'')+String(msg).slice(0,300));
       /* rolling diagnostic log (last 50) with stack traces, for support */
       try{ var lg=JSON.parse(localStorage.getItem('shivam_errlog_v1')||'[]'); if(!Array.isArray(lg)) lg=[]; lg.push({at:Date.now(), where:where||'', msg:String(msg).slice(0,300), stack:String(stack||'').slice(0,700)}); localStorage.setItem('shivam_errlog_v1', JSON.stringify(lg.slice(-50))); }catch(_){}
-      if(window._errCount<=2) toast('\u26a0 Something went wrong \u2014 it has been recorded in the Audit Log (Administration).', 6000);
+      if(window._errCount<=2) toast('\u26a0 Something went wrong \u2014 recorded in Administration \u203a Diagnostics (and the Audit Log).', 6000);
     }catch(_){}
   }
   window.errorLog=function(){ try{ return JSON.parse(localStorage.getItem('shivam_errlog_v1')||'[]'); }catch(e){ return []; } };
@@ -106,14 +106,24 @@
     function notify(msg){ var now=Date.now(); if(now-_lastErr<4000) return; _lastErr=now; try{ if(typeof toast==='function') toast(msg, 8000); }catch(_){ } }
     function shortWhere(src,line){ try{ if(!src) return ''; var f=String(src).split('/').pop().split('?')[0]; return f?(' ['+f+(line?(':'+line):'')+']'):''; }catch(_){ return ''; } }
     function clean(m){ m=String(m||'').replace(/^Uncaught\s*/i,'').replace(/^Error:\s*/i,'').trim(); if(m.length>140) m=m.slice(0,140)+'\u2026'; return m||'Unknown error'; }
+    /* This net TELLS the owner something went wrong. It must also RECORD it:
+       it used to only toast, so a fault could flash on screen and leave nothing
+       in the Audit Log or Diagnostics to look up afterwards. reportError
+       de-duplicates, so calling it from both handlers cannot double-log. */
+    function record(where, msg, stack){
+      try{ if(typeof reportError==='function') reportError(where||'', msg||'', stack||''); }catch(_){ }
+    }
     window.addEventListener('error', function(e){
       if(e && e.target && e.target!==window && e.target.tagName) return; /* ignore image/script load errors */
       var detail=clean(e && (e.message||(e.error&&e.error.message)))+shortWhere(e&&e.filename, e&&e.lineno);
-      notify('\u26a0 Something went wrong: '+detail+'\nYour saved data is safe. If this keeps happening, restart the app and restore your latest backup.');
+      record(shortWhere(e&&e.filename, e&&e.lineno).replace(/^ \[|\]$/g,'') || 'window',
+             clean(e && (e.message||(e.error&&e.error.message))), e&&e.error&&e.error.stack);
+      notify('\u26a0 Something went wrong: '+detail+'\nIt has been recorded in Administration \u203a Diagnostics. Your saved data is safe.');
     });
     window.addEventListener('unhandledrejection', function(e){
       var r=e&&e.reason; var detail=clean(r&&(r.message||r));
-      notify('\u26a0 An action could not be completed: '+detail+'\nYour saved data is safe \u2014 please try again, and take a backup if it keeps happening.');
+      record('async', detail, r&&r.stack);
+      notify('\u26a0 An action could not be completed: '+detail+'\nIt has been recorded in Administration \u203a Diagnostics. Your saved data is safe.');
     });
   })();
   window.addEventListener('afterprint',()=>{ if(window._docTitleBak!=null){ document.title=window._docTitleBak; window._docTitleBak=null; } document.body.classList.remove('printing-cert','printing-proposal','printing-hp','printing-hp-all','printing-fullfile','printing-report'); const ff=$('fullFilePrint'); if(ff) ff.innerHTML=''; const rp=$('reportPrint'); if(rp) rp.innerHTML=''; });

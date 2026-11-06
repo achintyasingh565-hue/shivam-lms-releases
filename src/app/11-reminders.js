@@ -109,6 +109,16 @@
     toast(n + ' Hindi name' + (n===1?'':'s') + ' suggested — please review');
   };
 
+  /* The name to SHOW and to send as a template variable: the Hindi one for a
+     Hindi message, the English one otherwise. Module scope on purpose — it was
+     first written inside renderGreetings and then called from renderReminders
+     too, where it was not in scope and threw a ReferenceError that stopped the
+     reminder list being built at all. */
+  function dispName(l, lang){
+    return (lang==='hi' && l && l.nameHi && String(l.nameHi).trim())
+      ? String(l.nameHi).trim()
+      : (l ? l.name : '');
+  }
   function applyVars(text, l, extra, lang){
     extra=extra||{};
     /* A borrower's name is stored once, in English, and prints on every legal
@@ -157,8 +167,14 @@
   function setMsgView(v){
     [...$('msgseg').children].forEach(b=>b.classList.toggle('active', b.dataset.m===v));
     ['reminders','greetings','history'].forEach(k=>{ const e=$('mv-'+k); if(e) e.style.display=(k===v)?'block':'none'; });
-    if(v==='reminders'){ try{ autoRemScan(); }catch(e){} renderAutoPending(); renderReminders(); }
-    if(v==='greetings') renderGreetings(); if(v==='history') renderWaHistory();
+    /* safe() rather than a bare try/catch: a fault here is RECORDED in
+       Diagnostics instead of vanishing, and one broken view no longer stops the
+       others rendering. A ReferenceError in renderReminders previously left the
+       list empty with nothing written to the log. */
+    var _s=(typeof safe==='function') ? safe : function(fn){ return fn(); };
+    if(v==='reminders'){ _s(function(){ autoRemScan(); }, 'autoRemScan'); _s(renderAutoPending, 'renderAutoPending'); _s(renderReminders, 'renderReminders'); }
+    if(v==='greetings') _s(renderGreetings, 'renderGreetings');
+    if(v==='history') _s(renderWaHistory, 'renderWaHistory');
   }
   if($('msgseg')) $('msgseg').addEventListener('click', e=>{ if(e.target.dataset.m) setMsgView(e.target.dataset.m); });
 
@@ -173,7 +189,7 @@
     else if(f==='due') list=list.filter(l=>l.due && l.due>=today && l.due<=in7s);
     list.sort((a,b)=>(a.due||'').localeCompare(b.due||''));
     if(!list.length){ window._remList=[]; $('remWrap').innerHTML=`<div class="empty"><div class="big">&#128100;</div><div class="empty-t">No borrowers in this group</div><div class="empty-s">Change the language or filter above to see who matches.</div></div>`; return; }
-    window._remList = list.map(l=>{ const over=(l._st==='Overdue'); const tpl=lang==='hi'?(over?TPL.overdue_hi:TPL.reminder_hi):(over?TPL.overdue:TPL.reminder); const av=(t)=>applyVars('{'+t+'}',l,{},lang); return {lang:lang, name:l.name, phone:l.phone, acno:l.acno, cat:(over?'Overdue Reminder':'EMI Reminder'), msg:applyVars(tpl,l,{},lang), tpl:tpl, loanId:l.id, amt:(over?Math.round(Number(l.outstanding)||0):Math.round(Number(l.emi)||0)), vars:{name:_dispName(l), acno:l.acno||'', emi:inrPlain(l.emi), due_date:av('due_date'), outstanding:inrPlain(l.outstanding), fine:inrPlain(getLateFee()), rate:av('rate'), amount:inrPlain(l.outstanding), loanid:l.acno||''}}; });
+    window._remList = list.map(l=>{ const over=(l._st==='Overdue'); const tpl=lang==='hi'?(over?TPL.overdue_hi:TPL.reminder_hi):(over?TPL.overdue:TPL.reminder); const av=(t)=>applyVars('{'+t+'}',l,{},lang); return {lang:lang, name:l.name, phone:l.phone, acno:l.acno, cat:(over?'Overdue Reminder':'EMI Reminder'), msg:applyVars(tpl,l,{},lang), tpl:tpl, loanId:l.id, amt:(over?Math.round(Number(l.outstanding)||0):Math.round(Number(l.emi)||0)), vars:{name:dispName(l, lang), acno:l.acno||'', emi:inrPlain(l.emi), due_date:av('due_date'), outstanding:inrPlain(l.outstanding), fine:inrPlain(getLateFee()), rate:av('rate'), amount:inrPlain(l.outstanding), loanid:l.acno||''}}; });
     $('remWrap').innerHTML=`<div class="table-wrap"><table class="data"><thead><tr><th>Borrower</th><th>Phone</th><th class="right">EMI</th><th>Due</th><th>Status</th><th>Message</th></tr></thead><tbody>`+
       list.map(l=>{ const over=(l._st==='Overdue');
         const tpl = lang==='hi' ? (over?TPL.overdue_hi:TPL.reminder_hi) : (over?TPL.overdue:TPL.reminder);
@@ -202,8 +218,8 @@
     else if(who==='active'){ list=list.filter(l=>l._st!=='Closed'); }
     const tpl = lang==='hi' ? (TPL[type+'_hi']||TPL.greeting_hi) : (TPL[type]||TPL.greeting);
     if(!list.length){ window._grList=[]; $('grWrap').innerHTML=`<div class="empty">No customers to message.</div>`; return; }
-    const GR_CAT={greeting:'Greeting / Notice',birthday:'Birthday Greeting',holiday:'Office Closure',thanks:'Payment Confirmation',welcome:'Loan Approval',finalnotice:'Final Notice',demandnotice:'Default Notice',chequepresent:'Cheque Presentation',bounce:'Cheque Bounce',closed:'Loan Closed',cleared:'Cheque Cleared',restructure:'Loan Restructured',accwelcome:'Welcome / Account Opened',launch:'Business Launched'}; const gcat=GR_CAT[type]||'Greeting / Notice'; const _dispName=(l)=>((lang==='hi' && l && l.nameHi && String(l.nameHi).trim()) ? String(l.nameHi).trim() : (l?l.name:''));
-    const grVars=(l)=>{ var _lp=(l.payments||[]).filter(function(p){return Number(p.amount)>0;}).slice(-1)[0]||null; var _cc=(l.payments||[]).filter(function(p){return p.mode==='Cheque'&&p.status==='Cleared';}).slice(-1)[0]||{}; var _pc=(l.payments||[]).filter(function(p){return p.mode==='Cheque'&&p.status!=='Cleared';}).slice(-1)[0]||{}; var _bc=(l.charges||[]).filter(function(c){return c.type==='Cheque bounce';})[0]||{}; var _due=(fmtDate(l.due)||fmtDate(l.disb)||''); if(type==='holiday') return {name:_dispName(l), occasion:occ||'', date:dt||''}; if(type==='thanks') return {name:_dispName(l), amount:inrPlain(_lp?_lp.amount:l.emi), acno:l.acno||'', txn:((_lp&&(_lp.ref||_lp.cheque||fmtDate(_lp.date)))||_due||('A/C '+(l.acno||''))), outstanding:inrPlain(l.outstanding)}; if(type==='welcome') return {name:_dispName(l), acno:l.acno||'', emi:inrPlain(l.emi), due_date:_due, amount:inrPlain(l.principal)}; if(type==='finalnotice') return {name:_dispName(l), acno:l.acno||'', outstanding:inrPlain(l.outstanding), due_date:_due}; if(type==='demandnotice') return {name:_dispName(l), acno:l.acno||'', arrears:inrPlain(l.arrears||0), due_date:_due, outstanding:inrPlain(l.outstanding)}; if(type==='bounce') return {name:_dispName(l), acno:l.acno||'', amount:inrPlain(_bc.amount||0), txn:(_bc.cheque||''), cheque:(_bc.cheque||'')}; if(type==='closed') return {name:_dispName(l), acno:l.acno||'', principal:inrPlain(l.principal||0), disbursed:inrPlain(l.principal||0)}; if(type==='cleared') return {name:_dispName(l), acno:l.acno||'', amount:inrPlain(_cc.amount||0), txn:(_cc.cheque||''), cheque:(_cc.cheque||'')}; if(type==='chequepresent') return {name:_dispName(l), acno:l.acno||'', amount:inrPlain(_pc.amount||l.emi||0), cheque:(_pc.cheque||''), bank:(_pc.bank||'your bank'), date:(dt||fmtDate(_pc.date)||_due||'')}; if(type==='restructure') return {name:_dispName(l), acno:l.acno||'', emi:inrPlain(l.emi), tenure:((typeof tenureText==='function')?tenureText(l):String(l.tenure||''))}; if(type==='accwelcome') return {name:_dispName(l), acno:l.acno||''}; if(type==='launch') return {name:_dispName(l)}; if(type==='birthday') return {name:_dispName(l)}; return {name:_dispName(l), occasion:occ||''}; };
+    const GR_CAT={greeting:'Greeting / Notice',birthday:'Birthday Greeting',holiday:'Office Closure',thanks:'Payment Confirmation',welcome:'Loan Approval',finalnotice:'Final Notice',demandnotice:'Default Notice',chequepresent:'Cheque Presentation',bounce:'Cheque Bounce',closed:'Loan Closed',cleared:'Cheque Cleared',restructure:'Loan Restructured',accwelcome:'Welcome / Account Opened',launch:'Business Launched'}; const gcat=GR_CAT[type]||'Greeting / Notice';
+    const grVars=(l)=>{ var _lp=(l.payments||[]).filter(function(p){return Number(p.amount)>0;}).slice(-1)[0]||null; var _cc=(l.payments||[]).filter(function(p){return p.mode==='Cheque'&&p.status==='Cleared';}).slice(-1)[0]||{}; var _pc=(l.payments||[]).filter(function(p){return p.mode==='Cheque'&&p.status!=='Cleared';}).slice(-1)[0]||{}; var _bc=(l.charges||[]).filter(function(c){return c.type==='Cheque bounce';})[0]||{}; var _due=(fmtDate(l.due)||fmtDate(l.disb)||''); if(type==='holiday') return {name:dispName(l, lang), occasion:occ||'', date:dt||''}; if(type==='thanks') return {name:dispName(l, lang), amount:inrPlain(_lp?_lp.amount:l.emi), acno:l.acno||'', txn:((_lp&&(_lp.ref||_lp.cheque||fmtDate(_lp.date)))||_due||('A/C '+(l.acno||''))), outstanding:inrPlain(l.outstanding)}; if(type==='welcome') return {name:dispName(l, lang), acno:l.acno||'', emi:inrPlain(l.emi), due_date:_due, amount:inrPlain(l.principal)}; if(type==='finalnotice') return {name:dispName(l, lang), acno:l.acno||'', outstanding:inrPlain(l.outstanding), due_date:_due}; if(type==='demandnotice') return {name:dispName(l, lang), acno:l.acno||'', arrears:inrPlain(l.arrears||0), due_date:_due, outstanding:inrPlain(l.outstanding)}; if(type==='bounce') return {name:dispName(l, lang), acno:l.acno||'', amount:inrPlain(_bc.amount||0), txn:(_bc.cheque||''), cheque:(_bc.cheque||'')}; if(type==='closed') return {name:dispName(l, lang), acno:l.acno||'', principal:inrPlain(l.principal||0), disbursed:inrPlain(l.principal||0)}; if(type==='cleared') return {name:dispName(l, lang), acno:l.acno||'', amount:inrPlain(_cc.amount||0), txn:(_cc.cheque||''), cheque:(_cc.cheque||'')}; if(type==='chequepresent') return {name:dispName(l, lang), acno:l.acno||'', amount:inrPlain(_pc.amount||l.emi||0), cheque:(_pc.cheque||''), bank:(_pc.bank||'your bank'), date:(dt||fmtDate(_pc.date)||_due||'')}; if(type==='restructure') return {name:dispName(l, lang), acno:l.acno||'', emi:inrPlain(l.emi), tenure:((typeof tenureText==='function')?tenureText(l):String(l.tenure||''))}; if(type==='accwelcome') return {name:dispName(l, lang), acno:l.acno||''}; if(type==='launch') return {name:dispName(l, lang)}; if(type==='birthday') return {name:dispName(l, lang)}; return {name:dispName(l, lang), occasion:occ||''}; };
     // Rupee-formatted copy of the vars for the readable message TEXT (adds ₹ to money
     // fields). The Meta template variables keep the plain numbers from grVars, because
     // the approved template body supplies its own ₹/Rs. Bounce & Cheque-Cleared keep

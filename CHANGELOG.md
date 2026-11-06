@@ -9,6 +9,54 @@ charged, and the instalment itself moves forward, extending the schedule.
 
 ---
 
+## 2.22.2
+
+### Fixed
+
+- **A fault could flash on screen and leave no record.** The app has two error handlers. One
+  records to the Audit Log and Diagnostics; the other shows the toast that names the file, and
+  recorded nothing. So the message seen on screen was the one that logged nothing — which is why
+  Diagnostics and the Audit Log were both empty after a visible fault. The notifying handler now
+  records as well, for both thrown errors and rejected promises. reportError de-duplicates, so the
+  two handlers cannot double-log.
+- **The toast also pointed at the wrong panel** — it said "Audit Log" when the stack trace lives in
+  **Administration › Diagnostics**. Both toasts now name Diagnostics.
+
+Proven by replaying the exact fault: the toast reads
+`⚠ Something went wrong: _dispName is not defined [11-reminders.js:176]` and the log now holds
+`{where:'11-reminders.js:176', msg:'_dispName is not defined'}`.
+
+---
+
+## 2.22.1
+
+### Fixed — a regression I introduced in 2.21.0
+
+- **The EMI / Overdue reminder list stopped building.** A helper I wrote inside `renderGreetings`
+  was also called from `renderReminders`, where it was not in scope. The resulting
+  `ReferenceError` aborted the list, so the Reminders view came up empty and the brief
+  "Something went wrong" toast appeared. The helper is now defined at module scope and takes the
+  language as an argument.
+  **Greetings were never affected by this** — the helper was in scope there.
+- **A fault in a message view vanished instead of being recorded.** The three message renders were
+  called bare, so a throw killed the view without reaching the log. They now go through `safe()`,
+  which records the fault in Diagnostics and lets the other views render.
+- **The error toast pointed at the wrong panel.** It said the fault was "recorded in the Audit Log
+  (Administration)" when the stack trace is in **Administration › Diagnostics**. It now names both.
+
+### Added — so this class of bug cannot ship again
+
+- **`npm run scope`** (`tools/scan-scope.js`). `no-undef` is off for `src/app` by design — the app is
+  one shared global scope, so it would flag every cross-file call. But in the **built bundle** every
+  real global is a top-level declaration or a `window.*` assignment, so anything still unresolved is
+  a genuine scope leak. Verified by reintroducing the bug: lint stayed clean, all 39 suites passed,
+  the bundle parsed — and this tool named `_dispName` immediately.
+- **`tests/e2e-message-list-builds.js`** — runs `renderReminders()` and `renderGreetings()` for real,
+  in English and Hindi, across all 14 greeting types, and asserts each produces rows with a usable
+  name. The earlier tests only checked source text, which is why none of them caught this.
+
+---
+
 ## 2.22.0
 
 ### Added
