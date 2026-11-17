@@ -1,6 +1,12 @@
-// Proves a reminder the user dismissed by mistake comes back on the next scan.
-// Before the fix, dismissing left the reminder's key in a 60-day "seen" list, so
-// "Scan now" refused to regenerate it and kept reporting 0.
+// Proves a reminder the user dismissed by mistake comes back when he presses
+// "Run scan now". Before the first fix, dismissing left the reminder's key in a
+// 60-day "seen" list, so "Scan now" refused to regenerate it and kept reporting 0.
+//
+// v2.32.0: reminder stages became windows instead of single days, so the QUIET
+// scan that runs each time the Reminders screen opens must NOT bring a
+// dismissed reminder straight back (dismiss would undo itself). The button —
+// autoRemScan(true) — is the deliberate way to regenerate, and is what this
+// test now drives. The quiet scan is asserted to leave it dismissed.
 const { chromium } = require('playwright');
 const path = require('path');
 
@@ -34,13 +40,16 @@ const path = require('path');
     ids.forEach(id => autoRemDismiss(id));
     const qAfterDismiss = autoQueueLoad().length;
 
-    const scan2 = autoRemScan();          // should REGENERATE the dismissed reminder
+    const quiet = autoRemScan();          // the scan on opening the screen: leaves it dismissed
+    const qQuiet = autoQueueLoad().length;
+
+    const scan2 = autoRemScan(true);      // "Run scan now": should REGENERATE the dismissed reminder
     const q2 = autoQueueLoad().length;
 
     return {
       st: (typeof autoStatus === 'function') ? autoStatus(loans[0]) : '?',
       dleft: (typeof repDaysBetween === 'function') ? repDaysBetween(todayISO(), iso(due)) : null,
-      scan1Added: scan1 && scan1.added, q1, qAfterDismiss, scan2Added: scan2 && scan2.added, q2
+      scan1Added: scan1 && scan1.added, q1, qAfterDismiss, quietAdded: quiet && quiet.added, qQuiet, scan2Added: scan2 && scan2.added, q2
     };
   });
 
@@ -48,7 +57,8 @@ const path = require('path');
     'loan is Active on a trigger day': out.st === 'Active' && out.dleft === 3,
     'first scan created a reminder':   out.scan1Added >= 1 && out.q1 >= 1,
     'dismiss emptied the queue':       out.qAfterDismiss === 0,
-    'RE-SCAN regenerated it':          out.scan2Added >= 1 && out.q2 >= 1,
+    'the quiet scan leaves it dismissed': out.quietAdded === 0 && out.qQuiet === 0,
+    'RUN SCAN NOW regenerated it':     out.scan2Added >= 1 && out.q2 >= 1,
     'no page errors':                  errs.length === 0
   };
 

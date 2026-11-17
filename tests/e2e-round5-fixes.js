@@ -102,10 +102,13 @@ chk('the interest report separates them too', /gotInt/.test(ovd), true);
 
 console.log('\n--- contract dates do not drift ---');
 const lf = R('31-loan-file.js');
-chk('the loan file anchors to the disbursement date', /var firstDue = l\.disb \? _addM\(l\.disb, 1\)/.test(lf), true);
+// v2.33.0: the first instalment date now comes from loanFirstDue(), which is the
+// disbursement date + 1 month unless the loan carries an EMI day. Still a FIXED
+// contract date, never the moving next-due date — which is what this pins.
+chk('the loan file anchors to the first instalment date', /var firstDue = \(l\.disb && typeof loanFirstDue === 'function'\) \? loanFirstDue\(l\) : \(l\.disb \? _addM\(l\.disb, 1\)/.test(lf), true);
 chk('  and no longer starts from the moving due date', /_addM\(l\.due \|\| _addM\(l\.disb, 1\)/.test(lf), false);
 const wl = R('26-welcome-letter.js');
-chk('the welcome letter anchors too', /_firstDue\(l\) \{ return l\.disb \? _addM\(l\.disb, 1\)/.test(wl), true);
+chk('the welcome letter anchors too', /function _firstDue\(l\) \{ if \(l\.disb && typeof loanFirstDue === 'function'\)[\s\S]{0,80}return l\.disb \? _addM\(l\.disb, 1\)/.test(wl), true);
 const ld = R('10-loan-documents.js');
 chk('the agreement fills both from and to dates', /set\('h_to',_td\)/.test(ld), true);
 chk('the proposal fills PAN', /set\('p_pan'/.test(R('09-proposal.js')), true);

@@ -34,7 +34,10 @@
       if(st==='Closed') return;
       var out=Number(l.outstanding)||0;
       if(st==='Overdue'){
-        overdue.push({ id:l.id, name:l.name||'', acno:l.acno||'', amt:out,
+        /* the amount actually overdue, not the whole balance of the account —
+           one missed EMI on a long loan is one EMI overdue */
+        var arr=Number(l.arrears)||0;
+        overdue.push({ id:l.id, name:l.name||'', acno:l.acno||'', amt:(arr>0?Math.min(arr,out):out),
                        sub:(l.due?('due '+((typeof fmtDate==='function')?fmtDate(l.due):l.due)):'') });
       } else if(l.due){
         var d=_days(today,l.due);

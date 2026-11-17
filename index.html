@@ -101,7 +101,7 @@
         <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.4 2.4 4.6-5"/></svg> Audit Logging Enabled</span>
       </div>
       <div class="auth-meta"><span id="lastLogin"></span></div>
-      <div class="auth-meta auth-verline">Version 2.29.0 &nbsp;·&nbsp; © Shivam Enterprises</div>
+      <div class="auth-meta auth-verline">Version 2.33.0 &nbsp;·&nbsp; © Shivam Enterprises</div>
     </div>
   </div>
 </div>
@@ -135,7 +135,7 @@
     </nav>
     <div class="side-foot">
       Shivam Enterprises
-      <span class="side-ver">Version 2.29.0</span>
+      <span class="side-ver">Version 2.33.0</span>
     </div>
   </aside>
   <div class="nav-backdrop" onclick="document.querySelector('.app').classList.remove('nav-open')"></div>
@@ -903,7 +903,11 @@
           <div class="backup-grid">
             <div class="bk-card">
               <h4>⤓ Download Backup</h4>
-              <p>Saves all your loan records as a single file. Keep it somewhere safe (pen drive, email, cloud).</p>
+              <p>Saves your loan records, expense register, firm details, recycle bin, message templates, fee settings and audit log as a single file. Keep it somewhere safe (pen drive, email, cloud).</p>
+              <label style="display:flex;align-items:flex-start;gap:8px;margin:0 0 10px;font-size:12.5px;line-height:1.45;cursor:pointer;">
+                <input type="checkbox" id="bkInclDocs" style="margin-top:2px;flex:0 0 auto;">
+                <span>Also include <b>scanned documents</b> (Aadhaar, PAN, photographs, agreements).<br><span class="muted" style="font-size:11.5px;">Makes the file much larger — tens of MB. Tick this for the backup you keep before changing or resetting a computer.</span></span>
+              </label>
               <div style="display:flex; gap:10px;">
                 <button class="btn btn-primary" onclick="exportJSON()">Backup (.json)</button>
                 <button class="btn btn-ghost" onclick="exportCSV()">Export to Excel (.csv)</button>
@@ -916,7 +920,7 @@
               <button class="btn btn-gold" onclick="document.getElementById('importFile').click()">Choose backup file…</button>
             </div>
           </div>
-          <div style="margin-top:14px;padding:10px 14px;border:1px solid #e7c873;background:#fff7e2;color:#6b5413;border-radius:9px;font-size:12.5px;line-height:1.55;">⚠ <b>Uploaded document scans</b> (Aadhaar, PAN, photographs, signed agreements) are stored on <b>this device only</b> — they are <b>not</b> inside the record backup above and are not synced to the cloud. Back them up separately below.</div>
+          <div style="margin-top:14px;padding:10px 14px;border:1px solid #e7c873;background:#fff7e2;color:#6b5413;border-radius:9px;font-size:12.5px;line-height:1.55;">⚠ <b>Uploaded document scans</b> (Aadhaar, PAN, photographs, signed agreements) are stored on <b>this device only</b> and are <b>never synced to the cloud</b>. They are included in the backup above only if you tick <b>“Also include scanned documents”</b>, or you can save them on their own below. If this computer is wiped without one of those two, the scans are gone.</div>
           <div class="backup-grid" style="margin-top:14px;">
             <div class="bk-card">
               <h4>⤓ Back up documents</h4>
@@ -1201,7 +1205,7 @@
         <div class="fg"><label>Total Interest ₹</label><input id="m_tint" class="calc" type="number"></div>
         <div class="fg"><label>Total Payable ₹</label><input id="m_tpay" class="calc" type="number" oninput="loanFigEdited('tpay')"></div>
         <div class="fg"><label>Monthly EMI ₹</label><input id="m_emi" class="calc" type="number" oninput="loanFigEdited('emi')"></div>
-        <div class="fg"><label>Next Due Date</label><input id="m_due" type="date" oninput="dueEdited()"></div>
+        <div class="fg"><label>Next Due Date</label><input id="m_due" type="date" oninput="dueEdited()"><div id="m_dueHint" class="ph-sub" style="font-size:11.5px;line-height:1.4;margin-top:3px;color:var(--muted,#667085);"></div></div>
         </div>
       </div>
 

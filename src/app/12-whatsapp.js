@@ -31,7 +31,7 @@
      itself when sending, so keychain-only still counts as configured for API send. */
   function waHasToken(c){ return !!(c && (c.token || c.tokenInKeychain || c.tokenEnc)); }
     function saveWaCfg(c){ try{ localStorage.setItem(WACFG_STORE, JSON.stringify(c)); }catch(e){} }
-  function loadWaHist(){ try{ return JSON.parse(localStorage.getItem(WAHIST_STORE)||'[]'); }catch(e){ return []; } }
+  function loadWaHist(){ try{ var a=JSON.parse(localStorage.getItem(WAHIST_STORE)||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
   function saveWaHist(h){ try{ localStorage.setItem(WAHIST_STORE, JSON.stringify(h.slice(-5000))); }catch(e){} }
   /* Most recent send time (ms) to this phone for a given category, 0 if none. */
   function waLastSent(phone, cat){ try{ var h=loadWaHist(); var pn=intlPhone(phone||''); if(!pn) return 0; var last=0; for(var i=0;i<h.length;i++){ var e=h[i]; if(e && intlPhone(e.phone||'')===pn && (!cat || e.category===cat) && (e.at||0)>last) last=e.at; } return last||0; }catch(e){ return 0; } }
@@ -157,6 +157,27 @@
   }
   /* Gentle pacing + retry/backoff so a batch blast doesn't trip Meta's rate limits.
      Only transient errors (rate limit / timeout / 5xx) are retried, up to twice. */
+  /* ---------------------------------------------------------------------
+     Meta classifies every approved template as UTILITY or MARKETING, and the
+     two are delivered under different rules.
+
+     A UTILITY template is attached to a transaction, so it is delivered.
+     A MARKETING template is rate-limited per recipient: Meta limits how many
+     marketing templates one person receives from this business in a period,
+     and limits hardest for people unlikely to reply or engage. Over the limit
+     it accepts the API call, returns HTTP 200 and a message id, and then does
+     not deliver — error 131049, which WhatsApp Manager shows under Insights ›
+     Ecosystem health as "Meta chose not to deliver". The refusal is reported
+     on the "messages" status webhook, which needs a public HTTPS endpoint this
+     desktop app does not have. So the app CANNOT know whether a marketing
+     message arrived, and must not pretend otherwise.
+
+     These four categories carry no transaction, so Meta treats them as
+     marketing even when they were first approved as utility — it
+     re-categorises templates, with as little as one day's notice. */
+  var WA_MARKETING_CATS={'Greeting / Notice':1, 'Birthday Greeting':1, 'Office Closure':1, 'Business Launched':1};
+  function waIsMarketing(cat){ return !!WA_MARKETING_CATS[cat]; }
+
   function _waSleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
   function _waTransient(err){ var e=String(err||'').toLowerCase(); return /rate limit|too many|429|timed out|timeout|temporar|try again|#131056|#130429|#80007|http 5/.test(e); }
   async function _waSendOnce(payload){ try{ return await window.electronAPI.sendWhatsApp(payload); }catch(e){ return {ok:false, error:String(e)}; } }
@@ -193,6 +214,26 @@
           + 'Office Closure that is usually the Date \u2014 then generate the messages again.');
         return;
       }
+
+      /* Say plainly, before the send, that acceptance is not delivery. */
+      var _mk=sel.filter(function(it){ return waIsMarketing(it.cat); });
+      if(_mk.length){
+        var _cats=[...new Set(_mk.map(function(it){ return it.cat; }))].join(', ');
+        if(!confirm('⚠  WhatsApp may not deliver these\n\n'
+          + _mk.length + ' of these ' + sel.length + ' message(s) are a greeting or notice ('+_cats+').\n\n'
+          + 'WhatsApp treats a message with no transaction attached as MARKETING,\n'
+          + 'and limits how many marketing messages one person receives from this\n'
+          + 'business in a period — tightest for people who rarely reply. Over that\n'
+          + 'limit WhatsApp accepts the message, gives it an id, and then does not\n'
+          + 'deliver it (error 131049, "Meta chose not to deliver").\n\n'
+          + 'This app is only told that WhatsApp accepted it. It is never told\n'
+          + 'whether it arrived, so History will say "Accepted", not "Delivered".\n'
+          + 'To see what was actually dropped, open WhatsApp Manager › Insights ›\n'
+          + 'Ecosystem health after sending.\n\n'
+          + 'Reminders and payment confirmations are not affected — those are\n'
+          + 'utility messages and are delivered normally.\n\n'
+          + 'Send anyway?')) return;
+      }
     }
     const hist=loadWaHist(); const now=Date.now();
     if(!apiReady){
@@ -212,15 +253,18 @@
       if(!tpl || !tpl.name){ res={ok:false, error:'No approved template mapped for "'+it.cat+'"'}; }
       else { res=await _waSendRetry({apiVersion:(cfg.apiVersion||''), token:(cfg.token||''), phoneNumberId:cfg.pnid, to:intlPhone(it.phone), template:{name:tpl.name, lang:(it.lang||tpl.lang||'en'), components:buildTplComponents(it,tpl)}}); }
       const rec={id:'wm'+now+i+Math.random().toString(36).slice(2,6), name:it.name, phone:it.phone, acno:it.acno||'', category:it.cat, content:it.msg, at:Date.now(), by};
-      if(res && res.ok){ okc++; rec.status='Sent'; rec.mid=res.id||''; } else { failc++; rec.status='Failed'; rec.error=(res&&res.error)||'unknown'; }
+      /* "Accepted", not "Sent": all the API tells us is that WhatsApp took the
+         message. Delivery is reported on a webhook we cannot receive. */
+      if(res && res.ok){ okc++; rec.status='Accepted'; rec.mid=res.id||''; rec.mktg=waIsMarketing(it.cat)?1:0; }
+      else { failc++; rec.status='Failed'; rec.error=(res&&res.error)||'unknown'; }
       hist.push(rec);
       if(i < sel.length-1) await _waSleep(250);   // pace between recipients
     }
     saveWaHist(hist);
-    logAudit('WhatsApp Sent via API', 'sent '+okc+', failed '+failc+' \u00b7 '+[...new Set(sel.map(s=>s.cat))].join(', ')+' \u00b7 by '+by);
-    const vb=$('verifyBody'); if(vb) vb.innerHTML='<div style="text-align:center;padding:20px;"><div style="font-size:32px;color:'+(failc?'var(--warn)':'var(--ok)')+';">'+(failc?'\u26a0':'\u2713')+'</div><p style="font-weight:650;margin-top:8px;">'+okc+' sent'+(failc?(' \u00b7 '+failc+' failed'):'')+'</p><p class="ph-sub" style="margin-top:5px;">Open Message History for per-message status.</p></div>';
+    logAudit('WhatsApp Sent via API', 'accepted '+okc+', failed '+failc+' \u00b7 '+[...new Set(sel.map(s=>s.cat))].join(', ')+' \u00b7 by '+by);
+    const vb=$('verifyBody'); if(vb) vb.innerHTML='<div style="text-align:center;padding:20px;"><div style="font-size:32px;color:'+(failc?'var(--warn)':'var(--ok)')+';">'+(failc?'\u26a0':'\u2713')+'</div><p style="font-weight:650;margin-top:8px;">'+okc+' sent'+(failc?(' \u00b7 '+failc+' failed'):'')+'</p><p class="ph-sub" style="margin-top:5px;">'+(okc?'Accepted by WhatsApp. Acceptance is not delivery — WhatsApp does not tell this app whether a message arrived. ':'')+'Open Message History for per-message status.</p></div>';
     const vf=$('verifyFoot'); if(vf) vf.innerHTML='<button class="btn btn-primary" onclick="closeVerify(); closeReview(); setMsgView(\'history\')">View History</button>';
-    if(okc) toast(okc+' message(s) sent via WhatsApp API'); else toast('Sending failed \u2014 check History');
+    if(okc) toast(okc+' message(s) accepted by WhatsApp'); else toast('Sending failed \u2014 check History');
   }
   function renderWaHistory(){
     const wrap=$('waHistWrap'); if(!wrap) return;
@@ -238,7 +282,14 @@
     const _histMore=items.length-_histShow;
     items=items.slice(0,_histShow);
     wrap.innerHTML='<div class="hist-list">'+items.map(o=>{ const x=o.x; const d=new Date(x.at);
-      const stat=(x.status==='Sent')?'<span style="color:#16a34a;font-weight:600;">\u2713 Sent</span>':((x.status==='Failed')?'<span style="color:#dc2626;font-weight:600;">\u26a0 Failed</span>':'<span class="muted">'+esc(x.status||'\u2014')+'</span>');
+      /* 'Sent' is the old label, kept here so history recorded before v2.30.0
+         still reads correctly. Both mean the same thing: WhatsApp accepted it. */
+      const _acc=(x.status==='Accepted'||x.status==='Sent');
+      const _mk=(x.mktg===1)||waIsMarketing(x.category);
+      const stat=_acc
+        ? '<span style="color:#16a34a;font-weight:600;" title="WhatsApp accepted this message and gave it an id. WhatsApp reports actual delivery on a webhook this app cannot receive, so delivery is not confirmed here.">\u2713 Accepted</span>'
+          + (_mk?' <span style="color:#b45309;font-size:10.5px;font-weight:600;" title="A greeting or notice carries no transaction, so WhatsApp treats it as marketing and limits how many one person receives from this business in a period — tightest for people who rarely reply. Over that limit it is accepted and then not delivered (131049). WhatsApp Manager › Insights › Ecosystem health shows what was dropped.">may not be delivered</span>':'')
+        : ((x.status==='Failed')?'<span style="color:#dc2626;font-weight:600;">\u26a0 Failed</span>':'<span class="muted">'+esc(x.status||'\u2014')+'</span>');
       return '<details class="hist-item"><summary class="hist-sum">'
         +'<span class="hist-when">'+d.toLocaleDateString('en-GB')+' '+d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})+'</span>'
         +'<span class="hist-name">'+esc(x.name||'\u2014')+'</span>'

@@ -83,8 +83,8 @@
        meant a Loan File printed after three paid EMIs stated a start and end
        date three months later than the agreement the borrower signed.
        Anchor to the disbursement date, which does not move. */
-    var firstDue = l.disb ? _addM(l.disb, 1) : (l.due || '');
-    var untilD = (l.tenure && firstDue) ? _addM(firstDue, (Number(l.tenure) || 1) - 1) : '';
+    var firstDue = (l.disb && typeof loanFirstDue === 'function') ? loanFirstDue(l) : (l.disb ? _addM(l.disb, 1) : (l.due || ''));
+    var untilD = (l.tenure && firstDue) ? ((l.disb && typeof loanLastDue === 'function' && loanLastDue(l)) || _addM(firstDue, (Number(l.tenure) || 1) - 1)) : '';
     var nameAddr = (l.name || '') + (l.relname ? (' ' + (l.reltype || 's/o') + ' ' + l.relname) : '') + (l.addr ? (', ' + l.addr) : '');
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc(_docFileName(l.name, l.acno, 'Loan_File')) + '</title><style>' + _css() + '</style></head><body>'
 

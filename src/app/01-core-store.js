@@ -35,7 +35,7 @@
      valid data. */
   function normalizeLoans(arr){
     if(!Array.isArray(arr)) return [];
-    var out=[], dropped=0;
+    var out=[], dropped=0, fixed=0;
     for(var i=0;i<arr.length;i++){
       var l=arr[i];
       if(!l || typeof l!=='object' || l.id==null){ dropped++; continue; }
@@ -43,10 +43,44 @@
       if(!Array.isArray(l.charges)) l.charges=[];
       if(l.ids!=null && !Array.isArray(l.ids)) l.ids=[];   // identity-document list must be an array
       ['principal','rate','tenure','tint','tpay','emi','outstanding','arrears','deductions'].forEach(function(k){ if(l[k]!=null && l[k]!=='' && isNaN(Number(l[k]))) l[k]=0; });
+      /* The arrays were guaranteed to BE arrays, but not what was inside them.
+         One null in a payments list — a half-written cloud row, a hand-edited
+         backup — made recomputeLoan throw on `p.status`; recomputeAll runs on
+         every screen change, so that one entry stopped the whole app opening
+         any screen at all. Anything in these lists that is not a record is not
+         a payment or a charge, so it is dropped. */
+      if(l.emiAnchors!=null){
+        var _ea=Array.isArray(l.emiAnchors) ? l.emiAnchors.filter(function(a){ return a && typeof a==='object' && Number(a.idx)>=1 && typeof a.date==='string' && /^\d{4}-\d{2}-\d{2}$/.test(a.date); }) : [];
+        if(!Array.isArray(l.emiAnchors) || _ea.length!==l.emiAnchors.length) fixed++;
+        if(_ea.length) l.emiAnchors=_ea; else delete l.emiAnchors;
+      }
+      var _np=l.payments.length, _nc=l.charges.length;
+      l.payments=l.payments.filter(function(x){ return x && typeof x==='object' && !Array.isArray(x); });
+      l.charges=l.charges.filter(function(x){ return x && typeof x==='object' && !Array.isArray(x); });
+      if(l.payments.length!==_np || l.charges.length!==_nc) fixed++;
+      /* Dates are handled everywhere as 'YYYY-MM-DD' text. A number or an
+         object in one of these fields made the date arithmetic throw. A full
+         timestamp or a DD-MM-YYYY date is unambiguous, so it is converted;
+         anything else that is not text is emptied (the record is kept). */
+      ['disb','due','baseDate'].forEach(function(k){ var v=l[k]; if(v==null||v==='') return; var nv=_normDate(v); if(nv!==v){ l[k]=nv; fixed++; } });
+      l.payments.forEach(function(x){ if(x.date!=null && x.date!==''){ var nv=_normDate(x.date); if(nv!==x.date){ x.date=nv; fixed++; } } });
+      l.charges.forEach(function(x){ if(x.date!=null && x.date!==''){ var nv=_normDate(x.date); if(nv!==x.date){ x.date=nv; fixed++; } } });
       out.push(l);
     }
     if(dropped){ try{ logAudit('Data Repaired', dropped+' unreadable record(s) skipped on load'); }catch(e){} }
+    if(fixed){ try{ logAudit('Data Repaired', fixed+' malformed entr'+(fixed===1?'y':'ies')+' inside loan records corrected'); }catch(e){} }
     return out;
+  }
+  /* 'YYYY-MM-DD' stays as it is. A timestamp is cut to its date; DD-MM-YYYY and
+     DD/MM/YYYY are turned round. Other TEXT is returned untouched (the date
+     helpers treat it as "no date"); anything that is not text becomes ''. */
+  function _normDate(v){
+    if(typeof v!=='string') return '';
+    if(/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    if(/^\d{4}-\d{2}-\d{2}[T ]/.test(v)) return v.slice(0,10);
+    var m=/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/.exec(v.trim());
+    if(m){ var d=('0'+m[1]).slice(-2), mo=('0'+m[2]).slice(-2); if(+mo>=1 && +mo<=12 && +d>=1 && +d<=31) return m[3]+'-'+mo+'-'+d; }
+    return v;
   }
   function load(){ try{ const r=localStorage.getItem(STORE); loans = r?JSON.parse(r):[]; }catch(e){ loans = window._mem||[]; } loans = normalizeLoans(loans); }
   function save(){ var lsOK=true; var _ts=Date.now();
@@ -109,7 +143,7 @@
         // delete), so its rows are NOT resurrected. (Old fix compared array LENGTHS,
         // which wrongly brought deleted records back.)
         if(idbLoans && idbLoans.length && (lsEmpty ? (idbTs>=lsTs) : (idbTs>lsTs))){
-          loans=idbLoans;
+          loans=normalizeLoans(idbLoans);   // the mirror is read back from disk like any other copy
           try{ localStorage.setItem(STORE, JSON.stringify(loans)); localStorage.setItem(STORE_TS, String(idbTs||Date.now())); }catch(e){}
           if(typeof currentUser!=='undefined' && currentUser && typeof renderLoans==='function'){ try{ renderLoans(); if(typeof renderDash==='function') renderDash(); }catch(e){} }
         } else if(loans && loans.length){ idbSetLoans(loans, lsTs||Date.now()); }

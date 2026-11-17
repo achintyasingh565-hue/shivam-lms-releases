@@ -182,7 +182,7 @@
      Expenses = whatever you record in the expense ledger below
      Principal repaid is NOT income - it is your own money coming back. */
   const EXP_STORE='shivam_expenses_v1';
-  function loadExpenses(){ try{ return JSON.parse(localStorage.getItem(EXP_STORE)||'[]'); }catch(e){ return []; } }
+  function loadExpenses(){ try{ var a=JSON.parse(localStorage.getItem(EXP_STORE)||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }   // always a list: a stored null or object must not break every screen that totals expenses
   function saveExpenses(a){ try{ localStorage.setItem(EXP_STORE, JSON.stringify(a||[])); }catch(e){} }
   window.addExpense=function(){
     const d=($('expDate')&&$('expDate').value)||todayISO();
@@ -477,8 +477,11 @@
       var due=l.due||'';
       // An overdue demand is only honest while the account is actually overdue;
       // an "EMI due soon" note only while it is current and the date is ahead.
-      if(kind==='od'  && st!=='Overdue') return;
-      if(kind==='emi' && (st!=='Active' || !due || (t && due<t))) return;
+      /* Same date rule as the scan: an EMI note stays while the instalment
+         date is today or ahead on any open account; an overdue demand needs
+         the account overdue AND the date actually behind us. */
+      if(kind==='od'  && (st!=='Overdue' || !due || (t && due>=t))) return;
+      if(kind==='emi' && (st==='Closed' || !due || (t && due<t))) return;
 
       // Still owed — restate it from the ledger as it stands today.
       try{
@@ -490,6 +493,7 @@
         var d=repDaysBetween(due,t);
         if(kind==='od'  && d>0) it.reason='Overdue by '+d+' day'+(d===1?'':'s');
         if(kind==='emi' && d<0) it.reason='EMI due in '+(-d)+' day'+(d===-1?'':'s');
+        if(kind==='emi' && d===0) it.reason='EMI due today';
       }
       out.push(it);
     });
@@ -539,19 +543,89 @@
     return {id:'aq'+Date.now().toString(36)+Math.random().toString(36).slice(2,7), key:key, name:l.name, phone:l.phone||'', acno:l.acno||'', cat:cat, vars:vars, msg:msg, reason:reason, createdAt:Date.now()};
   }
 
-  function autoRemScan(){
+  /* Which reminder STAGE a loan is in today.
+
+     The scan used to fire only when the day count was EXACTLY one of the
+     configured numbers — 7, 3 or 1 days before an EMI; 1, 7, 15 or 30 days
+     after. Three things followed from that:
+
+       * a reminder existed only if the app happened to be opened on that
+         exact day. Open it on day 4 instead of day 3 and the borrower was
+         never reminded at all;
+       * an account more than 30 days overdue was never mentioned again —
+         the longer someone had not paid, the quieter the app became;
+       * so the panel sat on "You're all caught up" with overdue accounts
+         on the book.
+
+     A stage is now a WINDOW, not a day. Before the due date the stage is the
+     nearest configured mark still ahead (4 days left -> the 7-day stage has
+     been reached, the 3-day one has not). After it, the stage is the last
+     mark passed, and past the final mark it repeats at that interval — 30,
+     60, 90 days — so a long-overdue account comes back once a month.
+
+     The queue key still ends in the stage number, exactly as before, so a
+     reminder already raised or sent under the old rule is not raised twice,
+     and each stage is still raised only once. */
+  function autoEmiStage(dleft, marks){
+    if(!(dleft>=0)) return null;
+    var m=(marks||[]).map(Number).filter(function(x){ return x>0; }).sort(function(a,b){ return a-b; });
+    for(var i=0;i<m.length;i++){ if(dleft<=m[i]) return m[i]; }
+    return null;                                  // further out than the earliest mark
+  }
+  function autoOdStage(dpd, marks){
+    if(!(dpd>=1)) return null;
+    var m=(marks||[]).map(Number).filter(function(x){ return x>0; }).sort(function(a,b){ return a-b; });
+    if(!m.length) return null;
+    var last=m[m.length-1];
+    if(dpd>=last) return last*Math.floor(dpd/last);   // 30, 60, 90 ...
+    var s=null;
+    for(var i=0;i<m.length;i++){ if(dpd>=m[i]) s=m[i]; }
+    return s;
+  }
+  /* Has this kind of message ALREADY gone to this borrower since `sinceIso`?
+     Read from the WhatsApp history, so it covers reminders sent from the custom
+     blast as well as from this queue. Without it a scan would queue an overdue
+     reminder for someone who was sent one an hour ago. */
+  function autoSentSince(cat, phone, sinceIso){
+    try{
+      if(!phone || !sinceIso || typeof loadWaHist!=='function') return false;
+      var p=String(sinceIso).split('-'); var since=new Date(+p[0], +p[1]-1, +p[2]).getTime();
+      if(!isFinite(since)) return false;
+      var ph=intlPhone(phone||''); if(!ph) return false;
+      return (loadWaHist()||[]).some(function(h){
+        return h && h.category===cat && h.status!=='Failed' && (h.at||0)>=since && intlPhone(h.phone||'')===ph;
+      });
+    }catch(e){ return false; }
+  }
+  function autoRemScan(force){
     var c=autoRemCfg(); if(!c.enabled) return {added:0};
     var t=todayISO(); var added=0;
     var emiDays=c.emiDays||[7,3,1], odDays=c.overdueDays||[1,7,15,30];
+    /* "Run scan now" is the owner asking for everything that is true today, so
+       it forgets which stages were raised before — including ones he dismissed.
+       The quiet scan that runs when the screen opens does not: a reminder he
+       dismissed stays dismissed until its next stage. Either way, nothing is
+       queued for a borrower who has already been sent that message in the
+       current stage (autoSentSince). */
+    if(force){ try{ autoSeenClearAll(); }catch(e){} }
+    var _dayAdd=function(iso,n){ return (typeof addDaysISO==='function') ? addDaysISO(iso,n) : iso; };
     (loans||[]).forEach(function(l){
       if(!l) return; var st=autoStatus(l);
-      if(c.emi && st==='Active' && l.due){
+      /* Which message is true depends on the DATE, not only the status. An
+         instalment whose date is today or ahead is an upcoming EMI even on an
+         account flagged Overdue for another reason (a hand-set due date, an
+         unpaid fee) — telling that borrower the EMI "was due on" a date still
+         in the future is simply false. */
+      var _ahead=!!(l.due && l.due>=t);
+      if(c.emi && st!=='Closed' && _ahead){
         var dleft=repDaysBetween(t,l.due);
-        if(emiDays.indexOf(dleft)>=0 && autoQueueAdd(autoMkItem(l,'EMI Reminder','EMI due in '+dleft+' day'+(dleft===1?'':'s'),'emi:'+l.id+':'+l.due+':'+dleft))) added++;
+        var es=autoEmiStage(dleft, emiDays);
+        if(es!=null && !autoSentSince('EMI Reminder', l.phone, _dayAdd(l.due,-es)) && autoQueueAdd(autoMkItem(l,'EMI Reminder',(dleft===0?'EMI due today':'EMI due in '+dleft+' day'+(dleft===1?'':'s')),'emi:'+l.id+':'+l.due+':'+es))) added++;
       }
-      if(c.overdue && st==='Overdue' && l.due){
+      if(c.overdue && st==='Overdue' && l.due && !_ahead){
         var dpd=repDaysBetween(l.due,t);
-        if(odDays.indexOf(dpd)>=0 && autoQueueAdd(autoMkItem(l,'Overdue Reminder','Overdue by '+dpd+' day'+(dpd===1?'':'s'),'od:'+l.id+':'+l.due+':'+dpd))) added++;
+        var os=autoOdStage(dpd, odDays);
+        if(os!=null && !autoSentSince('Overdue Reminder', l.phone, _dayAdd(l.due,os)) && autoQueueAdd(autoMkItem(l,'Overdue Reminder','Overdue by '+dpd+' day'+(dpd===1?'':'s'),'od:'+l.id+':'+l.due+':'+os))) added++;
       }
       if(c.payment && Array.isArray(l.payments)){
         l.payments.forEach(function(p,idx){
@@ -563,7 +637,7 @@
             var _bal=(typeof balanceAtPayment==='function')?balanceAtPayment(l, idx):(Number(l.outstanding)||0);
             it.vars.amount=inrPlain(p.amount); it.vars.outstanding=inrPlain(_bal); it.vars.txn=(p.ref||p.cheque||fmtDate(p.date)||'');
             it.msg=applyVars(TPL.thanks, l, {amount:inr(p.amount), outstanding:inr(_bal), txn:it.vars.txn});
-            if(autoQueueAdd(it)) added++;
+            if(!autoSentSince('Payment Confirmation', l.phone, t) && autoQueueAdd(it)) added++;
           }
         });
       }
@@ -571,11 +645,11 @@
         var fresh=false;
         if(l.disb){ var dd=repDaysBetween(l.disb,t); if(dd>=0 && dd<=(c.approvalDays||3)) fresh=true; }
         else if(l.createdAt){ var cd=new Date(l.createdAt); if(!isNaN(cd.getTime())){ var diff=Math.round((Date.now()-cd.getTime())/86400000); if(diff>=0 && diff<=(c.approvalDays||3)) fresh=true; } }
-        if(fresh && autoQueueAdd(autoMkItem(l,'Loan Approval','Loan sanctioned','appr:'+l.id))) added++;
+        if(fresh && !autoSentSince('Loan Approval', l.phone, l.disb||_dayAdd(t,-(c.approvalDays||3))) && autoQueueAdd(autoMkItem(l,'Loan Approval','Loan sanctioned','appr:'+l.id))) added++;
       }
       if(c.birthday && l.dob && st!=='Closed'){
         var md=(l.dob||'').slice(5);
-        if(md && md===t.slice(5) && autoQueueAdd(autoMkItem(l,'Birthday Greeting','Birthday today','bday:'+l.id+':'+t.slice(0,4)))) added++;
+        if(md && md===t.slice(5) && !autoSentSince('Birthday Greeting', l.phone, t) && autoQueueAdd(autoMkItem(l,'Birthday Greeting','Birthday today','bday:'+l.id+':'+t.slice(0,4)))) added++;
       }
     });
     var cfg=autoRemCfg(); cfg.lastScan=Date.now(); autoRemSaveCfg(cfg);

@@ -164,6 +164,18 @@
   }
   if($('msgseg')) $('msgseg').addEventListener('click', e=>{ if(e.target.dataset.m) setMsgView(e.target.dataset.m); });
 
+  /* Which wording is TRUE for this row.
+     The overdue template says the EMI "was due on {due_date} and is now
+     overdue" and quotes the whole outstanding balance. Choosing it on status
+     alone sent exactly that to a borrower whose instalment date was still four
+     days ahead — a demand for the full Rs 4,90,000 of a 48-month loan in place
+     of a reminder for one EMI. An instalment dated today or later is an
+     upcoming EMI whatever the account's status; the overdue wording needs the
+     account overdue AND the date actually behind us. */
+  function _remIsOverdue(l, today){
+    if(!l || l._st!=='Overdue') return false;
+    return !(l.due && today && l.due>=today);
+  }
   function renderReminders(){
     // Always work from up-to-date figures — recompute so a payment recorded moments ago
     // is reflected here (arrears / outstanding), regardless of how this screen was opened.
@@ -175,9 +187,9 @@
     else if(f==='due') list=list.filter(l=>l.due && l.due>=today && l.due<=in7s);
     list.sort((a,b)=>(a.due||'').localeCompare(b.due||''));
     if(!list.length){ window._remList=[]; $('remWrap').innerHTML=`<div class="empty"><div class="big">&#128100;</div><div class="empty-t">No borrowers in this group</div><div class="empty-s">Change the language or filter above to see who matches.</div></div>`; return; }
-    window._remList = list.map(l=>{ const over=(l._st==='Overdue'); const tpl=lang==='hi'?(over?TPL.overdue_hi:TPL.reminder_hi):(over?TPL.overdue:TPL.reminder); const av=(t)=>applyVars('{'+t+'}',l,{}); return {lang:lang, name:l.name, phone:l.phone, acno:l.acno, cat:(over?'Overdue Reminder':'EMI Reminder'), msg:applyVars(tpl,l,{}), tpl:tpl, loanId:l.id, amt:(over?Math.round(Number(l.outstanding)||0):Math.round(Number(l.emi)||0)), vars:{name:(l?l.name:''), acno:l.acno||'', emi:inrPlain(l.emi), due_date:av('due_date'), outstanding:inrPlain(l.outstanding), fine:inrPlain(getLateFee()), rate:av('rate'), amount:inrPlain(l.outstanding), loanid:l.acno||''}}; });
+    window._remList = list.map(l=>{ const over=_remIsOverdue(l,today); const tpl=lang==='hi'?(over?TPL.overdue_hi:TPL.reminder_hi):(over?TPL.overdue:TPL.reminder); const av=(t)=>applyVars('{'+t+'}',l,{}); return {lang:lang, name:l.name, phone:l.phone, acno:l.acno, cat:(over?'Overdue Reminder':'EMI Reminder'), msg:applyVars(tpl,l,{}), tpl:tpl, loanId:l.id, amt:(over?Math.round(Number(l.outstanding)||0):Math.round(Number(l.emi)||0)), vars:{name:(l?l.name:''), acno:l.acno||'', emi:inrPlain(l.emi), due_date:av('due_date'), outstanding:inrPlain(l.outstanding), fine:inrPlain(getLateFee()), rate:av('rate'), amount:inrPlain(l.outstanding), loanid:l.acno||''}}; });
     $('remWrap').innerHTML=`<div class="table-wrap"><table class="data"><thead><tr><th>Borrower</th><th>Phone</th><th class="right">EMI</th><th>Due</th><th>Status</th><th>Message</th></tr></thead><tbody>`+
-      list.map(l=>{ const over=(l._st==='Overdue');
+      list.map(l=>{ const over=_remIsOverdue(l,today);
         const tpl = lang==='hi' ? (over?TPL.overdue_hi:TPL.reminder_hi) : (over?TPL.overdue:TPL.reminder);
         const msg=applyVars(tpl,l,{});
         return `<tr><td class="name">${esc(l.name)}${(typeof waSentBadge==='function')?waSentBadge(l.phone, over?'Overdue Reminder':'EMI Reminder'):''}</td><td class="muted">${esc(l.phone||'—')}</td><td class="right num">${inr(l.emi)}</td><td>${fmtDate(l.due)||'—'}</td><td><span class="badge ${l._st.toLowerCase()}">${l._st}</span></td><td class="muted" style="max-width:340px;font-size:11.5px;">${esc(msg)}</td></tr>`;

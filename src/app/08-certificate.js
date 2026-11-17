@@ -1,10 +1,130 @@
   /* ---------- certificate ---------- */
   const dash="__________";
+  /* ---------- EMI day ----------
+     The schedule used to be counted from the disbursement date and nothing
+     else: disbursed on the 14th, every EMI on the 14th. A borrower whose
+     salary comes on the 20th could only be accommodated by typing a Next Due
+     Date by hand, which changed the label and none of the arithmetic.
+
+     l.emiAnchors is a short list of {idx, date}: "instalment idx falls on this
+     date, and the ones after it follow monthly from it". The last anchor at or
+     before an instalment governs it, so
+       * instalments BEFORE an anchor keep the dates they always had (nothing
+         already paid is re-dated, so no past payment turns late or on-time
+         after the fact), and
+       * every consumer that asks emiDueDate — arrears, late fees, the
+         schedule, statements, documents, reminders — moves together.
+     An anchor dated on or before a restructure baseline is ignored (the
+     restructure started a new plan). Byaj loans do not use anchors: their
+     interest is counted in whole months from the disbursement date. */
   function emiDueDate(l, i){
+    var _as=l && l.emiAnchors;
+    if(_as && _as.length && !l.interestOnly){
+      var _best=null;
+      for(var _j=0;_j<_as.length;_j++){
+        var _a=_as[_j];
+        if(!_a || !(_a.idx>=1) || _a.idx>i || typeof _a.date!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(_a.date)) continue;
+        if(l.baseDate && _a.date<=l.baseDate) continue;
+        if(!_best || _a.idx>_best.idx) _best=_a;
+      }
+      if(_best) return repAddMonths(_best.date, i-_best.idx);
+    }
     var anchor=l.baseDate||l.disb;
     if(anchor) return repAddMonths(anchor, i);
     if(l.due) return repAddMonths(l.due, i-1);
     return repAddMonths(todayISO(), i);
+  }
+  /* The first instalment not yet fully covered — the one a typed Next Due Date
+     refers to. Same count recomputeLoan uses to advance "next due". */
+  function firstUnpaidIdx(l){
+    if(!l) return 1;
+    var emi=Math.round(Number(l.emi)||0); if(!(emi>0)) return 1;
+    var cleared=(Array.isArray(l.payments)?l.payments:[]).reduce(function(a,p){
+      return (p && typeof p==='object' && p.status==='Cleared' && !(p.intOnly===true || p.type==='Interest')) ? a+(Number(p.amount)||0) : a; },0);
+    var fwd=Math.max(0, cleared-(Number(l.paidBase)||0));
+    var n=Math.max(0, Math.round(Number(l.tenure)||0)); var horizon=n>0?n:600;
+    return Math.max(1, Math.min(horizon, Math.floor(fwd/emi)+1));
+  }
+  /* What does a typed Next Due Date mean?
+       'day'    — it sits between the previous instalment and the one after, so
+                  it is the borrower's EMI day: that instalment and every later
+                  one move to it.
+       'oneoff' — it is further out than that (a promise date on an account in
+                  arrears), or the loan cannot carry an EMI day (byaj, no EMI,
+                  no start date, interest-only months already pushing the
+                  schedule): it stays a hand-set date for this instalment only.
+       'none'   — not a date. */
+  function emiDayDecide(l, typed){
+    if(typeof typed!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(typed)) return {mode:'none'};
+    if(!l || l.interestOnly) return {mode:'oneoff'};
+    var emi=Math.round(Number(l.emi)||0);
+    if(!(emi>0) || !(l.baseDate||l.disb)) return {mode:'oneoff'};
+    var _afterBase=function(p){ return !l.baseDate || String(p.date||'') > String(l.baseDate); };
+    var shifted=(Array.isArray(l.payments)?l.payments:[]).some(function(p){ return p && typeof p==='object' && p.status==='Cleared' && (p.intOnly===true || p.type==='Interest') && _afterBase(p); });
+    if(shifted) return {mode:'oneoff'};
+    var k=firstUnpaidIdx(l);
+    // the schedule as it stands, without any anchor at or after this instalment
+    var probe=Object.assign({}, l, { emiAnchors:(Array.isArray(l.emiAnchors)?l.emiAnchors:[]).filter(function(a){ return a && a.idx<k; }) });
+    var prev=(k>1) ? emiDueDate(probe, k-1) : (l.baseDate||l.disb);
+    var cur=emiDueDate(probe, k), next=emiDueDate(probe, k+1);
+    if(!(prev && cur && next && typed>prev && typed<next)) return {mode:'oneoff'};
+    /* One instalment per calendar month, in consecutive months — the schedule,
+       the late-fee detector and the statement all file payments by month, so
+       an EMI day may move the DAY but must not leave a month with no
+       instalment or put two in one. For the first instalment there is no
+       earlier one to collide with, so it may also land in a neighbouring
+       month (disbursed on the 28th, first EMI on the 5th of the month after
+       next). After that, only the day within the instalment's own month. */
+    if(k>1 && typed.slice(0,7)!==cur.slice(0,7)) return {mode:'oneoff'};
+    return {mode:'day', idx:k, date:typed};
+  }
+  function emiDayApply(l, dec){
+    if(!l || !dec || dec.mode!=='day') return false;
+    var as=(Array.isArray(l.emiAnchors)?l.emiAnchors:[]).filter(function(a){ return a && a.idx<dec.idx; });
+    as.push({idx:dec.idx, date:dec.date});
+    l.emiAnchors=as; l.dueManual=false;
+    return true;
+  }
+  /* Back to the disbursement day from the first unpaid instalment onward.
+     Instalments already behind us keep whatever dates they had. */
+  function emiDayClear(l){
+    if(!l) return;
+    var k=firstUnpaidIdx(l);
+    var as=(Array.isArray(l.emiAnchors)?l.emiAnchors:[]).filter(function(a){ return a && a.idx<k; });
+    var base=l.baseDate||l.disb;
+    if(as.length && base){
+      /* An earlier EMI day still governs the instalments before this one, and
+         may have moved the first instalment into a different month. Going back
+         to the disbursement DAY must keep the months consecutive, so instalment
+         k takes the disbursement day in the month after instalment k-1 — not
+         the date the original schedule had for it. */
+      var probe=Object.assign({}, l, {emiAnchors:as});
+      var prevD=(k>1) ? emiDueDate(probe, k-1) : '';
+      var back=prevD ? repAddMonths(prevD.slice(0,8)+base.slice(8,10), 1) : repAddMonths(base, k);
+      as.push({idx:k, date:back});
+    }
+    if(as.length) l.emiAnchors=as; else delete l.emiAnchors;
+    l.dueManual=false;
+  }
+  /* Is the first unpaid instalment governed by an EMI day? Returns the day of
+     the month, or 0. */
+  function emiDayOf(l){
+    if(!l || l.interestOnly || !Array.isArray(l.emiAnchors) || !l.emiAnchors.length) return 0;
+    var k=firstUnpaidIdx(l), best=null;
+    l.emiAnchors.forEach(function(a){ if(a && a.idx>=1 && a.idx<=k && typeof a.date==='string' && /^\d{4}-\d{2}-\d{2}$/.test(a.date) && !(l.baseDate && a.date<=l.baseDate) && (!best || a.idx>best.idx)) best=a; });
+    return best ? Number(best.date.slice(8,10)) : 0;
+  }
+  /* The contract's first and last instalment dates, for the printed documents. */
+  function loanFirstDue(l){
+    if(!l || !l.disb) return (l && l.due) || '';
+    if(!l.baseDate) return emiDueDate(l, 1);
+    return repAddMonths(l.disb, 1);          // restructured: the ORIGINAL first date
+  }
+  function loanLastDue(l){
+    var n=Math.round(Number(l && l.tenure)||0); var f=loanFirstDue(l);
+    if(!(n>0) || !f) return '';
+    if(l.disb && !l.baseDate) return emiDueDate(l, n);
+    return repAddMonths(f, n-1);
   }
   /* Single source of truth for the interest model: monthly flat interest.
      Inputs are sanitised: negatives are clamped to 0 (a negative rate/principal/tenure can
@@ -45,7 +165,7 @@
      (recorded via "Principal Returned") reduces it and, once it covers the principal, closes
      the loan. Arrears = interest that has fallen due but not been paid. */
   function _recomputeInterestOnly(l){
-    var pays=Array.isArray(l.payments)?l.payments:[];
+    var pays=(Array.isArray(l.payments)?l.payments:[]).filter(function(p){ return p && typeof p==='object'; });   // a null entry must not throw
     var P=Math.max(0, Number(l.principal)||0);
     var rate=Math.max(0, Number(l.rate)||0);
     var monthlyInt=Math.round(P*rate/100);
@@ -75,7 +195,20 @@
       if(endIso > t) endIso = t;
     }
     try{ var anchor=l.baseDate||l.disb; if(anchor){ var d0=new Date(anchor+'T00:00:00'), dn=new Date(endIso+'T00:00:00'); monthsElapsed=(dn.getFullYear()-d0.getFullYear())*12+(dn.getMonth()-d0.getMonth()); if(dn.getDate()<d0.getDate()) monthsElapsed--; monthsElapsed=Math.max(0,monthsElapsed); } }catch(e){}
+    if(!isFinite(monthsElapsed)) monthsElapsed=0;   // an unreadable start date must not turn the arrears into NaN
     var intArr=Math.max(0, monthlyInt*monthsElapsed - interestPaid);   // interest due but unpaid
+    /* A charge the borrower has PAID.
+       On a byaj loan only a payment tagged as principal ever came off the
+       balance, and charges were added in full for ever — so there was no way
+       to pay a late fee at all. A borrower charged Rs 500 who handed over
+       Rs 500 still owed "principal + 500", and when he returned the principal
+       in full the loan stayed open, Overdue, with Rs 500 outstanding.
+       Principal is still untouched by ordinary receipts. But those receipts
+       service the interest due to date FIRST, and whatever has been received
+       beyond that interest has gone against the charges. */
+    var _surplus=Math.max(0, interestPaid - monthlyInt*monthsElapsed);
+    var _feesDue=Math.max(0, fees - _surplus);
+    l.outstanding=Math.max(0, P - principalPaid + _feesDue);
     if(P>0 && principalPaid>=P){
       /* The principal is back, so interest stops accruing from here — but
          interest that had ALREADY fallen due before it came back is still owed
@@ -92,7 +225,7 @@
       l.status=stillOwed>0?'Overdue':'Closed';
     }
     else {
-      l.arrears=Math.round(intArr + fees);
+      l.arrears=Math.round(intArr + _feesDue);
       if(!l.dueManual && (l.baseDate||l.disb) && monthlyInt>0){
         var nextIdx=Math.min(600, Math.floor(interestPaid/monthlyInt)+1);
         var nd=emiDueDate(l, nextIdx); if(nd) l.due=nd;
@@ -102,7 +235,7 @@
   }
   function recomputeLoan(l){
     if(l && l.interestOnly){ return _recomputeInterestOnly(l); }
-    const pays=Array.isArray(l.payments)?l.payments:[];
+    const pays=(Array.isArray(l.payments)?l.payments:[]).filter(function(p){ return p && typeof p==='object'; });   // a null entry must not throw
     const _isInt=function(p){ return p && (p.intOnly===true || p.type==='Interest'); };
     // Interest-only payments service that month's interest (byaj) — they are INCOME and push
     // the due date forward, but they do NOT reduce principal, so they are excluded from the
@@ -144,6 +277,23 @@
     // amount that should have been paid by today. For fixed-tenure loans this is capped at the
     // total payable of the current (forward) schedule, so the last month's rounding difference
     // (n*emi can differ from tpay by a few rupees) can never overstate arrears.
+    /* A Next Due Date typed by hand, and still ahead.
+       The schedule is counted from the disbursement date, so a loan disbursed
+       on the 14th has its first EMI on the 14th of next month. If the owner
+       types the 20th instead, the screen showed "Next due 20-11" while the
+       arithmetic above had already counted that EMI as due on the 14th: a
+       brand-new account was flagged Overdue, with arrears of one EMI, six days
+       before the date printed beside it — and was sent the overdue wording.
+       When the ONLY instalment the schedule counts as due beyond those paid is
+       that next one, and the owner's own date for it has not arrived, it is
+       not yet due. Deliberately narrow: an account two or more instalments
+       behind is untouched (a hand-set date there is a promise to pay, not a
+       reason to stop calling it overdue), and so is everything once the typed
+       date has passed. */
+    if(l.dueManual && typeof l.due==='string' && l.due>t && emi>0){
+      var _firstUnpaid=Math.floor(fwdCleared/emi)+1;
+      if(dueByToday===_firstUnpaid) dueByToday=_firstUnpaid-1;
+    }
     var totalFwd=(l.baseOut!=null)?Math.max(0,Number(l.baseOut)):tpay;
     var expectedByToday=dueByToday*emi;
     if(n>0) expectedByToday=Math.min(expectedByToday, totalFwd);
@@ -151,7 +301,18 @@
     var emiArr=Math.max(0, expectedByToday - fwdCleared);
     // ... plus any charges (late fees, bounce fees) are all due now. The demand/overdue
     // "amount overdue" therefore includes the late fees the customer has been charged.
-    var arr=emiArr + _fees;
+    /* ...but only the part of them that has not been PAID. Charges are sticky
+       line-items, so this used to add every charge ever raised, for ever: a
+       borrower who was charged a Rs 500 late fee and paid it — every EMI up to
+       date, the fee settled — still carried "arrears Rs 500" and an Overdue
+       badge until the loan closed. A fee paid on the day of disbursement did
+       the same to a brand-new account whose first EMI was weeks away.
+       The balance already treats money as money (outstanding = payable +
+       charges - received), so arrears must too: whatever has been received
+       beyond the instalments due to date has gone against the charges. */
+    var _aheadOfEmis=Math.max(0, fwdCleared - expectedByToday);
+    var _feesDue=Math.max(0, _fees - _aheadOfEmis);
+    var arr=emiArr + _feesDue;
     if(arr>l.outstanding) arr=l.outstanding;
     l.lateFees=(Array.isArray(l.charges)?l.charges:[]).filter(function(c){return c&&c.type==='Late fee';}).reduce(function(a,c){return a+(Number(c.amount)||0);},0);
     l.arrears=Math.round(arr);
@@ -159,10 +320,22 @@
       l.status='Closed'; l.arrears=0;
     } else {
       // advance "next due" to the first EMI not yet fully covered — unless the user set a custom due date
-      if(!l.dueManual && emi>0 && (l.baseDate||l.disb)){
+      if(emi>0 && (l.baseDate||l.disb)){
         var nextIdx=Math.min(horizon, Math.floor(fwdCleared/emi)+1);
         var nd=emiDueDate(l, nextIdx);
-        if(nd){ if(_shift) nd=repAddMonths(nd,_shift); l.due=nd; }
+        if(nd){
+          if(_shift) nd=repAddMonths(nd,_shift);
+          /* A hand-set date stands for ONE instalment. It used to be frozen
+             for ever: once that instalment was paid the screen went on
+             showing the old date, no "EMI due" reminder was ever raised for
+             the account again (its date was always in the past), and the next
+             missed EMI was announced as overdue since a date that had in fact
+             been paid. Once the typed date has passed AND the next unpaid
+             instalment falls after it, the typed date has done its job and
+             the schedule takes over again. */
+          if(l.dueManual && typeof l.due==='string' && l.due && l.due<t && nd>l.due) l.dueManual=false;
+          if(!l.dueManual) l.due=nd;
+        }
       }
       // Status is driven by overdue EMIs only, so an unpaid fee on an otherwise-current
       // loan does not flip it to "Overdue" (but it still adds to the balance).
@@ -242,11 +415,29 @@
         _intPaid += Number(_q.amount)||0;
       }
       owedInt=Math.max(0, Math.round(_mi*_m-_intPaid));
+      /* same rule as the ledger: receipts beyond the interest due by this date
+         have gone against the charges */
+      fees=Math.max(0, fees - Math.max(0, Math.round(_intPaid-_mi*_m)));
     }
     return Math.max(0, base + fees + owedInt - through);
   }
   window.balanceAtPayment=balanceAtPayment;
-  function recomputeAll(){ if(typeof loans!=='undefined' && Array.isArray(loans)) loans.forEach(recomputeLoan); }
+  /* recomputeAll runs before every screen is drawn. It used to be a bare
+     forEach, so ONE record the engine could not work out threw out of the loop
+     and took every other loan — and the navigation itself — down with it. Each
+     loan is now worked out on its own: a bad one is reported once (Diagnostics)
+     and left as it was, and the other forty-four carry on. */
+  function recomputeAll(){
+    if(typeof loans==='undefined' || !Array.isArray(loans)) return;
+    for(var i=0;i<loans.length;i++){
+      var l=loans[i];
+      if(!l || typeof l!=='object') continue;
+      try{ recomputeLoan(l); }
+      catch(e){
+        try{ if(typeof reportError==='function') reportError('recomputeLoan', 'A/C '+(l.acno||l.id||'?')+': '+((e&&e.message)||e), (e&&e.stack)||''); }catch(_){ }
+      }
+    }
+  }
 
   /* ===== Sample / Test data (admin) — merges labelled (TEST) loans, removable in one click ===== */
   function _testLoans(){

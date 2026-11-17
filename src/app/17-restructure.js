@@ -51,7 +51,10 @@
     var pool=pays.map(function(p){return {amt:Number(p.amount)||0, date:p.date};});
     var pi=0, carry=0, rows=[], bal=totalPayable, paidCount=0, paidSum=0;
     for(var i=1;i<=months;i++){
-      var due = addMonths(start, ((i===1 && l.disb) ? 1 : i) + shift);
+      /* Ask the engine for the date, so an EMI day set on the loan moves this
+         schedule (and the Welcome Letter built from it) with everything else. */
+      var _dIso=(typeof emiDueDate==='function' && (l.baseDate||l.disb)) ? emiDueDate(l, i) : '';
+      var due = _dIso ? addMonths(_dIso, shift) : addMonths(start, i + shift);
       var thisEmi = (i===months) ? Math.max(0, totalPayable - emi*(months-1)) : emi;
       if(thisEmi<=0) thisEmi=emi;
       /* try to cover thisEmi from the payment pool */
@@ -77,7 +80,20 @@
        a loan still on its original plan. */
     var _chgOwed=(l.baseOut!=null) ? 0
       : (Array.isArray(l.charges)?l.charges:[]).reduce(function(a,c){return a+(c?(Number(c.amount)||0):0);},0);
-    var remaining=Math.max(0, totalPayable + _chgOwed - paidSum);
+    /* `paidSum` is only the money that landed on an instalment. Anything
+       received beyond the instalments — the extra Rs 500 a borrower hands over
+       with his last EMI to settle a late fee — never reaches a row, so
+       subtracting paidSum alone left that Rs 500 showing as "Remaining" on a
+       loan the ledger had closed. Remaining is what the ledger says:
+       payable + charges - everything received against this plan. */
+    var _recvAll=pays.reduce(function(a,p){ return a+(Number(p.amount)||0); },0);
+    var remaining=Math.max(0, totalPayable + _chgOwed - Math.max(paidSum, _recvAll));
+    /* A byaj loan's balance has rules this allocation does not model — charges
+       settled out of receipts beyond the interest due, interest still owed
+       after the principal is returned — so take the ledger's own figure. */
+    if(l.interestOnly && typeof recomputeLoan==='function'){
+      try{ var _eng=Object.assign({}, l); recomputeLoan(_eng); remaining=Math.max(0, Math.round(Number(_eng.outstanding)||0)); }catch(e){}
+    }
     return {l:l, rows:rows, months:months, emi:emi, totalPayable:totalPayable, paidSum:paidSum, remaining:remaining, charges:_chgOwed, paidCount:paidCount, capped:capped, intCount:shift, intIncome:intIncome};
   }
   function tableHTML(d, forPrint){

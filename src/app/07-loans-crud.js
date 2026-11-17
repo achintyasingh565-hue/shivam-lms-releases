@@ -192,6 +192,7 @@
     // Only treat the Next Due Date as a manual override if this record was explicitly
     // flagged that way. Otherwise the due date auto-follows the disbursement/schedule.
     window._dueUserEdited = !!f.dueManual;
+    window._dueTyped=false; window._dueCleared=false;   // nothing typed, nothing cleared, in THIS sitting
     $('m_status').value=f.status||'Active'; $('m_gname').value=f.gname||''; $('m_gphone').value=f.gphone||''; if($('m_coname'))$('m_coname').value=f.coname||''; if($('m_cophone'))$('m_cophone').value=f.cophone||''; if($('m_corel'))$('m_corel').value=f.corel||''; if($('m_coid'))$('m_coid').value=f.coid||''; if($('m_coaddr'))$('m_coaddr').value=f.coaddr||''; $('m_remarks').value=f.remarks||'';
     $('m_dob').value=f.dob||''; if($('m_grelname'))$('m_grelname').value=f.grelname||''; if($('m_gaddr'))$('m_gaddr').value=f.gaddr||''; $('m_residence').value=f.residence||''; $('m_occupation').value=f.occupation||''; $('m_designation').value=f.designation||''; $('m_officeaddr').value=f.officeaddr||'';
     $('m_caseno').value=f.caseno||''; $('m_refno').value=f.refno||''; $('m_product').value=f.product||''; $('m_dealer').value=f.dealer||''; $('m_downpay').value=f.downpay||''; $('m_officer').value=f.officer||'';
@@ -370,16 +371,53 @@
       dueManual: !!window._dueUserEdited,
       due: window._dueUserEdited ? $('m_due').value : (_ed?_ed.due:$('m_due').value)
     });
+    var _dueMode=_applyDueChoice(temp);   // EMI day / one-off date / back to the schedule — same rule Save uses
     try{ recomputeLoan(temp); }catch(e){}
     if(!window._dueUserEdited && temp.due) $('m_due').value=temp.due;   // due follows the schedule/disbursement
+    _dueHintRender(temp, _dueMode);
     const out=Math.max(0, Number(temp.outstanding)||0);
     $('m_out').value=out;
     $('m_status').value=temp.status||'Active';
     updatePaySummary(out);
     try{ if(window._loanRefresh) window._loanRefresh(); }catch(e){}
   }
-  window.dueEdited=function(){ window._dueUserEdited=true; recalc(); };   // user typed a custom due date
-  window.dueUseSchedule=function(){ window._dueUserEdited=false; recalc(); };   // "↻ use schedule" — drop the manual override
+  window.dueEdited=function(){ window._dueUserEdited=true; window._dueTyped=true; window._dueCleared=false; recalc(); };   // user typed a custom due date
+  window.dueUseSchedule=function(){ window._dueUserEdited=false; window._dueTyped=false; window._dueCleared=true; recalc(); };   // "↻ use schedule" — drop the manual override
+  /* What the Next Due Date field means, decided in ONE place and applied to
+     the preview record and to the saved record alike.
+       typed in this sitting, within a month of the schedule date -> EMI day
+       typed, further out than that                              -> one-off date
+       "use schedule" pressed                                    -> back to the disbursement day
+       not touched                                               -> whatever the record already had */
+  function _applyDueChoice(r){
+    if(window._dueCleared){ if(typeof emiDayClear==='function') emiDayClear(r); return 'schedule'; }
+    if(window._dueTyped){
+      var dec=(typeof emiDayDecide==='function') ? emiDayDecide(r, ($('m_due')||{}).value||'') : {mode:'oneoff'};
+      if(dec.mode==='day' && emiDayApply(r, dec)) return 'day';
+      if(dec.mode==='none'){ r.dueManual=false; return 'schedule'; }     // field emptied
+      r.dueManual=true; return 'oneoff';
+    }
+    if(r.dueManual) return 'legacy';
+    return (typeof emiDayOf==='function' && emiDayOf(r)) ? 'day' : 'schedule';
+  }
+  /* One quiet line under the field, only when the date is NOT simply following
+     the disbursement day — and the way back, which the app's own safety note
+     has long told people to click but which was never on the screen. */
+  function _dueHintRender(r, mode){
+    var el=$('m_dueHint'); if(!el) return;
+    var back=' <button type="button" class="lnk" onclick="dueUseSchedule()">\u21bb use schedule</button>';
+    var h='';
+    if(mode==='day'){
+      var d=(typeof emiDayOf==='function') ? emiDayOf(r) : 0;
+      h='EMI day: <b>'+(d||'')+'</b> of each month, from this instalment on.'+back;
+    } else if(mode==='oneoff'){
+      h=(r && r.interestOnly ? 'Hand-set date for this instalment only.' : 'One-off date for this instalment only \u2014 it is outside this instalment\u2019s own month, so later instalments keep their day.')+back;
+    } else if(mode==='legacy'){
+      var can=(typeof emiDayDecide==='function') && emiDayDecide(r, ($('m_due')||{}).value||'').mode==='day';
+      h='Typed by hand, for this instalment only.'+(can?' <button type="button" class="lnk" onclick="dueEdited()">Make it the EMI day</button> \u00b7':'')+back;
+    }
+    el.innerHTML=h;
+  }
   function updatePaySummary(out){
     const cleared=(typeof window._mClearedAll==='number') ? window._mClearedAll : (Number($('m_paid').value)||0);
     const pending=(modalPayments||[]).filter(p=>p.status==='Pending').reduce((a,p)=>a+(Number(p.amount)||0),0);
@@ -522,7 +560,14 @@
     // directly (tracked by window._dueUserEdited). Otherwise it auto-follows the schedule:
     // recomputeLoan advances rec.due to the next unpaid EMI from the disbursement date.
     rec.dueManual = !!window._dueUserEdited;
+    var _dueMode=_applyDueChoice(rec);   // sets or clears the EMI day on the record being saved
     recomputeLoan(rec);
+    /* A typed date that has already passed, with the next unpaid instalment
+       falling after it, is released back to the schedule by recomputeLoan.
+       Say so, rather than let the field quietly change on the next open. */
+    if((_dueMode==='oneoff' || _dueMode==='legacy') && !rec.dueManual && rec.due){
+      toast('Next Due Date set to '+fmtDate(rec.due)+' from the schedule \u2014 the date typed had already passed.', 5000);
+    }
     // Guard (Fix 2): a due date before the disbursement date is almost always a mistake.
     // Only possible now via a manual override; warn so the user can correct it.
     if(rec.dueManual && rec.due && rec.disb && rec.due < rec.disb){
@@ -544,7 +589,7 @@
   function unbouncePay(i){ var p=modalPayments[i]; if(!p) return; if(p._bounceCharged){ toast('Already recorded \u2014 remove the charge from the Charges screen to reverse it.'); return; } p.status='Pending'; delete p._bounceFee; renderPayments(); }
   function snapBefore(reason){ try{ localStorage.setItem('shivam_backup_snapshot', JSON.stringify({at:Date.now(), reason:reason||'', data:loans})); }catch(e){} }
   const RECYCLE_STORE='shivam_recycle_v1';
-  function recycleLoad(){ try{ return JSON.parse(localStorage.getItem(RECYCLE_STORE)||'[]')||[]; }catch(e){ return []; } }
+  function recycleLoad(){ try{ var a=JSON.parse(localStorage.getItem(RECYCLE_STORE)||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
   function recycleSave(arr){ try{ localStorage.setItem(RECYCLE_STORE, JSON.stringify(arr)); }catch(e){} }
   function recyclePurgeOld(){ const cut=Date.now()-30*24*60*60*1000; let arr=recycleLoad(); const keep=arr.filter(x=>(x.deletedAt||0)>=cut); if(keep.length!==arr.length) recycleSave(keep); return keep; }
   function delLoan(id){

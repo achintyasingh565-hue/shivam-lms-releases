@@ -9,6 +9,357 @@ charged, and the instalment itself moves forward, extending the schedule.
 
 ---
 
+## 2.33.0
+
+An EMI-day setting, and a whole-app audit. Interest, EMI and total payable are
+untouched. **Outstanding changes in one case only** — a byaj loan whose charge
+has been paid — and it is listed first below.
+
+### EMI day
+
+A loan disbursed on the 14th had every EMI on the 14th, and the only way to give
+a borrower the 20th was to type a Next Due Date by hand, which changed the label
+and none of the arithmetic.
+
+Type the date in **Next Due Date** as before. If it falls in that instalment's
+own month it becomes the loan's **EMI day**: that instalment and every later one
+move to it, and a line under the field says so. Because the change is made in
+the one function every screen asks for a due date, arrears, late-fee detection
+and its grace period, both schedules, the statement, the Welcome Letter, the
+agreement dates and the reminders all move together.
+
+- Instalments already behind you keep their dates, so no past payment turns
+  late or on-time after the fact. The day can be changed again later.
+- The **first** instalment may also land in a neighbouring month (disbursed on
+  the 28th, first EMI on the 5th). After that only the day within the month can
+  change, because payments are filed by calendar month and a month with no
+  instalment, or two, would lose them.
+- A date further out than that — a promise date on an account in arrears — stays
+  a one-off for that instalment, exactly as in 2.32.0. The arrears do not vanish.
+- **↻ use schedule** puts the loan back on its disbursement day. The app's own
+  safety note has told people to click that for a long time; it was never
+  actually on the screen.
+- Byaj loans do not take an EMI day (their interest is counted in whole months
+  from disbursement), and a restructure starts a new plan, so it drops one.
+- Nothing is converted behind your back: a loan whose date was typed by hand
+  before this version stays as it is until you press **Make it the EMI day**.
+
+**Both devices must be on this version.** An older build ignores the EMI day and
+will show that loan's dates on the disbursement day.
+
+### The audit
+
+Hand-written tests cover the cases someone thought of. This release adds
+`tests/fuzz-consistency.js`: thousands of random loans — flat and byaj, paid
+early, late, in part, twice over, by cheques that bounced, with interest-only
+months, charges and EMI days — run through the engine and through every screen
+that restates its figures, failing if any two disagree by more than a rupee. It
+found the following. Each also has a named, readable case in
+`tests/e2e-audit-v233.js`.
+
+**Byaj: a charge could never be paid.** *(changes outstanding)* On a byaj loan
+only a payment tagged as principal ever came off the balance, and charges were
+added in full for ever. A borrower charged ₹500 who handed over ₹500 still owed
+"principal + 500", and when he returned the principal in full the loan stayed
+open and Overdue with ₹500 outstanding. Principal is still untouched by ordinary
+receipts — but those receipts service the interest due to date first, and what
+has been received beyond that now goes against the charges. A byaj loan with no
+charges is unaffected in every figure.
+
+**A closed loan showed "Remaining ₹500".** Every EMI paid, a late fee settled
+with the last one: the ledger had the loan closed while the schedule window and
+the Welcome Letter still showed the fee as remaining, because they only counted
+money that landed on an instalment.
+
+**The closing advisory counted one instalment too many** for every interest-only
+month on an EMI loan. The ledger defers the schedule by a month for each; the
+"instalments to date" figure shown before closing or deleting a loan did not.
+
+**The report schedule's Paid column did not add up.** A regular payment made in
+a month that was serviced by interest reached the balance but not the Paid
+column, so the column totalled less than the "Received" figure above it.
+
+**The report schedule could close above the ledger.** When a part-paid
+instalment was followed by a lump covering the later ones, the surplus sat as an
+"advance" while the part-paid one was still short — ₹2 of rounding in some
+loans, the whole shortfall in others.
+
+**Byaj: interest still owed after the principal came back was missing from both
+schedules.** The ledger has carried it since an earlier release; the schedules
+closed at nil. They now close on the ledger's figure, on a line that names it.
+
+**"Overdue" on the dashboard meant the whole balance.** The Overdue Amount tile,
+the Action Centre's Overdue box and the notification bell all showed the full
+outstanding of every overdue account — one missed EMI on a 48-month loan read as
+₹4,90,000 overdue — while the Missed / Overdue tile on the same screen and the
+Overdue report used the arrears. All now show the amount actually overdue.
+Portfolio at Risk still uses the whole balance, which is what it measures. The
+bell also showed the full balance for an EMI that was merely due soon.
+
+### Checked and left alone
+
+Dates parsed without a time, and `toISOString` used for a calendar date: every
+remaining use is correct in Indian time and is covered by the suites run under
+`TZ=Asia/Kolkata`. Every element id the code looks up exists, apart from one in
+a function nothing calls. Storage is bounded everywhere it grows. The overdue
+*reminder* still quotes the total outstanding, because that sentence is your
+approved WhatsApp wording — say if you would rather it quoted the overdue amount.
+
+### Verified
+
+47 offline suites pass, and again under `TZ=Asia/Kolkata`; the fuzz passes on
+every seed tried (15,000+ loans); core lending rules intact; lint, build, bundle
+parse, scope and collision scans clean. Three fixtures that pinned superseded
+behaviour were corrected and say why. The 49 browser suites could not be run
+here, so the EMI-day line under the Next Due Date field has not been seen on a
+screen.
+
+---
+
+## 2.32.0
+
+Reminders that were not being raised, a wrong message in the custom blast, and a
+sweep for anything that could leave the app unable to open. Interest, EMI, total
+payable and outstanding are untouched; three things about **arrears, the Overdue
+flag and the Next Due date** did change and are listed plainly below.
+
+### "All the reminders are missing"
+
+The automatic scan fired only when the day count was **exactly** 7, 3 or 1 before
+an EMI, or exactly 1, 7, 15 or 30 after one. So:
+
+- a reminder existed only if the app was opened on that exact day — open it on
+  day 4 instead of day 3 and that borrower was never reminded;
+- an account more than 30 days overdue was never mentioned again. A/C 16289,
+  68 days overdue, could not appear: 68 is not one of the four numbers;
+- which is why the panel read "You're all caught up" with overdue accounts on
+  the book.
+
+A stage is now a **window**. Four days before an EMI the 7-day stage has been
+reached, so it is raised; ten days late is the 7-day overdue stage; and past 30
+days the reminder returns every 30 — at 60, 90, and so on. Each stage is still
+raised once, and a reminder already raised under the old rule is not repeated.
+
+Two things had to change with it:
+
+- **Dismiss and Clear queue now stay cleared.** They used to also forget the
+  reminder had been raised, which was needed when a reminder had one day to
+  exist; with windows it would have put the same reminder back each time the
+  screen opened. **Run scan now** is the deliberate way to bring back
+  everything still due.
+- **Nobody is queued for a message they were already sent** in the current
+  stage — checked against the WhatsApp history, so a reminder sent from the
+  custom blast counts too. A failed send does not count.
+
+### Custom blast sent an overdue demand for an EMI that was not due yet
+
+Under "Due soon", Mrs. Shalu's row read: *"…was due on 20-11-26 and is now
+overdue. Your outstanding amount is ₹4,90,000"* — on the 16th, four days before
+that date, quoting the whole balance of a 48-month loan in place of one EMI.
+
+The wording was chosen on the account's status alone. It now follows the date:
+an instalment dated today or later is an **EMI reminder** with the EMI amount,
+whatever the status; the overdue wording needs the account overdue **and** the
+date behind us. The automatic scan uses the same rule — before, an account in
+that state fell between the two branches and got no reminder of either kind.
+
+### Why that account was flagged Overdue at all — two engine faults
+
+**A charge that had been paid still counted as arrears.** Charges are kept as
+line items, and arrears added every one ever raised, for ever. A borrower
+charged a ₹500 late fee who paid it — every EMI up to date — still carried
+"arrears ₹500" and an Overdue badge until the loan closed. The balance already
+treats money as money (payable + charges − received); arrears now do too: what
+has been received beyond the instalments due to date has gone against the
+charges. An **unpaid** charge is still arrears exactly as before.
+
+**A Next Due Date typed by hand was only a label.** The schedule counts from the
+disbursement date, so a loan disbursed on the 14th has its EMI on the 14th. Type
+the 20th and the screen said "Next due 20-11" while the arithmetic had already
+counted the EMI as due on the 14th — a new account went Overdue six days before
+the date printed beside it. Now:
+
+- while the typed date is still ahead, and that next instalment is the *only*
+  one the schedule counts as due, it is not yet due. Deliberately narrow: an
+  account two or more instalments behind is unchanged — a typed date there is a
+  promise to pay, not a reason to stop calling it overdue;
+- a typed date used to freeze for ever. Once it has passed and the next unpaid
+  instalment falls after it, the schedule takes over again. Before, the screen
+  kept the old date, no EMI reminder was ever raised for that account again,
+  and the next missed EMI was announced as overdue since a date that had been
+  paid.
+
+What this does **not** give you is a real "EMI day" setting. A loan disbursed on
+the 14th still has its *following* instalments on the 14th.
+
+### A/C 16289 — ₹25,000 against your ₹22,600
+
+Not an arithmetic fault. 69,600 payable − 48,500 received = 21,100; your two late
+fees and the bounce make 22,600. The other **₹2,400 is two "Overdue interest"
+charges of ₹1,200** — one month's interest (9,600 ÷ 8) for each month in which
+nothing was paid, added when overdue charges were applied with interest
+included. They are ordinary lines in that loan's Charges list and can be removed
+there. Any loan where overdue interest was applied carries the same kind of
+line. Reproduced in the engine and pinned by a test.
+
+### Things that could have left the app unable to open
+
+**One bad record stopped everything.** `recomputeAll` runs before every screen is
+drawn and was a bare loop: one record the engine could not work out — a null
+inside a payments list from a half-written cloud row, a date stored as a number
+— threw out of it and took every other loan and the navigation with it. Each
+loan is now worked out on its own; a bad one is reported once in Diagnostics
+and the rest carry on. The engines themselves no longer throw on those entries.
+
+**Four of the six ways the book is replaced did not check what they read.**
+Startup and backup-file restore repaired incoming records; rows from the other
+device, a cloud snapshot, the in-app snapshot and the IndexedDB mirror went
+straight in. All six now repair: non-records are dropped from payment and charge
+lists, timestamps and DD-MM-YYYY dates are converted, a number or object in a
+date field is emptied. A healthy record passes through byte-for-byte.
+
+**A correct recovery password could be refused.** The sign-in accounts are
+encrypted with the Mac's keychain. If the keychain is reset, or the data folder
+is moved to another Mac, they cannot be read — and recovery then answered a
+correct recovery password with "No Administrator account found". It now
+re-creates the Administrator account once the recovery secret is verified, and
+sign-in explains what has happened instead of "Incorrect username or password".
+
+**Smaller:** the date helpers no longer throw on a non-text date or print
+"NaN-NaN-NaN"; the expense, recycle-bin, message-history and audit loaders
+always return a list.
+
+### Not changed, and why
+
+`main.js` has no handler for the page process crashing, and the menu that would
+offer Reload is removed, so a crashed window stays blank until the app is quit
+and reopened. That file is outside `src/`, which is the agreed edit area.
+
+### Verified
+
+44 offline suites pass, and again under `TZ=Asia/Kolkata`; core lending rules
+intact; lint, build, bundle parse, scope and collision scans clean. Two test
+fixtures that asserted the old reminder rule were corrected and say so. The
+browser suite for "dismissed reminder returns on re-scan" was updated to the
+new behaviour but, like the other 48 browser suites, could not be run here.
+
+---
+
+## 2.31.0
+
+Everything here is about what survives a machine being replaced or reset. No
+change to the lending model, and no change to the Supabase schema.
+
+### The manual backup button was the weakest backup the app made
+
+This is the one that mattered. **"Backup (.json)" wrote a bare array of loans —
+nothing else.** No expense register, no firm details, no recycle bin, no message
+templates, no audit log. Meanwhile the *automatic* backup to your chosen folder
+has always written the full payload, and the restore has always been able to
+read it. So the backup you take deliberately, before wiping a computer, was
+worse than the one the app takes on its own.
+
+It now writes exactly what the automatic backup writes, and tells you the record
+count and file size when it's done.
+
+### Fee settings now travel with the book
+
+Late fee, bounce fee, grace days, manual overdue interest and its start date,
+and the light/dark theme used to live only on the machine that set them. A
+replaced laptop came back with your loan book intact and your fee rules silently
+reset to their defaults — which is the kind of wrong that isn't noticed until a
+charge comes out at ₹500 instead of ₹750.
+
+They now ride in both the backup file and the daily cloud snapshot (bumped to
+v3). Older snapshots still restore: a v2 has no settings key and is simply left
+alone, and a legacy bare-array snapshot loads as before.
+
+They're stored as raw strings, exactly as the app writes them — not JSON-wrapped
+— because `getLateFeeRate` and its siblings do `Number(raw)`, and a quoted
+`"750"` would read as NaN and fall back to the default. There's a test pinning
+that specifically.
+
+**What deliberately does not travel:** the WhatsApp token, the ID-encryption
+passphrase and the user roster. The token is a live credential to your Meta
+account; the passphrase is the key to the ID fields sitting encrypted in that
+same cloud, so storing it beside them would leave you with the appearance of
+encryption and none of the substance.
+
+### Scanned documents can go in the backup file
+
+The KYC scans live in this device's IndexedDB and are never synced. There was
+already a separate vault backup button; the problem was remembering to press it.
+
+There's now a tick-box on the backup screen — **"Also include scanned
+documents"** — that folds every scan into the one file. Off by default, because
+base64 scans turn a 200 KB backup into tens of megabytes. Restore is additive
+and skips duplicates, so restoring the same file twice is harmless, and a
+backup made before this version restores fine with no documents in it.
+
+The warning on that screen now says plainly that the scans are gone if the
+machine is wiped without either the tick-box or the separate vault backup.
+
+### Verified
+
+42 offline suites pass, and again under `TZ=Asia/Kolkata`. Core lending rules
+intact. Lint, build, bundle parse, scope and collision scans all clean. 569
+element ids with no duplicates, 735/735 divs balanced.
+
+---
+
+## 2.30.1
+
+### Festival greetings: the app was telling you they were sent when it did not know
+
+This is the answer to why reminders arrive and greetings do not.
+
+WhatsApp sorts every approved template into **Utility** or **Marketing**, and delivers them
+under different rules. Your reminders — `emi_due_reminder`, `overdue_reminder`,
+`payment_received` — are utility: attached to a transaction, so they go through. Your
+`festival_greeting` is **Marketing**, confirmed in WhatsApp Manager.
+
+A marketing template is rate-limited per recipient: WhatsApp limits how many marketing
+templates one person receives **from this business** in a period, and limits hardest for
+people unlikely to reply or engage. Over that limit it **accepts** the message, returns HTTP
+200 with a message id, and then declines to deliver it. The refusal is error **131049**,
+reported on the "messages" status webhook — which needs a public HTTPS server this desktop
+app does not have and cannot have. So the app is never told.
+
+WhatsApp Manager shows it under **Insights › Ecosystem health**, as *"Meta chose not to
+deliver"* with a count. That screen is the only place the real outcome is visible, and the
+app now points you at it.
+
+The app was writing that 200 response into Message History as **"Sent"**, which read as proof
+of delivery. It was never that. It only ever meant WhatsApp took the message.
+
+It worked before because WhatsApp re-categorises templates — a greeting first approved as
+Utility gets moved to Marketing with as little as one day's notice. Nothing in the app caused
+it, and nothing in the app can undo it.
+
+**What changed — wording only, sending is untouched:**
+
+- History now records and shows **"Accepted"**, with a tooltip saying delivery is not
+  confirmed here. Entries recorded before this version still read correctly.
+- Greeting, birthday, office-closure and business-launch messages carry a visible
+  **"may not be delivered"** note in History. Reminders and payment confirmations do not.
+- Before sending a batch containing any of those four, a box explains the cap and asks
+  whether to send anyway. You can still send.
+- The toast and the audit entry say *accepted*, not *sent*.
+
+**Your options, none of which the app can do for you:** request a category review of
+`festival_greeting` in WhatsApp Manager; send greetings to fewer people at a time, since the
+limit is per recipient and weighted by how often that person replies to you; or send them
+from WhatsApp directly, where a personal message is not a template and no limit applies.
+
+### The core lending rules are now a committed test
+
+The 16 assertions I re-run after every change — flat interest, the 4% deduction, byaj
+principal, interest receipts, reconciliation — lived in a scratch file and had to be rebuilt
+from memory each session. They are now `tests/core-lending-rules.js` and run with everything
+else. 40 offline suites.
+
+---
+
 ## 2.29.0
 
 A verification release. No new features and no change to the lending model — this is the

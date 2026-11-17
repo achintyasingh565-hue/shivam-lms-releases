@@ -40,12 +40,49 @@
     if(!c.folder) msgs.push('No <b>backup folder</b> chosen \u2014 pick one in the Backup section so your records are saved outside the app.');
     else if(stale) msgs.push('Last backup was '+(c.lastAt?Math.floor((Date.now()-c.lastAt)/86400000)+' day(s) ago':'never')+' \u2014 open the Backup section and run \u201cBack up now\u201d.');
     if(msgs.length){ el.innerHTML='\u26a0\ufe0f '+msgs.join('<br>\u26a0\ufe0f '); el.style.display='block'; } else { el.style.display='none'; } }
+  /* ---------------------------------------------------------------------
+     Working settings that used to live ONLY on this device.
+
+     Every one of these is read live from localStorage each time it is used
+     (getLateFeeRate, getBounceFee, getLateGraceDays, getManualOvdInt,
+     getOvdFrom), so writing the key is enough to apply it — there is no
+     cached copy to invalidate. That is why restoring them is safe.
+
+     They are stored as raw strings, exactly as the app writes them, so a
+     value this version does not understand still round-trips unharmed. */
+  var SE_SETTING_KEYS = ['shivam_latefee_v1','shivam_bouncefee_v1','shivam_lategrace_v1',
+                         'shivam_ovdint_v1','shivam_ovdfrom_v1','shivam_theme'];
+  function collectSettings(){
+    var o={};
+    try{ SE_SETTING_KEYS.forEach(function(k){ var v=localStorage.getItem(k); if(v!=null) o[k]=v; }); }catch(e){}
+    return o;
+  }
+  function applySettings(o){
+    if(!o || typeof o!=='object') return 0;
+    var n=0;
+    try{
+      SE_SETTING_KEYS.forEach(function(k){
+        var v=o[k];
+        if(v==null) return;                       // absent means "leave mine alone"
+        if(v==='') { localStorage.removeItem(k); n++; return; }   // the app clears by removing
+        localStorage.setItem(k, String(v)); n++;
+      });
+    }catch(e){}
+    /* The theme is the one setting with a visible side-effect, so repaint it. */
+    try{ if(typeof applyTheme==='function') applyTheme(); }catch(e){}
+    return n;
+  }
+
   function makeBackupPayload(){
     const grab=k=>{ try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch(e){ return null; } };
     const wc=grab('shivam_wacfg_v1')||{}; const wcSafe=Object.assign({},wc); delete wcSafe.token; delete wcSafe.tokenEnc;
     return JSON.stringify({ app:'ShivamLMS', v:2, schema:SCHEMA_VERSION, at:new Date().toISOString(), count:(loans||[]).length, sum:(typeof _backupChecksum==='function'?_backupChecksum(loans):null), loans:loans, expenses:loadExpenses(), firm:(function(){ try{ return JSON.parse(localStorage.getItem('shivam_firm_v1')||'null'); }catch(e){ return null; } })(),
-      recycle:grab('shivam_recycle_v1'), users:grab('shivam_users_v1'), watpl:grab('shivam_watpl_v1'), msgtpl:grab('shivam_msg_v1'), wacfg:wcSafe, audit:grab('shivam_audit_v1'), wahist:grab('shivam_wamsg_v1') }, null, 2);
+      recycle:grab('shivam_recycle_v1'), users:grab('shivam_users_v1'), watpl:grab('shivam_watpl_v1'), msgtpl:grab('shivam_msg_v1'), wacfg:wcSafe, audit:grab('shivam_audit_v1'), wahist:grab('shivam_wamsg_v1'),
+      settings:collectSettings() }, null, 2);
   }
+  /* Same payload, but as an object so the caller can add the document vault
+     before stringifying. Kept separate so the auto-backup path is untouched. */
+  function makeBackupObject(){ try{ return JSON.parse(makeBackupPayload()); }catch(e){ return null; } }
   function scheduleAutoBackup(){ clearTimeout(_abkTimer); _abkTimer=setTimeout(()=>checkAutoBackup(false), 1500); }
   async function checkAutoBackup(force){
     const c=loadABK();
@@ -73,7 +110,7 @@
   }
   function setAutoBackup(en){ const c=loadABK(); c.enabled=en; saveABK(c); renderBackupStatus(); if(en) checkAutoBackup(false); }
   function setAutoFreq(v){ const c=loadABK(); c.freqDays=parseInt(v)||1; saveABK(c); renderBackupStatus(); }
-  function restoreSnapshot(){ const sn=snapshotInfo(); if(!sn||!sn.data){ toast('No in-app snapshot yet'); return; } if(!confirm('Restore the last in-app snapshot from '+new Date(sn.at).toLocaleString()+'? This replaces current data.')) return; loans=sn.data; try{recomputeAll();}catch(e){} save(); logAudit('Snapshot Restored',(sn.data.length||0)+' records'); if(typeof renderLoans==='function') renderLoans(); if(typeof renderDash==='function') renderDash(); toast('Restored from in-app snapshot'); }
+  function restoreSnapshot(){ const sn=snapshotInfo(); if(!sn||!sn.data){ toast('No in-app snapshot yet'); return; } if(!confirm('Restore the last in-app snapshot from '+new Date(sn.at).toLocaleString()+'? This replaces current data.')) return; loans=(typeof normalizeLoans==='function')?normalizeLoans(sn.data):sn.data; try{recomputeAll();}catch(e){} save(); logAudit('Snapshot Restored',(sn.data.length||0)+' records'); if(typeof renderLoans==='function') renderLoans(); if(typeof renderDash==='function') renderDash(); toast('Restored from in-app snapshot'); }
   function renderBackupStatus(){
     const c=loadABK(); const sn=snapshotInfo();
     const en=$('bkEnabled'); if(en) en.checked=(c.enabled!==false);

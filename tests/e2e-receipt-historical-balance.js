@@ -55,11 +55,20 @@ const noDate = { tpay: 100000, charges: [{ id: 'c4', amount: 200, date: '2026-05
 chk('an undated payment counts every charge', bal(noDate, 0), 99200);
 
 // byaj: the date rule applies on that path too
-const byaj = { interestOnly: true, principal: 50000,
+// This fixture used to have no rate and no start date, so no interest was ever
+// due and both receipts were "extra". Since v2.33.0 money received beyond the
+// interest due goes against the charges (it is the only way a byaj borrower can
+// pay a fee at all), which made that shape settle its own fee. It now services
+// its interest exactly — Rs 1,000 a month — so what is being tested is still
+// the date rule, on a loan that could exist.
+const byaj = { interestOnly: true, principal: 50000, rate: 2, disb: '2026-01-01',
   charges: [{ id: 'c5', amount: 700, date: '2026-06-01' }],
-  payments: [P('2026-02-01', 1000), P('2026-07-01', 1000)] };
+  payments: ['02', '03', '04', '05', '06', '07'].map((m) => P('2026-' + m + '-01', 1000)) };
 chk('byaj February receipt excludes a June fee', bal(byaj, 0), 50000);
-chk('byaj July receipt includes it', bal(byaj, 1), 50700);
+chk('byaj July receipt includes it', bal(byaj, 5), 50700);
+// and once the borrower hands over the Rs 700, a receipt for it shows the fee gone
+const byajPaid = Object.assign({}, byaj, { payments: byaj.payments.concat([P('2026-07-05', 700)]) });
+chk('byaj: a receipt for the fee payment itself shows it settled', bal(byajPaid, 6), 50000);
 
 console.log(fails ? '\n' + fails + ' CHECK(S) FAILED' : '\nALL RECEIPT-HISTORY CHECKS PASS');
 process.exitCode = fails ? 1 : 0;

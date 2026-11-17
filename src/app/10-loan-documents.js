@@ -68,8 +68,8 @@
     set('h_loanamt',l.principal||''); set('h_rate',l.rate||''); set('h_emi',l.emi||''); set('h_ninst',l.tenure||'');
     set('h_total',l.tpay||''); /* first EMI date and the final one, not the disbursement date, and not
        l.due which moves forward as instalments are paid */
-    var _fd=l.disb?repAddMonths(l.disb,1):(l.due||'');
-    var _td=(l.tenure&&_fd)?repAddMonths(_fd,(Number(l.tenure)||1)-1):'';
+    var _fd=(l.disb && typeof loanFirstDue==='function')?loanFirstDue(l):(l.disb?repAddMonths(l.disb,1):(l.due||''));
+    var _td=(l.tenure&&_fd)?((l.disb && typeof loanLastDue==='function' && loanLastDue(l))||repAddMonths(_fd,(Number(l.tenure)||1)-1)):'';
     set('h_from',_fd); set('h_to',_td);
     if(!hpVal('h_fine')) set('h_fine', getLateFee());
     const other = selId==='agrLoad'?'delLoad':'agrLoad'; if($(other)) $(other).value=id;
@@ -106,8 +106,8 @@
     set('h_loanamt',l.principal||''); set('h_rate',l.rate||''); set('h_emi',l.emi||''); set('h_ninst',l.tenure||'');
     set('h_total',l.tpay||''); /* first EMI date and the final one, not the disbursement date, and not
        l.due which moves forward as instalments are paid */
-    var _fd=l.disb?repAddMonths(l.disb,1):(l.due||'');
-    var _td=(l.tenure&&_fd)?repAddMonths(_fd,(Number(l.tenure)||1)-1):'';
+    var _fd=(l.disb && typeof loanFirstDue==='function')?loanFirstDue(l):(l.disb?repAddMonths(l.disb,1):(l.due||''));
+    var _td=(l.tenure&&_fd)?((l.disb && typeof loanLastDue==='function' && loanLastDue(l))||repAddMonths(_fd,(Number(l.tenure)||1)-1)):'';
     set('h_from',_fd); set('h_to',_td);
     if(!hpVal('h_fine')) set('h_fine', getLateFee());
     updateHP();

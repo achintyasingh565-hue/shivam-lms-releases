@@ -195,6 +195,13 @@
       try{ if($('rememberMe')&&$('rememberMe').checked) localStorage.setItem('shivam_remember_user',u.user); else localStorage.removeItem('shivam_remember_user'); }catch(_){}
       recordLogin(u.user);
       currentUser=u; logAudit('Signed In',''); if(sb){ sb.classList.remove('loading'); sb.disabled=false; } hideLock(); applyRole(); renderSecPanel(); renderSafetyNudge();
+    } else if(!(users&&users.length)){
+      /* The lock is on but there is no account to check a password against —
+         the encrypted accounts could not be read on this computer. Saying
+         "Incorrect username or password" here sends the owner round in
+         circles retyping a password that is not wrong. */
+      $('lockErr').textContent='The saved sign-in accounts on this computer could not be read (this can happen after the Mac\u2019s keychain is reset or the data is moved from another computer). Click \u201cForgot password?\u201d to get back in \u2014 your records are safe.';
+      if(sb){ sb.classList.remove('loading'); sb.disabled=false; }
     } else {
       const n=(lf.n||0)+1;
       if(n>=5){ saveLockFails({n:0, until:Date.now()+30000}); $('lockErr').textContent='Too many failed attempts — sign-in paused for 30 seconds.'; }
@@ -480,9 +487,15 @@
       if(el) el.textContent='That recovery '+(isPw?'password':'code')+' is not correct';
       return;
     }
-    const users=ensureMigrated();
-    const adm=users.find(u=>u.role==='admin');
-    if(!adm){ if(el) el.textContent='No Administrator account found'; return; }
+    let users=ensureMigrated()||[];
+    let adm=users.find(u=>u.role==='admin');
+    /* The accounts are kept encrypted with this computer's keychain. If the
+       keychain is reset, or the app's data is moved to another Mac, they can
+       no longer be read — and this used to answer a CORRECT recovery password
+       with "No Administrator account found", leaving the wipe-the-lock button
+       as the only way in. The recovery secret has just been verified, which is
+       the whole point of having one: make the Administrator account afresh. */
+    if(!adm){ adm={user:'admin', name:'Administrator', role:'admin', hash:''}; users=users.concat([adm]); try{ logAudit('Account Store','Administrator account re-created via recovery (saved accounts could not be read)'); }catch(e){} }
     adm.hash=await makeHash(p1); saveUsers(users);
     try{ const c=lockCfg()||{}; c.hash=adm.hash; saveLockCfg(c); }catch(e){}
     /* a one-time CODE is consumed; a recovery PASSWORD stays usable */

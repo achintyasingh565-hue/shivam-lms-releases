@@ -329,6 +329,7 @@
     var _feesOwed=(Array.isArray(L.charges)?L.charges:[]).reduce(function(a,c2){return a+(c2?(Number(c2.amount)||0):0);},0);
     L.tpay=Math.max(0, (Number(L.paid)||0)+Math.max(0,c.newTotal)-_feesOwed);   // total payable = paid so far + re-planned balance, charges added back by recomputeLoan
     L.dueManual=false;
+    delete L.emiAnchors;      // a restructure starts a new plan from its own date; an earlier EMI day does not carry over
     L.deductions=Number(L.deductions)||0;
     L.outstanding=Math.max(0, c.newTotal);
     if(L.outstanding<=0) L.status='Closed';

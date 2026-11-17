@@ -22,7 +22,7 @@
   /* The FIRST instalment date, not the next unpaid one. l.due advances as
      EMIs are paid, so a welcome letter reprinted later quoted a start date
      months after the one the borrower agreed to. */
-  function _firstDue(l) { return l.disb ? _addM(l.disb, 1) : (l.due || _addM(_today(), 1)); }
+  function _firstDue(l) { if (l.disb && typeof loanFirstDue === 'function') { var f = loanFirstDue(l); if (f) return f; } return l.disb ? _addM(l.disb, 1) : (l.due || _addM(_today(), 1)); }
   function _net(l) { return Math.max(0, (Number(l.principal) || 0) - (Number(l.downpay) || 0) - (Number(l.deductions) || 0)); }
 
   /* ---- amortising installment schedule with principal/interest split (flat interest) ---- */
@@ -54,7 +54,10 @@
       var prin_i = emi_i - int_i;
       var opening = bal;
       bal = Math.max(0, bal - prin_i);
-      rows.push({ i: i, due: _d(_addM(start, i)), opening: opening, emi: emi_i, prin: prin_i, int: int_i, close: bal });
+      /* the engine's own date when the schedule runs from the loan's real start,
+         so an EMI day set on the loan is what the letter prints */
+      var _dueIso = (typeof emiDueDate === 'function' && start && start === (l.baseDate || l.disb)) ? emiDueDate(l, i) : _addM(start, i);
+      rows.push({ i: i, due: _d(_dueIso), opening: opening, emi: emi_i, prin: prin_i, int: int_i, close: bal });
     }
     /* Only money that counts against THIS schedule: cleared, not an
        interest-only receipt (those service interest and tick no instalment),

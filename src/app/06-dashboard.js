@@ -31,14 +31,14 @@
       refreshBell(); return; }
     $('dashMain').style.display='block'; $('dashEmpty').style.display='none';
     const today=todayISO(), now=Date.now();
-    let disbursed=0,outstanding=0,active=0,overdue=0,closed=0,overdueAmt=0;
+    let disbursed=0,outstanding=0,active=0,overdue=0,closed=0,overdueAmt=0,arrearsAmt=0;
     const byMonth={}, b={cur:0,b1:0,b2:0,b3:0,b4:0};
     loans.forEach(l=>{ const P=Number(l.principal)||0,O=Number(l.outstanding)||0,st=autoStatus(l);
       disbursed+=P;
       if(l.disb){ const k=l.disb.slice(0,7); (byMonth[k]=byMonth[k]||{amount:0,count:0}); byMonth[k].amount+=P; byMonth[k].count++; }
       if(st==='Closed'){ closed++; return; }
       outstanding+=O;
-      if(st==='Overdue'){ overdue++; overdueAmt+=O; const dpd=l.due?Math.max(0,Math.floor((now-new Date(l.due).getTime())/86400000)):0;
+      if(st==='Overdue'){ overdue++; overdueAmt+=O; arrearsAmt+=Math.min(O,Number(l.arrears)||0); const dpd=l.due?Math.max(0,Math.floor((now-new Date(l.due).getTime())/86400000)):0;
         if(dpd<=30)b.b1++; else if(dpd<=60)b.b2++; else if(dpd<=90)b.b3++; else b.b4++; }
       else { active++; b.cur++; }
     });
@@ -63,7 +63,13 @@
       kpi('Active Loans', String(active), SVG.check,'blue', spark(cnts.length>1?cnts:[0,active],'#2563EB'), `${overdue} overdue flagged`),
       kpiGauge('Collection Rate', collRate.toFixed(1)+'%', SVG.check,'green', collRate, '#16A34A', `${inr(recovered)} recovered`),
       kpiGauge('Portfolio at Risk', par.toFixed(1)+'%', SVG.alert,'red', par, '#DC2626', `${inr(overdueAmt)} at risk`),
-      kpi('Overdue Amount', inr(overdueAmt), SVG.clock,'red', shareBar(overdueAmt,outstanding,'#DC2626'), `${overdue} accounts overdue`)
+      /* "Overdue Amount" is the money actually overdue — the arrears. It used to
+         show the whole balance of every overdue account, so one missed EMI on a
+         48-month loan read as Rs 4,90,000 overdue, and it disagreed with the
+         "Missed / Overdue" tile lower on this same screen, which has always
+         used arrears. The whole balance of those accounts is the figure just
+         above: Portfolio at Risk. */
+      kpi('Overdue Amount', inr(arrearsAmt), SVG.clock,'red', shareBar(arrearsAmt,outstanding,'#DC2626'), `${overdue} accounts overdue`)
     ].join('');
     $('chartDisb').innerHTML=barsChart(series);
     $('chartStatus').innerHTML=donutSvg([{value:active,color:'#6366F1',label:'Active'},{value:overdue,color:'#E5484D',label:'Overdue'},{value:closed,color:'#10B981',label:'Closed'}]);
@@ -116,7 +122,7 @@
   function toggleNotif(e){ if(e&&e.stopPropagation) e.stopPropagation(); const p=$('notifPop'); if(!p) return;
     if(p.classList.contains('show')){ p.classList.remove('show'); return; }
     const items=notifItems().slice(0,8);
-    p.innerHTML='<div class="np-h">Notifications</div>'+(items.length?items.map(it=>`<div class="np-i"><span class="np-dot ${it.t==='overdue'?'r':'a'}"></span><div><b>${esc(it.l.name)}</b><div class="muted">${it.t==='overdue'?'Payment overdue':'Due soon'} · ${inr(it.l.outstanding||it.l.emi)}</div></div></div>`).join(''):'<div class="np-empty">No alerts — portfolio is current.</div>')+`<div class="np-f" onclick="go('messages'); document.getElementById('notifPop').classList.remove('show');">Open reminders →</div>`;
+    p.innerHTML='<div class="np-h">Notifications</div>'+(items.length?items.map(it=>`<div class="np-i"><span class="np-dot ${it.t==='overdue'?'r':'a'}"></span><div><b>${esc(it.l.name)}</b><div class="muted">${it.t==='overdue'?'Payment overdue':'Due soon'} · ${inr(it.t==='overdue' ? (Number(it.l.arrears)||Number(it.l.outstanding)||0) : (Number(it.l.emi)||Number(it.l.outstanding)||0))}</div></div></div>`).join(''):'<div class="np-empty">No alerts — portfolio is current.</div>')+`<div class="np-f" onclick="go('messages'); document.getElementById('notifPop').classList.remove('show');">Open reminders →</div>`;
     p.classList.add('show');
   }
   document.addEventListener('click', e=>{ if(!e.target.closest('.tb-bell')){ const p=$('notifPop'); if(p) p.classList.remove('show'); } });

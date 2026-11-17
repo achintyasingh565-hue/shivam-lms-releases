@@ -179,6 +179,7 @@
       if(ep>0.5){
         // A payment received this month — it reduces the balance NOW and pays down as many
         // installments as it covers (a lump sum clears several at once), all shown on this row.
+        var _carryIn=carry;                    // money carried here from an interest-only month
         var avail=ep+carry; carry=0;
         var firstI=emisPlaced+1, teSum=0, lastShort=0;
         do {
@@ -194,7 +195,13 @@
         var stp=full?'Paid':'Partial';
         paidCount += full?covered:Math.max(0,covered-1);
         var iLbl=(covered>1)?(firstI+'–'+emisPlaced):String(firstI);
-        rows.push({i:iLbl,due:dueD,emi:teSum,paid:ep,lateFee:lfM,intFee:intM,bncFee:bncAt(kk,key),charge:chgM,bal:_bal(),st:stp,dueAmt:Math.max(0,Math.round(lastShort)),multi:(covered>1)});
+        /* The Paid cell is what was APPLIED on this row. A regular payment made in
+           a month that was serviced by interest is carried to here; it reached the
+           balance and the shortfall but not this cell, so the Paid column added up
+           to less than the "Received" figure printed above it. Anything left
+           over once every instalment is covered is not applied here — it is the
+           "Advance / unscheduled" figure — so Paid cells + advance = received. */
+        rows.push({i:iLbl,due:dueD,emi:teSum,paid:Math.max(0,ep+_carryIn-carry),lateFee:lfM,intFee:intM,bncFee:bncAt(kk,key),charge:chgM,bal:_bal(),st:stp,dueAmt:Math.max(0,Math.round(lastShort)),multi:(covered>1)});
       } else if(future){
         // an upcoming installment (not yet due / within grace); apply any carried advance
         emisPlaced++;
@@ -241,13 +248,34 @@
       var st2=bal2<=0.5?'Paid':(ep2>0?'Partial':(chg2>0?'Overdue':(dD&&dD<t?'Overdue':'Upcoming')));
       // No instalment number here — these are accrual months AFTER the last EMI. Numbering them
       // restarted the count on the customer's copy ("…12, 11 ext, 12 ext"), which read as an error.
-      rows.push({i:'',due:dD,emi:0,paid:ep2,lateFee:lf2,intFee:int2,bncFee:bncAt(kk,mKey),charge:chg2,bal:bal2,st:st2,dueAmt:Math.max(0,Math.round(chg2-ep2)),ext:true,accrual:true});
+      rows.push({i:'',due:dD,emi:0,paid:cr,lateFee:lf2,intFee:int2,bncFee:bncAt(kk,mKey),charge:chg2,bal:bal2,st:st2,dueAmt:Math.max(0,Math.round(chg2-ep2)),ext:true,accrual:true});
       extCount++;
       if(mKey&&horizonKey&&mKey>=horizonKey&&kk>=latestChargeIdx) break;
     }
     // Safety: fold any charge that never landed on a row into the final balance so it reconciles.
     var _lostChg=Math.round(totalChg-cumChg);
-    if(_lostChg>0){ for(var zi=rows.length-1; zi>=0; zi--){ if(!rows[zi].isInt){ rows[zi].bal=(Number(rows[zi].bal)||0)+_lostChg; break; } } cumChg+=_lostChg; }
+    /* Both safeties correct the last instalment row AND every interest row
+       after it: those later rows carry a balance too, and leaving them at the
+       old figure meant the schedule's final line could still disagree with the
+       ledger by the amount just folded in. */
+    var _foldInto=function(delta){
+      for(var z=rows.length-1; z>=0; z--){ if(!rows[z].isInt){ for(var y=z; y<rows.length; y++){ if(rows[y].bal!=null) rows[y].bal=Math.max(0,(Number(rows[y].bal)||0)+delta); } return z; } }
+      return -1;
+    };
+    if(_lostChg>0){ _foldInto(_lostChg); cumChg+=_lostChg; }
+    /* The same safety for money. An instalment that was only part-paid is
+       passed over, and a later lump that covers the instalments after it can
+       leave something in `carry` — an "advance" — while the part-paid one is
+       still short. It may be Rs 2 of EMI rounding or several thousand; either
+       way it has been received and the ledger has taken it off the balance,
+       so the schedule's closing figure must not stand above the ledger's. */
+    if(carry>0){
+      var _stillOwed=_bal(), _use=Math.min(carry,_stillOwed);
+      if(_use>0){
+        cumPaid+=_use; carry-=_use;
+        var zj=_foldInto(-_use); if(zj>=0) rows[zj].paid=(Number(rows[zj].paid)||0)+_use;
+      }
+    }
     /* ---- Projected balance on instalments still to come ---------------------
        The balance column is `total payable + charges − money received`, so on a
        row where nothing has been received and no charge falls, it cannot move:
@@ -274,6 +302,28 @@
         r.projected = true;
       }
     })();
+    /* Byaj: close on the ledger's own figure.
+       The walk above keeps a byaj balance as principal + charges - principal
+       returned. The ledger knows two things it does not: money received beyond
+       the interest due has settled charges, and interest that had fallen due
+       before the principal came back is still owed afterwards. Without them
+       this schedule closed Rs 500 above a borrower who had paid his late fee,
+       and at nil for one who returned the principal with months of interest
+       unserviced. The ledger is the single source of truth, so ask it, and say
+       on a line of its own what the difference is. */
+    if(l.interestOnly && typeof recomputeLoan==='function'){
+      try{
+        var _eng=Object.assign({}, l); recomputeLoan(_eng);
+        var _engOut=Math.max(0, Math.round(Number(_eng.outstanding)||0));
+        var _lastBal=null, _lastDue='';
+        for(var q=rows.length-1; q>=0; q--){ if(rows[q].bal!=null){ _lastBal=Number(rows[q].bal)||0; break; } }
+        if(_lastBal==null) _lastBal=_bal();
+        rows.forEach(function(r){ if(r.due && String(r.due)>_lastDue) _lastDue=String(r.due); });
+        var _gap=_engOut-Math.round(_lastBal);
+        if(_gap>0.5) rows.push({i:'',due:t,emi:0,paid:0,lateFee:0,intFee:0,bncFee:0,charge:_gap,bal:_engOut,st:'Interest unpaid',chargeOnly:true,dueAmt:_gap});
+        else if(_gap<-0.5) rows.push({i:'',due:(_lastDue||t),emi:0,paid:0,lateFee:0,intFee:0,bncFee:0,charge:0,bal:_engOut,st:'Charges settled',chargeOnly:true,dueAmt:0});
+      }catch(e){}
+    }
     var advance=Math.max(0, Math.round(carry));
     var deferCount=rows.filter(function(r){return r.missed;}).length;
     return {rows:rows,emi:emi,n:n,total:total,cleared:cleared,paidCount:paidCount,totalLate:totalLate,totalInt:totalInt,totalBnc:totalBnc,totalChg:totalChg,intCount:intPays.length,intIncome:intIncome,advance:advance,extCount:extCount,deferCount:deferCount,intExp:_intExp,intShortTotal:intShortTotal};
@@ -377,8 +427,15 @@
       }
       var n=Math.max(0,Math.round(Number(l.tenure)||0));
       var emi=Number(l.emi)||0, k=0;
+      /* An interest-only month serviced on an EMI loan pushes every later
+         instalment forward by a month — recomputeLoan counts it that way, so
+         this must too. Without it the closing advisory said one more instalment
+         had fallen due than the ledger did, for every such month. */
+      var _base=l.baseDate||'';
+      var _sh=(l.payments||[]).filter(function(p){ return p && p.status==='Cleared' && (p.intOnly===true || p.type==='Interest') && (!_base || String(p.date||'')>String(_base)); }).length;
       for(var i=1;i<=n;i++){
         var d=(typeof emiDueDate==='function')?emiDueDate(l,i):'';
+        if(d && _sh && typeof repAddMonths==='function') d=repAddMonths(d,_sh);
         if(d && String(d)<=t) k++; else break;        // due dates run in order
       }
       out.elapsed=k;

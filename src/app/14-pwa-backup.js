@@ -203,7 +203,7 @@
   /* ===== Audit Logs ===== */
   const AUDIT_STORE='shivam_audit_v1';
   function logAudit(action,detail){ try{ const a=JSON.parse(localStorage.getItem(AUDIT_STORE)||'[]'); a.push({ts:Date.now(), user:(currentUser&&currentUser.user)||'system', role:(currentUser&&currentUser.role)||'', action, detail:detail||''}); if(a.length>AUDIT_MAX){ while(a.length>AUDIT_MAX)a.shift(); try{ localStorage.setItem('shivam_audit_trimmed','1'); }catch(_){} } localStorage.setItem(AUDIT_STORE, JSON.stringify(a)); }catch(e){} const sec=document.getElementById('sec-backup'); if(sec&&sec.classList.contains('active')) renderAudit(); }
-  function auditAll(){ try{ return JSON.parse(localStorage.getItem(AUDIT_STORE)||'[]'); }catch(e){ return []; } }
+  function auditAll(){ try{ var a=JSON.parse(localStorage.getItem(AUDIT_STORE)||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
   const AUDIT_MAX=5000, AUDIT_PAGE=50;
   window.runSelfTest=function(){
     const out=$('selfTestOut'); if(!out) return;
@@ -356,7 +356,32 @@
   function applyTheme(){ const t=resolveTheme(); document.documentElement.classList.toggle('dark', t==='dark'); const b=$('themeBtn'); if(b) b.textContent=(t==='dark')?'☀️':'🌙'; try{ if(typeof applyAuthTheme==='function') applyAuthTheme(); }catch(e){} }
   function toggleTheme(){ const cur=document.documentElement.classList.contains('dark')?'dark':'light'; const nx=(cur==='dark')?'light':'dark'; try{ localStorage.setItem('shivam_theme', nx); }catch(e){} applyTheme(); }
   try{ const mq=matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener('change', ()=>{ let pref=null; try{ pref=localStorage.getItem('shivam_theme'); }catch(e){} if(!pref) applyTheme(); }); }catch(e){}
-  function exportJSON(){ try{recomputeAll();}catch(e){} download('shivam-loans-backup-'+todayISO()+'.json', JSON.stringify(loans,null,2), 'application/json'); logAudit('Data Exported','Backup JSON'); toast('Backup downloaded'); }
+  /* This button used to write a bare array of loans — nothing else. The
+     AUTOMATIC backup has always written the full payload (expenses, firm,
+     recycle bin, users, templates, audit), and importJSON has always been able
+     to read it. So the backup a person takes deliberately, before wiping a
+     machine, was the weakest one the app produces. It now writes exactly what
+     the automatic backup writes.
+
+     The document vault is opt-in because the scans are base64 and turn a
+     ~200 KB file into tens of megabytes. Off by default; the tick-box says so. */
+  async function exportJSON(){
+    try{ recomputeAll(); }catch(e){}
+    var obj = (typeof makeBackupObject==='function') ? makeBackupObject() : null;
+    if(!obj){ obj = { app:'ShivamLMS', v:2, at:new Date().toISOString(), loans:loans }; }
+    var withDocs=false;
+    try{ var cb=$('bkInclDocs'); withDocs = !!(cb && cb.checked); }catch(e){}
+    var nDocs=0;
+    if(withDocs && typeof window._vaultBackupData==='function'){
+      try{ var v=await window._vaultBackupData(); if(v && Array.isArray(v.docs)){ obj.docs=v.docs; nDocs=v.docs.length; } }
+      catch(e){ toast('Could not read the document vault — saving records only'); }
+    }
+    var text=JSON.stringify(obj,null,2);
+    download('shivam-backup-'+todayISO()+'.json', text, 'application/json');
+    var mb=(text.length/1048576);
+    logAudit('Data Exported', 'Backup JSON — '+(obj.loans||[]).length+' record(s)'+(nDocs?(', '+nDocs+' document(s)'):'')+', '+mb.toFixed(1)+' MB');
+    toast('Backup downloaded — '+(obj.loans||[]).length+' records'+(nDocs?(' + '+nDocs+' documents'):'')+' ('+mb.toFixed(1)+' MB)', 5000);
+  }
   function exportCSV(){
     try{recomputeAll();}catch(e){}
     const cols=['caseno','refno','acno','name','reltype','relname','dob','phone','addr','idtype','idproof','pan','type','product','dealer','occupation','designation','officeaddr','residence','principal','downpay','deductions','rate','tenure','tint','tpay','emi','disb','due','paid','outstanding','status','officer','gname','gphone','remarks','propdesc','propaddr','proparea','propvalue','bN','bS','bE','bW','title'];
@@ -380,8 +405,21 @@
         }
         if(typeof normalizeLoans==='function') arr=normalizeLoans(arr);   // repair any bad rows before applying
         snapBefore('Before restore'); loans=arr; try{recomputeAll();}catch(e){} save(); if(extras){ const put=(k,v)=>{ if(v!=null && !(Array.isArray(v) && !v.length)){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} } }; put('shivam_recycle_v1', extras.recycle); put('shivam_expenses_v1', extras.expenses); put('shivam_firm_v1', extras.firm); put('shivam_users_v1', extras.users); put('shivam_watpl_v1', extras.watpl); put('shivam_msg_v1', extras.msgtpl); put('shivam_wamsg_v1', extras.wahist);
+          /* Settings are raw strings, not JSON, so they go through applySettings
+             rather than put() — which would wrap them in quotes and break the
+             Number() reads in getLateFeeRate and friends. */
+          try{ if(extras.settings && typeof applySettings==='function') applySettings(extras.settings); }catch(e){}
           try{ if(Array.isArray(extras.audit) && extras.audit.length){ const cur=auditAll(); const seen={}; const merged=cur.concat(extras.audit).filter(function(x){ if(!x||!x.ts) return false; const k=x.ts+'|'+(x.user||'')+'|'+(x.action||'')+'|'+(x.detail||''); if(seen[k]) return false; seen[k]=1; return true; }).sort(function(a,b){ return a.ts-b.ts; }); localStorage.setItem('shivam_audit_v1', JSON.stringify(merged.slice(-5000))); } }catch(e){}
-          if(extras.wacfg){ let cur={}; try{ cur=JSON.parse(localStorage.getItem('shivam_wacfg_v1')||'{}')||{}; }catch(e){} localStorage.setItem('shivam_wacfg_v1', JSON.stringify(Object.assign({}, extras.wacfg, {token:cur.token, tokenEnc:cur.tokenEnc}))); } } logAudit('Backup Restored', arr.length+' records'+(extras?' + settings':'')); renderLoans(); renderDash(); toast('Backup restored ('+arr.length+' records'+(extras?', settings included':'')+')'); go('loans'); }catch(e){ toast('Invalid backup file'); } };
+          if(extras.wacfg){ let cur={}; try{ cur=JSON.parse(localStorage.getItem('shivam_wacfg_v1')||'{}')||{}; }catch(e){} localStorage.setItem('shivam_wacfg_v1', JSON.stringify(Object.assign({}, extras.wacfg, {token:cur.token, tokenEnc:cur.tokenEnc}))); }
+          /* Scans ride in the same file when the tick-box was used. The vault restore is
+             additive and skips duplicates, so restoring twice is harmless. */
+          if(Array.isArray(extras.docs) && extras.docs.length && typeof window._vaultRestoreData==='function'){
+            window._vaultRestoreData({docs:extras.docs}).then(function(n){
+              try{ logAudit('Documents Restored', n+' document(s) from backup'); }catch(_){ }
+              toast(n+' document(s) restored to the vault', 5000);
+              try{ if(typeof renderVault==='function') renderVault(); }catch(_){ }
+            }).catch(function(){ toast('Records restored, but the documents in the file could not be read'); });
+          } } logAudit('Backup Restored', arr.length+' records'+(extras?' + settings':'')); renderLoans(); renderDash(); toast('Backup restored ('+arr.length+' records'+(extras?', settings included':'')+')'); go('loans'); }catch(e){ toast('Invalid backup file'); } };
     rd.readAsText(file); ev.target.value='';
   }
   function clearAll(){ if(confirm('Delete ALL loan records permanently? Make sure you have a backup.')){

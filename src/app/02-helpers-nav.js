@@ -22,7 +22,9 @@
     return n>0 ? String(n) : '\u2014';
   }
   function inrPlain(n){ n=Number(n)||0; return n.toLocaleString('en-IN',{maximumFractionDigits:0}); }
-  function fmtDate(v){ if(!v) return ""; const [y,m,d]=v.split("-"); return d+"-"+m+"-"+y.slice(2); }
+  /* Anything that is not a 'YYYY-MM-DD' date is shown as it is rather than
+     thrown on (a number has no .split) or printed as "undefined-undefined-". */
+  function fmtDate(v){ if(!v) return ""; if(typeof v!=='string') return ""; if(!/^\d{4}-\d{2}-\d{2}/.test(v)) return v; const [y,m,d]=v.slice(0,10).split("-"); return d+"-"+m+"-"+y.slice(2); }
   /* Local-time "today" (toISOString() is UTC: in IST it reports YESTERDAY before 05:30 AM,
      which made due/overdue statuses lag by a day in early-morning use). */
   function todayISO(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -555,7 +557,7 @@
 
   /* ============ EMI SCHEDULE + OVERDUE TRACKING ============ */
   function repPad(n){ return (n<10?'0':'')+n; }
-  function repAddMonths(iso,n){ if(!iso) return ''; var p=iso.split('-'); var y=+p[0], m=+p[1], d=+p[2]; var idx=(m-1)+n; var ny=y+Math.floor(idx/12); var nm=((idx%12)+12)%12; var last=new Date(ny,nm+1,0).getDate(); var nd=Math.min(d,last); return ny+'-'+repPad(nm+1)+'-'+repPad(nd); }
+  function repAddMonths(iso,n){ if(!iso || typeof iso!=='string' || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return ''; var p=iso.slice(0,10).split('-'); var y=+p[0], m=+p[1], d=+p[2]; var idx=(m-1)+n; var ny=y+Math.floor(idx/12); var nm=((idx%12)+12)%12; var last=new Date(ny,nm+1,0).getDate(); var nd=Math.min(d,last); return ny+'-'+repPad(nm+1)+'-'+repPad(nd); }
   function repDaysBetween(aIso,bIso){ if(!aIso||!bIso) return 0; var a=new Date(aIso+'T00:00:00'), b=new Date(bIso+'T00:00:00'); return Math.round((b-a)/86400000); }
   function repStColor(st){ return st==='Paid'?'var(--ok)':(st==='Partial'?'#b26a00':(st==='Overdue'?'var(--bad)':(st==='Due soon'?'var(--warn)':'var(--grey)'))); }
 

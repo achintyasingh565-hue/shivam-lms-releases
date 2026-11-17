@@ -23,7 +23,7 @@
     });
     host.innerHTML=html;
   }
-  function autoRemRunNow(){ var r={added:0}; try{ r=autoRemScan(); }catch(e){} toast('Scan complete \u2014 '+r.added+' new reminder'+(r.added===1?'':'s')); renderAutoRem(); }
+  function autoRemRunNow(){ var r={added:0}; try{ r=autoRemScan(true); }catch(e){} toast('Scan complete \u2014 '+r.added+' new reminder'+(r.added===1?'':'s')); renderAutoRem(); }
   function autoRemReview(cat){
     // Re-check before sending too: the panel may have been on screen a while.
     try{ if(typeof recomputeAll==='function') recomputeAll(); }catch(e){}
@@ -36,9 +36,15 @@
       if(it.vars){ var src = over ? it.vars.outstanding : it.vars.emi; if(src!=null) amt=Math.round(Number(String(src).replace(/[^0-9.]/g,''))||0); }
       return {name:it.name, phone:it.phone, acno:it.acno, cat:it.cat, msg:it.msg, vars:it.vars, tpl:tpl, loanId:(L?L.id:''), amt:amt};
     }), cat); }
-  function autoRemDismiss(id){ var q=autoQueueLoad(); var it=q.find(function(x){ return x.id===id; }); autoQueueSave(q.filter(function(x){ return x.id!==id; })); if(it && typeof autoSeenRemove==='function') autoSeenRemove(it.key); renderAutoPending(); }
-  function autoRemClearCat(cat){ var q=autoQueueLoad(); q.filter(function(it){ return it.cat===cat; }).forEach(function(it){ if(typeof autoSeenRemove==='function') autoSeenRemove(it.key); }); autoQueueSave(q.filter(function(it){ return it.cat!==cat; })); toast('Cleared '+cat); renderAutoPending(); }
-  function autoRemClearAll(){ autoQueueSave([]); if(typeof autoSeenClearAll==='function') autoSeenClearAll(); toast('Pending reminders cleared'); renderAutoPending(); }
+  /* Dismissing or clearing used to ALSO forget that the reminder had been
+     raised. That was needed while a reminder could only be raised on one exact
+     day; now that a stage is a window it would undo itself — the quiet scan
+     that runs each time this screen opens would put the same reminder straight
+     back. A dismissed reminder now stays dismissed until its next stage, and
+     "Run scan now" is the way to bring everything back on purpose. */
+  function autoRemDismiss(id){ var q=autoQueueLoad(); autoQueueSave(q.filter(function(x){ return x.id!==id; })); renderAutoPending(); }
+  function autoRemClearCat(cat){ var q=autoQueueLoad(); autoQueueSave(q.filter(function(it){ return it.cat!==cat; })); toast('Cleared '+cat); renderAutoPending(); }
+  function autoRemClearAll(){ autoQueueSave([]); toast('Pending reminders cleared \u2014 \u201cRun scan now\u201d brings back anything still due'); renderAutoPending(); }
 
   function go(sec){
     recomputeAll();

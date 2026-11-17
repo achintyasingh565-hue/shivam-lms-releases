@@ -130,8 +130,23 @@ out = app.autoQueueRevalidate();
 chk('an upcoming EMI reminder survives', out.length, 1);
 chk('  with the days-to-go restated', out[0].reason, 'EMI due in 3 days');
 
+// Which wording is true follows the DATE, not only the status. This fixture used
+// to assert the opposite: arrears on an account whose instalment date is still
+// ahead (a hand-set due date, or an unpaid fee) dropped the EMI note — and with
+// the overdue branch needing a date in the PAST, that borrower got no reminder
+// of any kind. The EMI wording ("is due on 01-11") is the true one here; the
+// overdue wording ("was due on 01-11 and is now overdue") would be false.
 app = makeApp([emiItem()], [emiLoan({ arrears: 5000 })]);
-chk('an EMI reminder for a now-overdue loan is dropped (the wording would be wrong)',
+chk('an EMI reminder survives on a flagged account while its date is still ahead',
+  app.autoQueueRevalidate().length, 1);
+
+app = makeApp([emiItem({ cat: 'Overdue Reminder', key: 'od:L291:2026-11-01:1', reason: 'Overdue by 1 day' })],
+              [emiLoan({ arrears: 5000 })]);
+chk('  and an overdue demand against a date still ahead is dropped',
+  app.autoQueueRevalidate().length, 0);
+
+app = makeApp([emiItem()], [emiLoan({ arrears: 5000, due: '2026-10-09' })]);
+chk('an EMI reminder for a genuinely overdue loan is dropped (its date has passed)',
   app.autoQueueRevalidate().length, 0);
 
 app = makeApp([emiItem()], [emiLoan({ due: '2026-10-01' })]);
@@ -198,8 +213,9 @@ chk('two different accounts are both kept', out.length, 2);
 app = makeApp([dupItem('a', '2026-11-13', 1),
                { id: 'z', name: 'Mr. Varun Chowdhary', phone: '9628887776', acno: '16290',
                  cat: 'Overdue Reminder', reason: 'Overdue by 7 days', msg: 'f', vars: {},
-                 key: 'od:L290:2026-11-13:7', createdAt: 2 }],
-              [Object.assign({}, dupLoan, { arrears: 5000 })]);
+                 key: 'od:L290:2026-10-22:7', createdAt: 2 }],
+              // a real overdue account: the unpaid instalment's date is behind us
+              [Object.assign({}, dupLoan, { arrears: 5000, due: '2026-10-22' })]);
 out = app.autoQueueRevalidate();
 chk('an overdue account keeps its overdue notice only',
   out.map(x => x.cat), ['Overdue Reminder']);

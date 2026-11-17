@@ -297,7 +297,10 @@
          the next initial sync removed it again. */
       (rows || []).forEach(function (r) { if (r && r.deleted && r.id != null) delete lastHash[r.id]; });
       var res = cloudMergeCompute(loans, rows, decryptLoanSync, pendingEditMap(), deviceId);
-      loans = res.loans;
+      /* Rows from the other device are data read from outside, like a backup
+         file: repair them before they become the book. A row with a null in
+         its payments list used to go straight in and stop the app. */
+      loans = (typeof normalizeLoans === 'function') ? normalizeLoans(res.loans) : res.loans;
       if (res.conflicts && res.conflicts.length) conflictsRecord(res.conflicts);
       res.recycleAdd.forEach(addToRecycle);
       res.recycleRemove.forEach(removeFromRecycle);
@@ -678,9 +681,15 @@
            Shape: legacy snapshots are a bare ARRAY of loans; new ones are an
            OBJECT. The restore below accepts either, so the 56 existing backups
            keep working exactly as they do today. */
-        var _payload = { v: 2, loans: loans };
+        var _payload = { v: 3, loans: loans };
         try { if (typeof loadExpenses === 'function') _payload.expenses = loadExpenses() || []; } catch (_) {}
         try { var _f = localStorage.getItem('shivam_firm_v1'); if (_f) _payload.firm = JSON.parse(_f); } catch (_) {}
+        /* v3 adds the working settings — late fee, bounce fee, grace, overdue
+           interest and its start date, theme. They used to live only on the
+           device that set them, so a replaced machine came back with the fee
+           rules silently reset to their defaults while the book looked right.
+           An older build reading a v3 snapshot simply ignores this key. */
+        try { if (typeof collectSettings === 'function') _payload.settings = collectSettings(); } catch (_) {}
         await api('/snapshots', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
           body: JSON.stringify([{ day: today, data: _payload, taken_by: deviceId }]) });
         // trim to the most recent 60 days
@@ -714,7 +723,9 @@
           loans = Array.isArray(_d.loans) ? _d.loans : [];
           if (Array.isArray(_d.expenses) && typeof saveExpenses === 'function') { try { saveExpenses(_d.expenses); } catch (_) {} }
           if (_d.firm && typeof _d.firm === 'object') { try { localStorage.setItem('shivam_firm_v1', JSON.stringify(_d.firm)); } catch (_) {} }
+          if (_d.settings && typeof applySettings === 'function') { try { applySettings(_d.settings); } catch (_) {} }
         } else { loans = []; }
+        if (typeof normalizeLoans === 'function') loans = normalizeLoans(loans);
         try { recomputeAll(); } catch (_) {}
         /* The confirmation says this replaces the book on ALL devices, but the
            restore only wrote the snapshot's own rows. A loan created AFTER the
