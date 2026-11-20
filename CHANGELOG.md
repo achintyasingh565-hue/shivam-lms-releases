@@ -9,6 +9,14 @@ charged, and the instalment itself moves forward, extending the schedule.
 
 ---
 
+## 2.34.2
+
+Tax invoice and credit note now print in the same clean font as the payment
+receipt's tables, with even-height figures; the firm name keeps its serif.
+Nothing else in the app changed.
+
+---
+
 ## 2.34.1
 
 Release fix only — the app itself is identical to 2.34.0.

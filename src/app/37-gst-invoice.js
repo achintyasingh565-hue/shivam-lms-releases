@@ -238,10 +238,10 @@
     var so = p.relname ? ((p.reltype || 's/o').replace(/^./, function (x) { return x.toUpperCase(); }) + ' ' + p.relname) : '';
     var lessGst = (doc.mode === 'incl') ? 'Less: processing charges (GST included)' : 'Less: processing charges incl. GST (this invoice)';
     return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + _e(doc.no.replace(/\//g, '-')) + '</title><style>'
-      + '@page{size:A4;margin:14mm}body{font-family:Georgia,"Times New Roman",serif;color:#141414;margin:0;font-size:13px}'
+      + '@page{size:A4;margin:14mm}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#141414;margin:0;font-size:13px;line-height:1.5;font-variant-numeric:lining-nums tabular-nums}'
       + '.wrap{max-width:720px;margin:0 auto;padding:6px}.hd{display:flex;justify-content:space-between;gap:18px;border-bottom:2px solid #0b1f4b;padding-bottom:10px}'
-      + '.fn{font-size:22px;font-weight:700;letter-spacing:.6px;color:#0b1f4b}.mut{color:#555;font-size:12px;line-height:1.55}'
-      + '.ttl{font-size:17px;font-weight:700;color:#0b1f4b;text-align:right}.meta{font-size:12px;color:#555;text-align:right;line-height:1.7}.meta b{color:#141414;font-weight:600}'
+      + '.fn{font-family:Georgia,"Times New Roman",serif;font-size:22px;font-weight:700;letter-spacing:.6px;color:#0b1f4b}.mut{color:#555;font-size:12px;line-height:1.55}'
+      + '.ttl{font-size:17px;font-weight:700;color:#0b1f4b;text-align:right}.meta{font-size:12px;color:#555;text-align:right;line-height:1.7;white-space:nowrap}.meta b{color:#141414;font-weight:600}'
       + '.two{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:10px 0;border-bottom:1px solid #ccc}.lb{font-size:11.5px;color:#666}'
       + 'table{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}th{font-size:11.5px;font-weight:600;color:#555;text-align:left;border-bottom:1px solid #888;padding:6px}'
       + 'td{padding:6px;border-bottom:1px solid #ddd;vertical-align:top}.r{text-align:right}.box{background:#f5f2e8;border:1px solid #e3d9b8;padding:9px 11px;margin-top:12px}'
