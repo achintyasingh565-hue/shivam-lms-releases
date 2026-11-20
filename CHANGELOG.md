@@ -9,6 +9,19 @@ charged, and the instalment itself moves forward, extending the schedule.
 
 ---
 
+## 2.34.1
+
+Release fix only — the app itself is identical to 2.34.0.
+
+The Mac upload of 2.34.0 failed on every re-run. One Mac file (the zip's
+`.blockmap`) had spaces in its name; GitHub stores spaces as dots, so on a
+re-run the publisher could not find the earlier copy to replace it and gave up
+with "already exists". Mac files are now named with dashes, like the Windows
+installer, so a re-run can always replace them. Mac auto-update can now also
+use the small differential download instead of the full zip.
+
+---
+
 ## 2.34.0
 
 GST tax invoices for the processing charge, and the guarantor's details in the
