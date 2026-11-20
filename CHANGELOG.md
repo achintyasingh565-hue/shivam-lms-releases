@@ -9,6 +9,70 @@ charged, and the instalment itself moves forward, extending the schedule.
 
 ---
 
+## 2.34.0
+
+GST tax invoices for the processing charge, and the guarantor's details in the
+Loan File. Interest, EMI, total payable and outstanding are untouched by
+everything here.
+
+### Tax invoices
+
+GSTIN 09JXBPK7550J2ZX, effective 20 November 2026. Interest stays exempt; the
+processing charge is a fee for a service and carries GST at 18% (SAC 997113).
+
+- **Issued automatically on Save** for any loan disbursed on or after 20 Nov 2026
+  with a processing charge. The "saved" message names the number.
+- **GST on top by default.** On a ₹2,50,000 loan: ₹10,000 + CGST ₹900 + SGST ₹900
+  = ₹11,800 kept back, ₹2,38,200 paid out. A new **GST on processing** switch
+  under the Processing field can set any single loan to *Included* instead
+  (₹10,000 kept back, of which ₹1,525.42 is GST). A line under the switch shows
+  the GST and the amount kept back before you save.
+- **Net Disbursed** in the loan form and on the Welcome Letter now subtract the
+  GST when it is on top. Nothing the borrower owes changes.
+- **Numbered SE/26-27/0001 onward**, restarting each April; credit notes run
+  SE/CN/26-27/0001. A number is never reused, even when its loan is deleted.
+- **An issued invoice is never edited.** Change the charge, the GST switch or
+  the disbursement date afterwards and the app asks: cancel it with a credit
+  note and issue a new one, or keep it exactly as issued. Editing the borrower's
+  name or address does not rewrite an issued invoice.
+- **Deleting a loan** with an invoice asks whether to cancel it (entered by
+  mistake) or keep it (GST still due).
+- **Reports → GST Invoices**: invoices and credit notes for any month, taxable
+  value, CGST, SGST and GST payable net of credit notes — the figures for GSTR-1
+  and GSTR-3B. CSV and print. It lists any qualifying loan without an invoice
+  (for example one saved before this version) with an **Issue invoice** button,
+  and warns if two devices ever issue the same number at once.
+- **Kept safe.** Every invoice and credit note is also kept in a log on the
+  device, in the backup file and in the daily cloud snapshot, so a deleted loan
+  never takes its tax record with it. A restore adds invoices; it never drops
+  one issued since.
+- **Firm Details** gains the effective date, the address exactly as on the GST
+  certificate, and an email, all printed on the invoice. The GSTIN now also
+  shows on every document's letterhead, as it does for a registered business.
+
+Intra-state only (CGST + SGST): every borrower so far is in Uttar Pradesh. A
+borrower outside UP would need IGST — say if that ever comes up.
+
+### Guarantor details in the Loan File
+
+The loan form has always taken the guarantor's father's / husband's name,
+address and phone. The Loan File printed the guarantor's **name only** on the
+application page, and the Loan Agreement printed blank lines for the guarantor's
+father and address whatever was on record. Both now print what was entered; a
+detail left empty still prints a line to fill by hand. Combining loans also
+dropped the guarantor's father and address — fixed — and the Excel export now
+includes them.
+
+### Verified
+
+49 offline suites pass, and again under `TZ=Asia/Kolkata`; the consistency fuzz
+and core lending rules pass. The invoice arithmetic is checked for every amount
+from ₹1 to ₹60,000 both ways. The printed invoice was rendered and checked
+against the approved sample. The 49 browser suites still cannot run here, so the
+new switch in the loan form has not been clicked on a real screen.
+
+---
+
 ## 2.33.0
 
 An EMI-day setting, and a whole-app audit. Interest, EMI and total payable are

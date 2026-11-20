@@ -78,7 +78,9 @@
     const wc=grab('shivam_wacfg_v1')||{}; const wcSafe=Object.assign({},wc); delete wcSafe.token; delete wcSafe.tokenEnc;
     return JSON.stringify({ app:'ShivamLMS', v:2, schema:SCHEMA_VERSION, at:new Date().toISOString(), count:(loans||[]).length, sum:(typeof _backupChecksum==='function'?_backupChecksum(loans):null), loans:loans, expenses:loadExpenses(), firm:(function(){ try{ return JSON.parse(localStorage.getItem('shivam_firm_v1')||'null'); }catch(e){ return null; } })(),
       recycle:grab('shivam_recycle_v1'), users:grab('shivam_users_v1'), watpl:grab('shivam_watpl_v1'), msgtpl:grab('shivam_msg_v1'), wacfg:wcSafe, audit:grab('shivam_audit_v1'), wahist:grab('shivam_wamsg_v1'),
-      settings:collectSettings() }, null, 2);
+      settings:collectSettings(),
+      /* every tax invoice and credit note — a tax record must outlive the loan it was issued for */
+      gstlog:(typeof gstLogLoad==='function'?gstLogLoad():grab('shivam_gstlog_v1')) }, null, 2);
   }
   /* Same payload, but as an object so the caller can add the document vault
      before stringifying. Kept separate so the auto-backup path is untouched. */

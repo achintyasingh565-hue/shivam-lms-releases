@@ -82,7 +82,7 @@
     try{ if(typeof recomputeAll==='function') recomputeAll(); }catch(e){}   // reports always reflect the latest payments
     _repView=v;
     var seg=$('repseg'); if(seg){ [...seg.children].forEach(b=>b.classList.toggle('active', b.dataset.r===v)); }
-    var fn={collection:repCollection, cashbook:repCashbook, cheque:repCheque, online:repOnline, status:repStatus, overdue:repOverdue, schedule:repSchedule, statement:repStatement, interest:repInterest, efficiency:repEfficiency, pnl:repPnl}[v];
+    var fn={collection:repCollection, cashbook:repCashbook, cheque:repCheque, online:repOnline, status:repStatus, overdue:repOverdue, schedule:repSchedule, statement:repStatement, interest:repInterest, efficiency:repEfficiency, pnl:repPnl, gst:(typeof repGst==='function'?repGst:null)}[v];
     if(fn) fn();
   }
   if($('repseg')) $('repseg').addEventListener('click', e=>{ var b=e.target.closest('button'); if(b&&b.dataset.r) setReportView(b.dataset.r); });
@@ -104,9 +104,16 @@
     name:    'SHIVAM ENTERPRISES',
     address: 'D-295, D-Block, Indira Nagar, Lucknow',
     phones:  '9559561162, 9839125800',
-    gstin:   '',
+    gstin:   '09JXBPK7550J2ZX',
     udyam:   'UDYAM-UP-50-0268771',
-    licence: ''
+    licence: '',
+    /* GST registration (approved 20 Nov 2026). gstFrom is the effective date on
+       the registration certificate: loans disbursed on or after it carry a tax
+       invoice for the processing charge. gstAddress is the principal place of
+       business exactly as registered, printed on every invoice. */
+    gstFrom:    '2026-11-20',
+    gstAddress: 'D-295, First Floor, D-Block, Indira Nagar, Church Road, Lucknow, Uttar Pradesh 226016',
+    email:      'shivamenterprises.finance@gmail.com'
   };
   /* One-time migration (Oct 2026): the office mobile 8528564196 was replaced by
      9559561162. Changing FIRM_DEFAULT above is not enough on its own — any device
@@ -132,7 +139,15 @@
 
   function FIRM(){
     try{ const o=JSON.parse(localStorage.getItem('shivam_firm_v1')||'null');
-      if(o && typeof o==='object') return Object.assign({}, FIRM_DEFAULT, o); }catch(e){}
+      if(o && typeof o==='object'){
+        var r=Object.assign({}, FIRM_DEFAULT, o);
+        /* Firm details saved before these fields existed carry them blank (or
+           not at all). A blank GSTIN on a registered business is never what is
+           meant, and it would silently stop every tax invoice — so a blank one
+           falls back to the registered value. */
+        ['gstin','gstFrom','gstAddress','email'].forEach(function(k){ if(!String(r[k]==null?'':r[k]).trim()) r[k]=FIRM_DEFAULT[k]; });
+        return r;
+      } }catch(e){}
     return FIRM_DEFAULT;
   }
   function firmAddrLine(){ const f=FIRM(); return f.address + ' \u00a0|\u00a0 Mobile: ' + f.phones; }

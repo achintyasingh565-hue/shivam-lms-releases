@@ -23,7 +23,9 @@
      EMIs are paid, so a welcome letter reprinted later quoted a start date
      months after the one the borrower agreed to. */
   function _firstDue(l) { if (l.disb && typeof loanFirstDue === 'function') { var f = loanFirstDue(l); if (f) return f; } return l.disb ? _addM(l.disb, 1) : (l.due || _addM(_today(), 1)); }
-  function _net(l) { return Math.max(0, (Number(l.principal) || 0) - (Number(l.downpay) || 0) - (Number(l.deductions) || 0)); }
+  /* Cash actually handed over: after the processing charge AND, where it is
+     added on top, the GST on it. */
+  function _net(l) { if (typeof feeNetDisbursed === 'function') return feeNetDisbursed(l); return Math.max(0, (Number(l.principal) || 0) - (Number(l.downpay) || 0) - (Number(l.deductions) || 0)); }
 
   /* ---- amortising installment schedule with principal/interest split (flat interest) ---- */
   function _schedule(l) {

@@ -690,6 +690,7 @@
            rules silently reset to their defaults while the book looked right.
            An older build reading a v3 snapshot simply ignores this key. */
         try { if (typeof collectSettings === 'function') _payload.settings = collectSettings(); } catch (_) {}
+        try { if (typeof gstLogLoad === 'function') _payload.gstlog = gstLogLoad(); } catch (_) {}
         await api('/snapshots', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
           body: JSON.stringify([{ day: today, data: _payload, taken_by: deviceId }]) });
         // trim to the most recent 60 days
@@ -724,6 +725,7 @@
           if (Array.isArray(_d.expenses) && typeof saveExpenses === 'function') { try { saveExpenses(_d.expenses); } catch (_) {} }
           if (_d.firm && typeof _d.firm === 'object') { try { localStorage.setItem('shivam_firm_v1', JSON.stringify(_d.firm)); } catch (_) {} }
           if (_d.settings && typeof applySettings === 'function') { try { applySettings(_d.settings); } catch (_) {} }
+          if (Array.isArray(_d.gstlog) && typeof gstLogMerge === 'function') { try { gstLogMerge(_d.gstlog); } catch (_) {} }
         } else { loans = []; }
         if (typeof normalizeLoans === 'function') loans = normalizeLoans(loans);
         try { recomputeAll(); } catch (_) {}

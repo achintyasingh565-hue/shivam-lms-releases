@@ -27,6 +27,12 @@ function firmPanelHTML() {
     + '      <input id="firm_phones" value="' + val(f.phones) + '"></div>'
     + '    <div class="fg"><label>GSTIN</label>'
     + '      <input id="firm_gstin" value="' + val(f.gstin) + '"></div>'
+    + '    <div class="fg"><label>GST invoices from <span style="font-weight:400;color:#94a3b8;">(effective date on the certificate)</span></label>'
+    + '      <input id="firm_gstFrom" type="date" value="' + val(f.gstFrom) + '"></div>'
+    + '    <div class="fg"><label>Email (printed on tax invoices)</label>'
+    + '      <input id="firm_email" value="' + val(f.email) + '"></div>'
+    + '    <div class="fg" style="grid-column:1/-1;"><label>Address as on the GST certificate <span style="font-weight:400;color:#94a3b8;">(printed on tax invoices)</span></label>'
+    + '      <input id="firm_gstAddress" value="' + val(f.gstAddress) + '"></div>'
     + '    <div class="fg"><label>Udyam Registration No.</label>'
     + '      <input id="firm_udyam" value="' + val(f.udyam) + '"></div>'
     + '    <div class="fg" style="grid-column:1/-1;"><label>Money Lender’s Licence No. <span style="font-weight:400;color:#94a3b8;">(add later when issued — shows on all documents)</span></label>'
@@ -66,7 +72,8 @@ function renderFirmStatus() {
 window.saveFirmDetails = function () {
   if (typeof currentUser !== 'undefined' && currentUser && currentUser.role !== 'admin') { toast('Only an Administrator can change firm details'); return; }
   const g = (id) => (($(id) && $(id).value) || '').trim();
-  const next = { name: g('firm_name'), address: g('firm_address'), phones: g('firm_phones'), gstin: g('firm_gstin'), udyam: g('firm_udyam'), licence: g('firm_licence') };
+  const next = { name: g('firm_name'), address: g('firm_address'), phones: g('firm_phones'), gstin: g('firm_gstin'), udyam: g('firm_udyam'), licence: g('firm_licence'),
+                 gstFrom: g('firm_gstFrom'), gstAddress: g('firm_gstAddress'), email: g('firm_email') };
   if (!next.name) { toast('⚠ The firm name cannot be empty'); $('firm_name').focus(); return; }
   if (!next.address) { toast('⚠ The office address cannot be empty'); $('firm_address').focus(); return; }
   if (next.gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(next.gstin)) {

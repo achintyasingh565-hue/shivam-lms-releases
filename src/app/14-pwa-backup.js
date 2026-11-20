@@ -384,8 +384,8 @@
   }
   function exportCSV(){
     try{recomputeAll();}catch(e){}
-    const cols=['caseno','refno','acno','name','reltype','relname','dob','phone','addr','idtype','idproof','pan','type','product','dealer','occupation','designation','officeaddr','residence','principal','downpay','deductions','rate','tenure','tint','tpay','emi','disb','due','paid','outstanding','status','officer','gname','gphone','remarks','propdesc','propaddr','proparea','propvalue','bN','bS','bE','bW','title'];
-    const head=['Case No','Reference','A/C No','Name','Relation','Relation Name','Age','Phone','Address','ID Type','ID No','PAN','Type','Loan Purpose','Referred By','Occupation','Designation','Office Address','Residence','Principal','Adjustment','Deductions','Rate %','Tenure(mo)','Total Interest','Total Payable','EMI','Disbursed','Next Due','Paid','Outstanding','Status','Account Officer','Guarantor','Guarantor Phone','Remarks','Property Desc','Property Address','Area','Property Value','Boundary N','Boundary S','Boundary E','Boundary W','Title/Reg'];
+    const cols=['caseno','refno','acno','name','reltype','relname','dob','phone','addr','idtype','idproof','pan','type','product','dealer','occupation','designation','officeaddr','residence','principal','downpay','deductions','rate','tenure','tint','tpay','emi','disb','due','paid','outstanding','status','officer','gname','grelname','gaddr','gphone','remarks','propdesc','propaddr','proparea','propvalue','bN','bS','bE','bW','title'];
+    const head=['Case No','Reference','A/C No','Name','Relation','Relation Name','Age','Phone','Address','ID Type','ID No','PAN','Type','Loan Purpose','Referred By','Occupation','Designation','Office Address','Residence','Principal','Adjustment','Deductions','Rate %','Tenure(mo)','Total Interest','Total Payable','EMI','Disbursed','Next Due','Paid','Outstanding','Status','Account Officer','Guarantor','Guarantor S/o, D/o, W/o','Guarantor Address','Guarantor Phone','Remarks','Property Desc','Property Address','Area','Property Value','Boundary N','Boundary S','Boundary E','Boundary W','Title/Reg'];
     const rows=loans.map(l=>cols.map(c=>{ let v=l[c]==null?'':String(l[c]); if(/[",\n]/.test(v)) v='"'+v.replace(/"/g,'""')+'"'; return v; }).join(','));
     download('shivam-loans-'+todayISO()+'.csv', head.join(',')+'\n'+rows.join('\n'), 'text/csv'); logAudit('Data Exported','Loans CSV'); toast('Excel file exported');
   }
@@ -409,6 +409,8 @@
              rather than put() — which would wrap them in quotes and break the
              Number() reads in getLateFeeRate and friends. */
           try{ if(extras.settings && typeof applySettings==='function') applySettings(extras.settings); }catch(e){}
+          /* tax invoices are MERGED, never replaced: a restore must not lose an invoice issued since */
+          try{ if(Array.isArray(extras.gstlog) && typeof gstLogMerge==='function') gstLogMerge(extras.gstlog); }catch(e){}
           try{ if(Array.isArray(extras.audit) && extras.audit.length){ const cur=auditAll(); const seen={}; const merged=cur.concat(extras.audit).filter(function(x){ if(!x||!x.ts) return false; const k=x.ts+'|'+(x.user||'')+'|'+(x.action||'')+'|'+(x.detail||''); if(seen[k]) return false; seen[k]=1; return true; }).sort(function(a,b){ return a.ts-b.ts; }); localStorage.setItem('shivam_audit_v1', JSON.stringify(merged.slice(-5000))); } }catch(e){}
           if(extras.wacfg){ let cur={}; try{ cur=JSON.parse(localStorage.getItem('shivam_wacfg_v1')||'{}')||{}; }catch(e){} localStorage.setItem('shivam_wacfg_v1', JSON.stringify(Object.assign({}, extras.wacfg, {token:cur.token, tokenEnc:cur.tokenEnc}))); }
           /* Scans ride in the same file when the tick-box was used. The vault restore is

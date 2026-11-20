@@ -126,7 +126,13 @@
       + '<p class="cl">(g) Office Address / Place of Business: ' + fv(l.officeaddr, 'bfull') + '</p>'
       + '<p class="cl">(h) Aadhaar / Passport / Driving Licence No.: ' + fv(_aadhaar(l), 'bxl') + '</p>'
       + '<p class="cl">(i) PAN Card No.: ' + fv(l.pan, 'bl') + '</p>'
-      + '<p class="cl">Guarantor Name: ' + fv(l.gname, 'bxl') + '</p>'
+      /* The loan form has always collected the guarantor's father's / husband's
+         name, address and phone; this page printed the name alone and left the
+         rest to be written in by hand. */
+      + '<p class="cl">2. (a) Guarantor Name: ' + fv(l.gname, 'bxl') + '</p>'
+      + '<p class="cl">(b) Guarantor\u2019s Father\u2019s / Husband\u2019s Name: ' + fv(l.grelname, 'bxl') + '</p>'
+      + '<p class="cl">(c) Guarantor\u2019s Address in Full: ' + fv(l.gaddr, 'bfull') + '</p>'
+      + '<p class="cl">Telephone: ' + fv(l.gphone, 'bl') + '</p>'
       + '<div class="note">Note:- We the undersigned solemnly affirm that the declaration made above by us is absolutely true and no part is false and nothing has been withheld or concealed. This declaration is signed on the basis of the agreement.</div>'
       + '<div style="display:flex;justify-content:space-between;margin-top:36px;gap:40px;font-size:12.5px;"><div style="text-align:left;">Place: <b>Lucknow</b><br><br>Date: ' + fv(_d(l.disb), 'bl') + '</div>'
       + '<div style="text-align:center;flex:0 0 45%;"><div class="sig-line" style="margin-top:6px;">Applicant Signature</div><div class="sig-line" style="margin-top:34px;">Guarantor Signature</div></div></div>'
@@ -137,7 +143,7 @@
       + '<div class="om">' + OM + '</div><div class="doctitle">LOAN AGREEMENT</div>'
       + '<div class="docsub">(Secured by Mortgage of Immovable Property)</div>'
       + '<div class="addr">Shivam Enterprises, ' + esc(FIRM().address) + ' &nbsp;|&nbsp; ' + esc(firmRegLine()) + '</div><div class="rule"></div>'
-      + '<p class="cl">Memorandum of agreement made this ' + fv(l.disb ? new Date(l.disb+'T00:00:00').getDate() : '') + ' day of ' + fv(l.disb ? new Date(l.disb+'T00:00:00').toLocaleString('en-IN', { month: 'long' }) : '') + ' 20' + fv(l.disb ? String(new Date(l.disb+'T00:00:00').getFullYear()).slice(2) : '') + ' between <b>Shivam Enterprises, ' + esc(FIRM().address) + '</b>, hereinafter called the “Lender” (which expression shall include its successors and assigns) of the first part, and Shri ' + fv(l.name, 'bl') + ' Son / Daughter / Wife of Shri ' + fv(l.relname, 'bw') + ' residing at ' + fv(l.addr, 'bl') + ', hereinafter called the “Borrower”, and Shri ' + fv(l.gname, 'bl') + ' Son / Daughter / Wife of Shri <span class="b bw"></span> residing at <span class="b bl"></span>, hereinafter called the “Guarantor”, of the second part.</p>'
+      + '<p class="cl">Memorandum of agreement made this ' + fv(l.disb ? new Date(l.disb+'T00:00:00').getDate() : '') + ' day of ' + fv(l.disb ? new Date(l.disb+'T00:00:00').toLocaleString('en-IN', { month: 'long' }) : '') + ' 20' + fv(l.disb ? String(new Date(l.disb+'T00:00:00').getFullYear()).slice(2) : '') + ' between <b>Shivam Enterprises, ' + esc(FIRM().address) + '</b>, hereinafter called the “Lender” (which expression shall include its successors and assigns) of the first part, and Shri ' + fv(l.name, 'bl') + ' Son / Daughter / Wife of Shri ' + fv(l.relname, 'bw') + ' residing at ' + fv(l.addr, 'bl') + ', hereinafter called the “Borrower”, and Shri ' + fv(l.gname, 'bl') + ' Son / Daughter / Wife of Shri ' + fv(l.grelname, 'bw') + ' residing at ' + fv(l.gaddr, 'bl') + ', hereinafter called the “Guarantor”, of the second part.</p>'
       + '<p class="cl">WHEREAS the Borrower has applied to the Lender for a loan, and the Lender has agreed to advance the same against the security of the immovable property described in the Schedule of Property hereunder, on the terms following.</p>'
       + '<p class="cl"><b>NOW THIS AGREEMENT WITNESSES AS FOLLOWS:</b></p><ol class="clauses">'
       + '<li>The Lender has advanced / agreed to advance to the Borrower the sum of Rs. ' + fv(_r(l.principal)) + ' (“the Loan”), together with interest at the rate of ' + fv(l.rate) + ' % per month.</li>'
@@ -206,7 +212,7 @@
       + '<button onclick="closeLoanFile()" style="border:0;border-radius:8px;padding:7px 12px;background:#334155;color:#fff;font-weight:600;cursor:pointer;">Close</button>'
       + '</div></div>'
       + '<div style="padding:10px 12px;"><iframe id="lfFrame" style="width:100%;height:78vh;border:1px solid #e2e8f0;border-radius:6px;background:#fff;"></iframe>'
-      + '<div style="font-size:11.5px;color:#94a3b8;margin-top:6px;">Auto-filled from this loan. Blank lines are for details not on record (guarantor s/o &amp; address, witnesses, property title). Print / Save-as-PDF, then print on A4.</div>'
+      + '<div style="font-size:11.5px;color:#94a3b8;margin-top:6px;">Auto-filled from this loan. Blank lines are for details not on record (witnesses, arbitrator, property title) — and for any borrower or guarantor detail left empty on the loan form. Print / Save-as-PDF, then print on A4.</div>'
       + '</div></div>';
     ov.style.display = 'flex';
     var fr = document.getElementById('lfFrame');

@@ -193,6 +193,7 @@
     // flagged that way. Otherwise the due date auto-follows the disbursement/schedule.
     window._dueUserEdited = !!f.dueManual;
     window._dueTyped=false; window._dueCleared=false;   // nothing typed, nothing cleared, in THIS sitting
+    if($('m_gstmode')) $('m_gstmode').value=(f.gstOnFee==='incl')?'incl':'top';   // GST on the processing charge: on top unless this loan says otherwise
     $('m_status').value=f.status||'Active'; $('m_gname').value=f.gname||''; $('m_gphone').value=f.gphone||''; if($('m_coname'))$('m_coname').value=f.coname||''; if($('m_cophone'))$('m_cophone').value=f.cophone||''; if($('m_corel'))$('m_corel').value=f.corel||''; if($('m_coid'))$('m_coid').value=f.coid||''; if($('m_coaddr'))$('m_coaddr').value=f.coaddr||''; $('m_remarks').value=f.remarks||'';
     $('m_dob').value=f.dob||''; if($('m_grelname'))$('m_grelname').value=f.grelname||''; if($('m_gaddr'))$('m_gaddr').value=f.gaddr||''; $('m_residence').value=f.residence||''; $('m_occupation').value=f.occupation||''; $('m_designation').value=f.designation||''; $('m_officeaddr').value=f.officeaddr||'';
     $('m_caseno').value=f.caseno||''; $('m_refno').value=f.refno||''; $('m_product').value=f.product||''; $('m_dealer').value=f.dealer||''; $('m_downpay').value=f.downpay||''; $('m_officer').value=f.officer||'';
@@ -358,7 +359,18 @@
     // affects what the borrower owes: the EMI, total payable and interest are
     // all worked out from the loan amount alone (see calcLoanTotals, which takes
     // only principal/rate/months). These two reduce the cash paid out, nothing else.
-    $('m_remaining').value=Math.max(0,p-ded-dp);
+    /* GST on the processing charge (from the registration date). On top, it is
+       kept back with the charge, so the cash handed over falls by the GST; the
+       loan amount, EMI and everything owed are untouched, as with the 4%. */
+    var _edL = editId ? loans.find(function(l){return l.id===editId;}) : null;
+    var _gstProbe={ disb:$('m_disb').value, deductions:ded, gstOnFee:(($('m_gstmode')||{}).value==='incl')?'incl':'top', principal:p, downpay:dp, _test:!!(_edL&&_edL._test) };
+    var _withheld=ded;
+    if(typeof feeInvoiceQualifies==='function' && feeInvoiceQualifies(_gstProbe)){
+      var _gs=feeGstSplit(ded, _gstProbe.gstOnFee); _withheld=_gs.total;
+    }
+    var _gw=$('m_gstWrap'); if(_gw) _gw.style.display=(typeof gstActive==='function' && gstActive())?'':'none';
+    var _gh=$('m_gstHint'); if(_gh) _gh.innerHTML=(typeof gstFormHint==='function')?gstFormHint(_gstProbe, _edL||{}):'';
+    $('m_remaining').value=Math.max(0, Math.round((p-_withheld-dp)*100)/100);
     // Build a temp record and run the REAL recomputeLoan so the preview — Next Due Date,
     // status, and outstanding (incl. cheque-bounce fees) — matches exactly what saving
     // will produce. This is what keeps the due date in sync with the disbursement date,
@@ -526,7 +538,8 @@
       dob:$('m_dob').value, grelname:(($('m_grelname')||{}).value||'').trim(), gaddr:(($('m_gaddr')||{}).value||'').trim(), residence:$('m_residence').value, occupation:$('m_occupation').value.trim(), designation:$('m_designation').value.trim(), officeaddr:$('m_officeaddr').value.trim(), idtype:_idMir.idtype,
       caseno:$('m_caseno').value.trim(), refno:$('m_refno').value.trim(), product:$('m_product').value.trim(), dealer:$('m_dealer').value.trim(), downpay:Number($('m_downpay').value)||0, deductions:Number($('m_deductions').value)||0, officer:$('m_officer').value.trim(),
       propdesc:$('m_propdesc').value.trim(), propaddr:$('m_propaddr').value.trim(), proparea:$('m_proparea').value.trim(), propvalue:Number($('m_propvalue').value)||0, bN:$('m_bN').value.trim(), bS:$('m_bS').value.trim(), bE:$('m_bE').value.trim(), bW:$('m_bW').value.trim(), title:$('m_title').value.trim(),
-      createdAt: editId ? (loans.find(l=>l.id===editId)||{}).createdAt||todayISO() : todayISO()
+      createdAt: editId ? (loans.find(l=>l.id===editId)||{}).createdAt||todayISO() : todayISO(),
+      gstOnFee: (($('m_gstmode')||{}).value==='incl')?'incl':'top'
     });
     // Interest-only loans compute the balance differently (interest payments don't reduce
     // the principal) — recompute the record so the stored outstanding/status are correct.
@@ -573,7 +586,8 @@
     if(rec.dueManual && rec.due && rec.disb && rec.due < rec.disb){
       toast('⚠ Next Due Date ('+rec.due+') is before the disbursement date ('+rec.disb+') — please check.');
     }
-    logAudit(editId?'Loan Modified':'Loan Created', name+' ('+acno+')'); save(); closeLoan(); renderLoans(); var _w=[]; var _tp=Number($('m_tpay')?$('m_tpay').value:0)||0, _emi=Number($('m_emi')?$('m_emi').value:0)||0; if(_tp>0 && _tp<principal) _w.push('total payable is less than the loan amount'); if(_emi<=0) _w.push('EMI is zero'); if(!($('m_disb')&&$('m_disb').value)) _w.push('no disbursement date'); if(_w.length) toast('Saved \u2014 but please check: '+_w.join(', ')+'.'); else toast(editId?'Record updated':'Loan record added');
+    var _gstMsg=''; try{ if(typeof gstOnLoanSave==='function') _gstMsg=gstOnLoanSave(rec)||''; }catch(e){ try{ reportError('gstOnLoanSave', String(e&&e.message||e), e&&e.stack); }catch(_){ } }
+    logAudit(editId?'Loan Modified':'Loan Created', name+' ('+acno+')'); save(); closeLoan(); renderLoans(); var _w=[]; var _tp=Number($('m_tpay')?$('m_tpay').value:0)||0, _emi=Number($('m_emi')?$('m_emi').value:0)||0; if(_tp>0 && _tp<principal) _w.push('total payable is less than the loan amount'); if(_emi<=0) _w.push('EMI is zero'); if(!($('m_disb')&&$('m_disb').value)) _w.push('no disbursement date'); if(_w.length) toast('Saved \u2014 but please check: '+_w.join(', ')+'.'+(_gstMsg?(' '+_gstMsg+'.'):''), 6000); else toast((editId?'Record updated':'Loan record added')+(_gstMsg?(' \u2014 '+_gstMsg):''), _gstMsg?6000:undefined);
     if(_bounceCharge){ try{ if(typeof waBounce==='function' && confirm('A bounce fee of '+inr(_bounceCharge.amount)+' was added to '+name+'\u2019s balance.\n\nSend the cheque-bounce notice on WhatsApp now?')) waBounce(rec, _bounceCharge); }catch(e){} }
   }
   function getBounceFee(){ try{ var v=Number(localStorage.getItem('shivam_bouncefee_v1')); return v>0?v:500; }catch(e){ return 500; } }
@@ -610,6 +624,7 @@
     }
     if(confirm('Move loan record for '+ (l?l.name:'this borrower') +' to the Recycle Bin? You can restore it within 30 days from Administration.')){
       snapBefore('Before delete: '+(l?l.acno:''));
+      try{ if(l && typeof gstOnLoanDelete==='function') gstOnLoanDelete(l); }catch(e){}
       if(l){ const bin=recyclePurgeOld(); bin.unshift(Object.assign({}, l, {deletedAt:Date.now(), deletedBy:(currentUser&&currentUser.user)||'system'})); recycleSave(bin); }
       logAudit('Loan Deleted (to Recycle Bin)', (l?l.name:'')+' ('+(l?l.acno:'')+')'); loans=loans.filter(x=>x.id!==id); save(); try{ if(typeof cloudDelete==='function') cloudDelete(id, l); }catch(_){ } try{ if(typeof autoQueueDropForLoan==='function') autoQueueDropForLoan(l); }catch(_){ } renderLoans(); if(typeof renderRecycle==='function') renderRecycle(); if(typeof renderDash==='function'){ try{ renderDash(); }catch(_){ } } toast('Moved to Recycle Bin — restorable for 30 days');
     }
