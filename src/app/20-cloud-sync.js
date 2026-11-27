@@ -39,6 +39,21 @@
       var mine = pend && deviceId && row.updated_by === deviceId;
       var clash = pend && !mine &&
                   row.updated_at && (!pend.base || row.updated_at > pend.base);
+      /* An edit still waiting to upload is the newest version of this loan.
+         Without a clash the cloud row is OLDER than it — our own earlier upload
+         coming back, or the version the edit was made on — and replacing the
+         local loan with it wiped payments entered on this computer at the next
+         sign-in; the following save then uploaded the old copy over them. Keep
+         the waiting edit; the outbox uploads it after this merge. */
+      if (pend && !clash) {
+        var keep = pend.data || (byId[row.id] != null ? out[byId[row.id]] : null);
+        if (keep) {
+          if (byId[row.id] != null) out[byId[row.id]] = keep;
+          else { out.push(keep); byId[row.id] = out.length - 1; }
+          recycleRemove.push(row.id);
+          return;
+        }
+      }
       if (row.deleted) {
         if (clash) {                       // they deleted it, we edited it offline
           conflicts.push({ id: row.id, kind: 'deleted-remotely',
@@ -187,13 +202,32 @@
     }
     async function authRefresh() {
       if (!session || !session.refresh_token) throw new Error('no session');
-      var r = await fetch(AUTH + '/token?grant_type=refresh_token', {
-        method: 'POST', headers: { 'apikey': C.key, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: session.refresh_token })
-      });
+      /* A refresh that could not reach the server (laptop just woke, Wi-Fi not
+         up yet) is NOT a rejected sign-in. Both used to sign this computer out,
+         so everything entered afterwards stayed local without a word, and the
+         next sign-in's first sync then replaced it with the older cloud copy. */
+      var r;
+      try {
+        r = await fetch(AUTH + '/token?grant_type=refresh_token', {
+          method: 'POST', headers: { 'apikey': C.key, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: session.refresh_token })
+        });
+      } catch (e) { var ne = new Error('offline'); ne.network = true; throw ne; }
       var j = await r.json().catch(function () { return {}; });
-      if (!r.ok) throw new Error('refresh failed');
+      if (!r.ok) {
+        var re = new Error('refresh failed');
+        if (r.status >= 500 || r.status === 408 || r.status === 429) re.network = true;
+        throw re;
+      }
       return normSession(j);
+    }
+    /* The sign-in really was rejected: say so and ask for it again, instead of
+       carrying on silently as if changes were still uploading. */
+    function dropSession() {
+      clearSession();
+      try { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } } catch (_) {}
+      setStatus('signed out');
+      try { showSignIn('Your cloud sign-in has expired. Sign in again \u2014 changes made on this computer are kept and will upload.'); } catch (_) {}
     }
     function normSession(j) {
       return { access_token: j.access_token, refresh_token: j.refresh_token,
@@ -204,12 +238,12 @@
     async function api(path, opts, _retried) {
       opts = opts || {};
       if (session && session.expires_at && Date.now() > session.expires_at) {
-        try { await saveSession(await authRefresh()); } catch (e) { clearSession(); throw new Error('session expired'); }
+        try { await saveSession(await authRefresh()); } catch (e) { if (!e.network) dropSession(); throw e.network ? e : new Error('session expired'); }
       }
       var headers = Object.assign({ 'apikey': C.key, 'Authorization': 'Bearer ' + (session && session.access_token) }, opts.headers || {});
       var r = await fetch(REST + path, Object.assign({}, opts, { headers: headers }));
       if (r.status === 401 && !_retried && session) {
-        try { await saveSession(await authRefresh()); return api(path, opts, true); } catch (e) { clearSession(); throw e; }
+        try { await saveSession(await authRefresh()); return api(path, opts, true); } catch (e) { if (!e.network) dropSession(); throw e; }
       }
       return r;
     }
@@ -313,8 +347,14 @@
     async function pushChanged(list) {
       if (!session) return;
       var rows = [], l, s, hashOf = {};
+      /* A loan with an open conflict waits for the owner's choice. applyRemote
+         moves the baseline on, so an ordinary save of ANY loan passed the
+         precheck below and uploaded our copy over the other computer's. */
+      var _heldC = {};
+      try { conflictsLoad().forEach(function (c) { if (c && c.id != null) _heldC[c.id] = true; }); } catch (_) {}
       for (var i = 0; i < (list || []).length; i++) {
         l = list[i]; if (!l || l.id == null) continue;
+        if (_heldC[l.id]) continue;
         s = JSON.stringify(l);
   if (lastHash[l.id] === s) continue;      // unchanged since last upload
         rows.push({ id: l.id, data: await encryptLoan(l), deleted: false, updated_by: deviceId });
@@ -392,7 +432,7 @@
             var cur = null;
             try { var lx = (loans || []).find(function (y) { return y && y.id === x.id; }); cur = lx ? JSON.stringify(lx) : null; } catch (_) {}
             if (cur === null) { delete lastHash[x.id]; pendingEditRemove(x.id); return; }   // deleted locally while in flight
-            if (hashOf[x.id] !== cur) { lastHash[x.id] = null; return; }                    // superseded — keep it queued
+            if (hashOf[x.id] !== cur) { lastHash[x.id] = null; pendingEditAdd(x.id); return; }   // superseded — re-queue the current copy
             lastHash[x.id] = hashOf[x.id];
             pendingEditRemove(x.id);
           });
@@ -627,7 +667,7 @@
     async function initialSync() {
       setStatus('syncing…');
       var r = await api('/loans?select=*&order=updated_at.asc', { method: 'GET' });
-      if (!r.ok) { setStatus('offline'); return; }
+      if (!r.ok) { setStatus('offline'); return false; }
       var rows = await r.json();
       var cloudIds = {}; rows.forEach(function (x) { cloudIds[x.id] = true; });
       await applyRemote(rows);
@@ -662,6 +702,23 @@
       try { await maybeDailySnapshot(); } catch (_) {}   // central daily backup
       if (pollTimer) clearInterval(pollTimer);
       pollTimer = setInterval(poll, Math.max(3000, C.pollMs || 7000));
+      return true;
+    }
+    /* If the first sync failed (offline when the app opened) nothing retried it:
+       the poll timer is only started by a successful first sync, so the whole
+       session ran unsynced and its work waited for the next app start. */
+    var _syncRetry = null, _syncRunning = false;
+    function retrySyncLater() {
+      if (_syncRetry || pollTimer) return;
+      _syncRetry = setTimeout(function () { _syncRetry = null; if (session) startSync(); }, 30000);
+    }
+    async function startSync() {
+      if (_syncRunning) return;
+      _syncRunning = true;
+      var ok = false;
+      try { ok = await initialSync(); } catch (e) { ok = false; setStatus('offline'); }
+      _syncRunning = false;
+      if (!ok && session) retrySyncLater();
     }
 
     // ---- central daily backup (safety net for shared data) -------------------
@@ -975,7 +1032,7 @@
           await saveSession(await authPassword(em, pw));
           wrap.remove();
           if (idEncOn()) await ensureCryptoKey();
-          await initialSync();
+          await startSync();
         } catch (e) { btn.disabled = false; btn.textContent = 'Sign in'; document.getElementById('cloudSignInErr').textContent = String(e.message || e); }
       };
       document.getElementById('cloudSignInBtn').onclick = go;
@@ -1054,16 +1111,16 @@
       try {
         session = await loadSession();
         if (session && session.refresh_token) {
-          try { await saveSession(await authRefresh()); } catch (e) { clearSession(); }
+          try { await saveSession(await authRefresh()); } catch (e) { if (!e.network) clearSession(); }
         }
         if (session && session.access_token) {
           if (idEncOn()) await ensureCryptoKey();
-          await initialSync();
+          await startSync();
         } else {
           setStatus('signed out');   // pill shows "Sign in"
           showSignIn();
         }
-      } catch (e) { setStatus('offline'); }
+      } catch (e) { setStatus('offline'); retrySyncLater(); }
     }
     // start a little after the app has painted and the local data is loaded
     if (document.readyState === 'complete') setTimeout(boot, 800);

@@ -9,6 +9,30 @@ charged, and the instalment itself moves forward, extending the schedule.
 
 ---
 
+## 2.34.3
+
+**Fix: payments and edits disappearing days later.**
+
+An edit that could not upload straight away (laptop just woke, Wi-Fi not up,
+sign-in being renewed, app closed right after saving) waited in the outbox.
+At the next sign-in the first sync replaced that loan with the cloud copy —
+which was older — so the payment vanished from the screen, and the next save
+uploaded the old copy over it everywhere.
+
+- A waiting edit is now never replaced by an older cloud copy; it is kept and
+  uploaded. A real clash with the other computer is still shown for choice.
+- A sign-in renewal that fails only because the network is not up no longer
+  signs the computer out. A genuinely expired sign-in now asks to sign in
+  again instead of carrying on silently.
+- If the app opens while offline, the first sync is retried every 30 seconds
+  instead of not at all for the rest of the day.
+- While a clash is waiting for a choice, saving another loan no longer
+  uploads this computer's copy over the other computer's.
+
+Interest, EMI, outstanding and every calculation are untouched.
+
+---
+
 ## 2.34.2
 
 Tax invoice and credit note now print in the same clean font as the payment
