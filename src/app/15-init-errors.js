@@ -51,7 +51,8 @@
      They are stored as raw strings, exactly as the app writes them, so a
      value this version does not understand still round-trips unharmed. */
   var SE_SETTING_KEYS = ['shivam_latefee_v1','shivam_bouncefee_v1','shivam_lategrace_v1',
-                         'shivam_ovdint_v1','shivam_ovdfrom_v1','shivam_theme'];
+                         'shivam_ovdint_v1','shivam_ovdfrom_v1','shivam_theme',
+                         'shivam_appraisal_v1'];   // credit-appraisal lending limits
   function collectSettings(){
     var o={};
     try{ SE_SETTING_KEYS.forEach(function(k){ var v=localStorage.getItem(k); if(v!=null) o[k]=v; }); }catch(e){}

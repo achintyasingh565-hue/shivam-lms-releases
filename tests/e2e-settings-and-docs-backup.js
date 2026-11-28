@@ -65,9 +65,9 @@ function sandbox(seed) {
 console.log('--- which settings travel ---');
 {
   const S = sandbox();
-  chk('exactly the six the owner asked for', S.KEYS, [
+  chk('the six the owner asked for, plus the credit-appraisal limits', S.KEYS, [
     'shivam_latefee_v1', 'shivam_bouncefee_v1', 'shivam_lategrace_v1',
-    'shivam_ovdint_v1', 'shivam_ovdfrom_v1', 'shivam_theme']);
+    'shivam_ovdint_v1', 'shivam_ovdfrom_v1', 'shivam_theme', 'shivam_appraisal_v1']);
   chk('  the WhatsApp token is NOT among them', S.KEYS.indexOf('shivam_wacfg_v1'), -1);
   chk('  nor the ID-encryption passphrase', S.KEYS.indexOf('shivam_idkey'), -1);
   chk('  nor the user roster', S.KEYS.indexOf('shivam_users_enc'), -1);

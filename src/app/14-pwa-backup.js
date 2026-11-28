@@ -132,13 +132,13 @@
       <div class="panel"><h3>Document Vault</h3>
         
         <div class="vault-up">
-          <select id="vaultCat"><option>Aadhaar</option><option>PAN</option><option>Bank Statement</option><option>Property Document</option><option>Photograph</option><option>Signed Agreement</option><option>Other</option></select>
+          <select id="vaultCat"><option>Aadhaar</option><option>PAN</option><option>Bank Statement</option><option>Salary Slip</option><option>ITR</option><option>Property Document</option><option>Photograph</option><option>Signed Agreement</option><option>Other</option></select>
           <input type="file" id="vaultFile" multiple accept="image/*,application/pdf">
           <button class="btn btn-primary btn-sm" onclick="vaultUpload()">&#10514; Upload</button>
         </div>
         <div class="toolbar" style="margin:12px 0;">
           <div class="search"><span class="si">&#9013;</span><input id="vaultSearch" placeholder="Search documents&hellip;" oninput="renderVault()"></div>
-          <select class="filter" id="vaultFilter" onchange="renderVault()"><option value="all">All categories</option><option>Aadhaar</option><option>PAN</option><option>Bank Statement</option><option>Property Document</option><option>Photograph</option><option>Signed Agreement</option><option>Other</option></select>
+          <select class="filter" id="vaultFilter" onchange="renderVault()"><option value="all">All categories</option><option>Aadhaar</option><option>PAN</option><option>Bank Statement</option><option>Salary Slip</option><option>ITR</option><option>Property Document</option><option>Photograph</option><option>Signed Agreement</option><option>Other</option></select>
         </div>
         <div id="vaultGrid" class="vault-grid"></div>
       </div>`;

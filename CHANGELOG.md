@@ -9,6 +9,41 @@ charged, and the instalment itself moves forward, extending the schedule.
 
 ---
 
+## 2.35.0
+
+**Credit appraisal — how much can this borrower be lent.**
+
+Loan form → Loan Terms → **Check eligibility** (beside the loan amount). Enter
+the figures from the salary slip, ITR, 6-month bank statement, credit report
+and property papers; the app works out a minimum, average and maximum loan the
+way banks and NBFCs do, and grades the risk A–D.
+
+- Income from salary / ITR (business ITR counted at 60–75%, as lenders do),
+  never more than what actually reaches the bank.
+- EMIs capped at 40 / 50 / 60% of income after existing EMIs (FOIR); average
+  bank balance must cover the EMI 2× / 1.5× / 1×.
+- Property capped at 40 / 50 / 60% of value — 5 points lower for shops, 10 for
+  open plots — and only once the title is marked verified.
+- Cuts for cheque/ECS returns, a weak bureau score or an overdue/settled
+  account; the borrower's record with you (bounces, arrears, clean closures)
+  counts in the score and any active loan with you is flagged.
+- Knock-outs force grade D: 3+ returns with a score under 650, an overdue
+  account with no verified security, age over 70 at the end of the loan.
+- Interest-only loans are assessed as if repaid over 24 months.
+- **Use ₹…** puts the recommended amount in the loan; the appraisal is saved
+  with the loan and shown under the amount when it is reopened.
+- **Print appraisal** gives an internal credit appraisal memo with a decision
+  and sign-off block. It is deliberately not part of the Loan File, which goes
+  to the borrower.
+- Papers can be attached from the appraisal; Salary Slip and ITR are new
+  document categories.
+- The 40/50/60 limits are editable in the appraisal and travel with backups
+  and cloud settings.
+
+Nothing about existing loans, interest, EMI or outstanding changes.
+
+---
+
 ## 2.34.3
 
 **Fix: payments and edits disappearing days later.**

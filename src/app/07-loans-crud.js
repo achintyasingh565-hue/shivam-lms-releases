@@ -174,6 +174,7 @@
   function openLoan(id){
     editId = id||null;
     window._loanAutofillFor=null;   // a fresh form may offer the copy again
+    window._apprDraft=null;          // an appraisal belongs to the form it was done in
     try{ var _db=$('m_deductions'); if(_db&&_db.dataset) delete _db.dataset.autoval; }catch(e){}
     $('modalTitle').textContent = id?'Edit Loan Record':'New Loan Record';
     // ID numbers open masked every time (Aadhaar/PAN privacy) — eye toggle reveals.
@@ -193,6 +194,7 @@
     // flagged that way. Otherwise the due date auto-follows the disbursement/schedule.
     window._dueUserEdited = !!f.dueManual;
     window._dueTyped=false; window._dueCleared=false;   // nothing typed, nothing cleared, in THIS sitting
+    try{ if(typeof apprHint==='function') apprHint(f.appraisal||null); }catch(e){}
     if($('m_gstmode')) $('m_gstmode').value=(f.gstOnFee==='incl')?'incl':'top';   // GST on the processing charge: on top unless this loan says otherwise
     $('m_status').value=f.status||'Active'; $('m_gname').value=f.gname||''; $('m_gphone').value=f.gphone||''; if($('m_coname'))$('m_coname').value=f.coname||''; if($('m_cophone'))$('m_cophone').value=f.cophone||''; if($('m_corel'))$('m_corel').value=f.corel||''; if($('m_coid'))$('m_coid').value=f.coid||''; if($('m_coaddr'))$('m_coaddr').value=f.coaddr||''; $('m_remarks').value=f.remarks||'';
     $('m_dob').value=f.dob||''; if($('m_grelname'))$('m_grelname').value=f.grelname||''; if($('m_gaddr'))$('m_gaddr').value=f.gaddr||''; $('m_residence').value=f.residence||''; $('m_occupation').value=f.occupation||''; $('m_designation').value=f.designation||''; $('m_officeaddr').value=f.officeaddr||'';
@@ -541,6 +543,9 @@
       createdAt: editId ? (loans.find(l=>l.id===editId)||{}).createdAt||todayISO() : todayISO(),
       gstOnFee: (($('m_gstmode')||{}).value==='incl')?'incl':'top'
     });
+    // A credit appraisal done in this sitting is kept with the loan (an earlier one
+    // rides along via _prevLoan when nothing new was done).
+    if(window._apprDraft){ rec.appraisal=window._apprDraft; }
     // Interest-only loans compute the balance differently (interest payments don't reduce
     // the principal) — recompute the record so the stored outstanding/status are correct.
     if(rec.interestOnly){ try{ recomputeLoan(rec); }catch(e){} }

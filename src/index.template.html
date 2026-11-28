@@ -191,7 +191,7 @@
         <div class="fg"><label>Referred By / Source</label><input id="m_dealer"></div>
         <div class="fg"><label>Adjustment ₹ <span class="ph-sub">(previous dues carried over)</span></label><input id="m_downpay" type="number" min="0" oninput="recalc()"></div>
         <div class="fg" style="display:none;"><label>Account Officer</label><input id="m_officer"></div>
-        <div class="fg"><label>Loan Amount (Principal) ₹ *</label><input id="m_principal" type="number" min="0" oninput="recalc()"></div>
+        <div class="fg"><label style="display:flex;align-items:center;">Loan Amount (Principal) ₹ *<button type="button" class="lnk" style="margin-left:auto;" onclick="apprOpen()">Check eligibility</button></label><input id="m_principal" type="number" min="0" oninput="recalc()"><div id="m_apprHint" class="ph-sub" style="font-size:11.5px;line-height:1.4;margin-top:3px;color:var(--muted,#667085);"></div></div>
         <div class="fg"><label>Processing / Deductions ₹</label><input id="m_deductions" type="number" min="0" placeholder="0" oninput="recalc()"><div id="m_dedHint" class="ph-sub" style="font-size:11.5px;margin-top:3px;color:var(--muted,#667085);"></div></div>
         <div class="fg" id="m_gstWrap" style="display:none;"><label>GST on processing</label><select id="m_gstmode" onchange="recalc()"><option value="top">Added on top (18%)</option><option value="incl">Included in this amount</option></select><div id="m_gstHint" class="ph-sub" style="font-size:11.5px;line-height:1.4;margin-top:3px;color:var(--muted,#667085);"></div></div>
         <div class="fg"><label>Net Disbursed to Customer ₹</label><input id="m_remaining" class="calc" type="number" step="0.01" readonly></div>
